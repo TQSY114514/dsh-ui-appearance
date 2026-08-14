@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm prepare
+      - name: List build artifacts
+        run: ls -la lib/
       - name: Verify build artifacts
         run: |
           test -f lib/index.js
