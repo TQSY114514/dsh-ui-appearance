@@ -1,0 +1,28 @@
+{
+  "name": "dsh-ui-appearance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Appearance customization plugin for DeepSeek Harness (standalone distribution root)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TQSY114514/dsh-ui-appearance.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-client-ui-appearance": "link:./packages/client/ui-appearance"
+  },
+  "devDependencies": {
+    "clsx": "^2.0.0",
+    "lightningcss": "^1.32.0",
+    "tsdown": "^0.22.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./packages/client/ui-appearance/cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "prepare": "tsdown --config packages/client/ui-appearance/tsdown.standalone.config.ts"
+  }
+}

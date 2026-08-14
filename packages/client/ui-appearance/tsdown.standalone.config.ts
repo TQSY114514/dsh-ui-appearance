@@ -124,6 +124,9 @@ const nodeConfig: UserConfig = {
   fixedExtension: false,
   dts: false,
   clean: false,
+  // The package tsconfig's project references exist only inside the harness
+  // checkout; the standalone variant drops them.
+  tsconfig: 'tsconfig.standalone.json',
 }
 
 /** Browser half: closure-factory artifact landing exactly at lib/client.js. */
@@ -137,6 +140,7 @@ const clientConfig: UserConfig = {
   dts: false,
   sourcemap: true,
   clean: false,
+  tsconfig: 'tsconfig.standalone.json',
   external: [...CLIENT_EXTERNALS],
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
