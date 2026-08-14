@@ -87,12 +87,12 @@ dsh plugin --profile <name> add file:<克隆路径>
 | 颜色 | `ctx.theme.overrideTokens()` 覆写 `--dsw-alias-*` 语义 token,浅/深色切换自动重套,派生色按模式推导 |
 | 背景图层 | 自有的固定定位图层,位于页面背景之上、内容之下,由 CSS 变量驱动 `background-image` / `opacity` / `filter: blur()` |
 | 背景遮罩 | 背景图层 `background-image` 栈内叠加渐变纱帘,alpha 由 `--dsw-appearance-scrim` 驱动,随 `data-ds-dark-theme` 自动换色 |
-| 界面透明度 | 表面 token 覆写为 `color-mix(... transparent)` 半透明值 |
+| 界面透明度 | 表面 token 覆写为按模式烘焙的 `rgba()` 半透明值(角色色 → 深色翻转色 → 默认面色表) |
 | 持久化 | 浏览器 localStorage(harness settings 网关仅对产品命名空间开放浏览器写入) |
 
 ## 兼容性
 
-- 半透明表面使用 `color-mix()`,需要 Chrome 111+ / Safari 16.2+ / Firefox 113+,旧浏览器自动降级为不透明表面
+- 半透明表面直接烘焙为 `rgba()`(不依赖 `color-mix`/`var` 链),全浏览器可用、滑块全程平滑
 - 毛玻璃仅在滑块 > 0 时启用 `backdrop-filter`
 - 设置背景图片后主区域自动透出壁纸;卡片、侧边栏、输入框默认不透明,调低「面板透明度」可让它们也透出
 - 深色壁纸/深色背景色自动触发 surface 家族协调翻转(显式设置的文字色仍然优先)
