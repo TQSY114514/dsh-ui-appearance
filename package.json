@@ -6,6 +6,7 @@
   "type": "module",
   "repository": { "type": "git", "url": "git+https://github.com/TQSY114514/dsh-ui-appearance.git" },
   "engines": { "node": ">=18" },
+  "packageManager": "pnpm@10.34.5",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "exports": {
