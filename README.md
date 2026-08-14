@@ -7,12 +7,13 @@
 ## 安装(一条命令)
 
 ```sh
-dsh plugin --profile <name> add https://github.com/TQSY114514/dsh-ui-appearance.git
+git clone https://github.com/TQSY114514/dsh-ui-appearance.git
+dsh plugin --profile <name> add file:<克隆到的本地路径>
 ```
 
 卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`
 
-克隆后 `pnpm install` 会自动触发 `prepare` 构建出 `lib/`;`tests/` 依赖 harness 工作区的测试运行时,独立仓库不跑测试。
+> 必须用 `file:` 安装(而非 git URL):`file:` 会把插件包复制进 profile 目录树,host 半部才能经 `$DSH_HOME/profiles/node_modules` 的宿主依赖回退目录解析到 `@deepseek-ai/*` 私有包;git URL 安装会落在 pnpm store(链接),真实路径脱离该树,host 半部加载失败。克隆后 `pnpm install` 会自动触发 `prepare` 构建出 `lib/`;`tests/` 依赖 harness 工作区的测试运行时,独立仓库不跑测试。
 
 ## 功能
 
@@ -32,10 +33,11 @@ dsh plugin --profile <name> add https://github.com/TQSY114514/dsh-ui-appearance.
 包根即插件包:自带 `cordis.patch.yml`(声明于 `dsh.bundle.patch`)与自包含独立构建(`prepare` 脚本 + `tsdown.standalone.config.ts`,不依赖 harness 仓库;`@deepseek-ai/*` peer 全部 optional,运行期由宿主提供):
 
 ```sh
-dsh plugin --profile <name> add <path-or-git-url>
+git clone https://github.com/TQSY114514/dsh-ui-appearance.git
+dsh plugin --profile <name> add file:<克隆路径>
 ```
 
-`dsh plugin add` 会把插件加入 profile 的 bundle 层叠(`dsh.profile.bundles`),浏览器插件名单与 Host 装载列表随之生效。卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`。**修改插件后需要重新构建 `lib/` 再重启 dsh web**(`pnpm install && pnpm prepare`)。
+`dsh plugin add` 把插件加入 profile 的 bundle 层叠(`dsh.profile.bundles`),浏览器插件名单与 Host 装载列表随之生效。卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`。**修改插件后需要重新构建 `lib/` 再重启 dsh web**(`pnpm install && pnpm prepare`)。
 
 ### 方式 A:源码安装(在 DeepSeek Harness 仓库内开发)
 
