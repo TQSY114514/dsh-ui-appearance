@@ -140,11 +140,13 @@ const clientConfig: UserConfig = {
   target: 'es2022',
   // The CJS closure cannot get a tsdown-emitted declaration (peers are not
   // installed here); types/client.d.ts mirrors the public surface instead.
+  // copy's `to` is a DIRECTORY (dest = to/<basename>), so omit it to land in
+  // outDir as lib/client.d.ts.
   dts: false,
   sourcemap: true,
   clean: false,
   tsconfig: 'tsconfig.json',
-  copy: [{ from: 'types/client.d.ts', to: 'lib/client.d.ts' }],
+  copy: [{ from: 'types/client.d.ts' }],
   external: [...CLIENT_EXTERNALS],
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
