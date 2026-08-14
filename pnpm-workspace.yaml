@@ -1,0 +1,5 @@
+# Standalone plugin repository: the @deepseek-ai/* peers are provided by the
+# DeepSeek Harness host at runtime (optional peers, not installed here), and
+# several are unpublished pre-release packages that pnpm cannot resolve from
+# the registry. Disable auto-install so an install never tries to fetch them.
+autoInstallPeers: false

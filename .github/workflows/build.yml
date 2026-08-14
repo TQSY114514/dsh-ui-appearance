@@ -1,0 +1,28 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm prepare
+      - name: Verify build artifacts
+        run: |
+          test -f lib/index.js
+          test -f lib/invariant.js
+          test -f lib/client.js
+          test -f lib/index.d.ts
+          test -f lib/invariant.d.ts
+          test -f lib/client.d.ts
+          echo "all artifacts present"

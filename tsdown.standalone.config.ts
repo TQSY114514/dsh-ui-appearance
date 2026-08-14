@@ -122,11 +122,12 @@ const nodeConfig: UserConfig = {
   platform: 'node',
   target: 'es2024',
   fixedExtension: false,
-  dts: false,
+  // Emits lib/index.d.ts + lib/invariant.d.ts (unresolved @deepseek-ai peers
+  // are externalized in declaration mode, so the host-provided types resolve
+  // at the consumer).
+  dts: true,
   clean: false,
-  // The package tsconfig's project references exist only inside the harness
-  // checkout; the standalone variant drops them.
-  tsconfig: 'tsconfig.standalone.json',
+  tsconfig: 'tsconfig.json',
 }
 
 /** Browser half: closure-factory artifact landing exactly at lib/client.js. */
@@ -137,10 +138,13 @@ const clientConfig: UserConfig = {
   format: 'cjs',
   platform: 'browser',
   target: 'es2022',
+  // The CJS closure cannot get a tsdown-emitted declaration (peers are not
+  // installed here); types/client.d.ts mirrors the public surface instead.
   dts: false,
   sourcemap: true,
   clean: false,
-  tsconfig: 'tsconfig.standalone.json',
+  tsconfig: 'tsconfig.json',
+  copy: [{ from: 'types/client.d.ts', to: 'lib/client.d.ts' }],
   external: [...CLIENT_EXTERNALS],
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),

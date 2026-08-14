@@ -4,6 +4,16 @@
 
 > 零核心代码改动:完全通过 Harness 官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点 + `ctx.settingsScope` 设置持久化 + `settings.general.item` 插槽)实现。
 
+## 安装(一条命令)
+
+```sh
+dsh plugin --profile <name> add https://github.com/TQSY114514/dsh-ui-appearance.git
+```
+
+卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`
+
+克隆后 `pnpm install` 会自动触发 `prepare` 构建出 `lib/`;`tests/` 依赖 harness 工作区的测试运行时,独立仓库不跑测试。
+
 ## 功能
 
 - **预设主题**:默认 / 午夜 / 海洋 / 森林 / 玫瑰 / 单色,一键应用后可继续微调
@@ -17,10 +27,20 @@
 
 ## 安装
 
-### 方式 A:源码安装(推荐开发 / 尝鲜)
+### 方式 B:插件安装(推荐终端用户,无需改动仓库)
 
-1. 克隆 DeepSeek Harness 仓库,把本仓库的 `packages/client/ui-appearance/` 目录完整复制到其 `packages/client/ui-appearance/`。
-2. 按以下三处接线(均为一次性修改,**注意 `cordis.patch.yml` 的行必须加在 `- insert:` 列表内**——放在文件顶层是"覆写已有行"语义,新插件不会被装载):
+包根即插件包:自带 `cordis.patch.yml`(声明于 `dsh.bundle.patch`)与自包含独立构建(`prepare` 脚本 + `tsdown.standalone.config.ts`,不依赖 harness 仓库;`@deepseek-ai/*` peer 全部 optional,运行期由宿主提供):
+
+```sh
+dsh plugin --profile <name> add <path-or-git-url>
+```
+
+`dsh plugin add` 会把插件加入 profile 的 bundle 层叠(`dsh.profile.bundles`),浏览器插件名单与 Host 装载列表随之生效。卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`。**修改插件后需要重新构建 `lib/` 再重启 dsh web**(`pnpm install && pnpm prepare`)。
+
+### 方式 A:源码安装(在 DeepSeek Harness 仓库内开发)
+
+1. 克隆 DeepSeek Harness 仓库,把本仓库的 `src/`、`tests/`、`cordis.patch.yml` 放入其 `packages/client/ui-appearance/`,补上该包在 harness 内的 `package.json`/`tsconfig.json`/`tsdown.config.ts`(monorepo 形态)。
+2. 接线三处(注意 `cordis.patch.yml` 的行必须加在 `- insert:` 列表内——放在文件顶层是"覆写已有行"语义,新插件不会被装载):
 
    - `packages/bundle/web-app/cordis.patch.yml` —— 在 `- insert:` 块内的 `ui-theme` 行后新增:
      ```yaml
@@ -45,16 +65,6 @@
    pnpm dsh web
    ```
 
-### 方式 B:插件安装(推荐终端用户,无需改动仓库)
-
-包内自带 `cordis.patch.yml`(声明于 `dsh.bundle.patch`)与自包含的独立构建(`prepare` 脚本 + `tsdown.standalone.config.ts`,不依赖 harness 仓库):
-
-```sh
-dsh plugin --profile <name> add <path-or-git-url>
-```
-
-`dsh plugin add` 会执行 `prepare` 构建出 `lib/`,并把 `ui-appearance` 行自动插入浏览器插件名单与 Host 装载列表。卸载:`dsh plugin remove ui-appearance`。
-
 ## 使用
 
 1. 打开 WebUI → 侧栏「设置」→「通用」。
@@ -73,6 +83,7 @@ dsh plugin --profile <name> add <path-or-git-url>
 |---|---|
 | 颜色 | `ctx.theme.overrideTokens()` 覆写 `--dsw-alias-*` 语义 token,浅/深色切换自动重套,派生色按模式推导 |
 | 背景图层 | 自有的固定定位图层,位于页面背景之上、内容之下,由 CSS 变量驱动 `background-image` / `opacity` / `filter: blur()` |
+| 背景遮罩 | 背景图层 `background-image` 栈内叠加渐变纱帘,alpha 由 `--dsw-appearance-scrim` 驱动,随 `data-ds-dark-theme` 自动换色 |
 | 界面透明度 | 表面 token 覆写为 `color-mix(... transparent)` 半透明值 |
 | 持久化 | `ctx.settingsScope` 命名空间 `ui-appearance` |
 
@@ -84,24 +95,29 @@ dsh plugin --profile <name> add <path-or-git-url>
 - 深色壁纸/深色背景色自动触发 surface 家族协调翻转(显式设置的文字色仍然优先)
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导
 
-## 包结构
+## 包结构(根目录即插件包)
 
 ```
-packages/client/ui-appearance/
-├── src/
-│   ├── index.ts                  # Host 半部:注册设置 schema
-│   ├── invariant.ts              # 运行时不变式伴生
-│   ├── appearance-settings.ts    # 设置命名空间 + schema + 默认值
-│   └── client/
-│       ├── index.ts              # apply():scope 绑定、applier、插槽注册
-│       ├── applier.ts            # DOM 应用器(token 覆写 + 背景图层 + 毛玻璃)
-│       ├── tokens.ts             # 颜色角色 → token 映射 + 预设
-│       ├── color.ts / image.ts   # 色值工具 / 图片压缩
-│       ├── settings-store.ts     # 设置镜像 store
-│       ├── locales.ts            # 中英文案
-│       └── AppearanceCustomizerRow.tsx + .module.css   # 设置行 UI
-└── tests/                        # 40 个测试(color/tokens/applier/image/row/store)
+src/
+├── index.ts                  # Host 半部:注册设置 schema
+├── invariant.ts              # 运行时不变式伴生
+├── appearance-settings.ts    # 设置命名空间 + schema + 默认值
+└── client/
+    ├── index.ts              # apply():scope 绑定、applier、插槽注册
+    ├── applier.ts            # DOM 应用器(token 覆写 + 背景图层 + 毛玻璃)
+    ├── tokens.ts             # 颜色角色 → token 映射 + 预设
+    ├── color.ts / image.ts   # 色值工具 / 图片压缩
+    ├── settings-store.ts     # 设置镜像 store
+    ├── locales.ts            # 中英文案
+    └── AppearanceCustomizerRow.tsx + .module.css   # 设置行 UI
+tests/                        # 依赖 harness 工作区测试运行时,独立仓库不跑
+types/client.d.ts             # 手写 client 半部类型声明(构建时复制进 lib/)
+cordis.patch.yml              # bundle patch:`- insert:` ui-appearance 行
+tsdown.standalone.config.ts   # 自包含构建(node ESM + client CJS closure + CSS)
+lib/                          # 构建产物(index.js / invariant.js / client.js + d.ts)
 ```
+
+`@deepseek-ai/*` 依赖全部为 optional peer,运行期由 DeepSeek Harness 宿主提供;唯一运行时依赖是 `clsx`。
 
 ## License
 
