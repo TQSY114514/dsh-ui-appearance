@@ -13,7 +13,9 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Promise.withResolvers (used by the tsdown/rolldown chain) is a
+          # Node 22+ API; the harness ecosystem targets ^22.19 || >=24.
+          node-version: 22
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm prepare
