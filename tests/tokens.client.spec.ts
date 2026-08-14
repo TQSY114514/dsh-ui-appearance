@@ -96,6 +96,12 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-brand-primary']).toBeUndefined()
   })
 
+  it('settings surfaces (selected nav tab, menus) follow the translucency too', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
+    expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0.5)')
+    expect(tokens['--dsw-specific-menu']).toBeDefined()
+  })
+
   it('accent never overrides the brand-text ink token', () => {
     const tokens = buildTokenOverrides(full({ accent: '#4176e6' }))
     expect(tokens['--dsw-alias-brand-text']).toBeUndefined()
