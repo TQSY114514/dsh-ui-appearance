@@ -40,6 +40,11 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-specific-input-major': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
   '--dsw-specific-bubble-highlight': { light: '#d3e2ff', dark: '#43454a' }, // deepseek-200 / bluish-750
   '--dsw-specific-bubble': { light: '#edf3fe', dark: '#2c2c2e' }, // deepseek-50 / bluish-850
+  // Neutral buttons follow the surface translucency too; brand/accent action
+  // buttons stay solid so primary operations remain unmistakable.
+  '--dsw-alias-button-elevated-fill': { light: '#ffffff', dark: '#43454a' }, // bluish-00 / bluish-750
+  '--dsw-alias-button-floating-fill': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
+  '--dsw-alias-button-floating-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
 }
 
 /**
@@ -164,10 +169,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   let flipLayer1: string | undefined
   let flipLayer2: string | undefined
   let flipSidebar: string | undefined
+  let flipButtonElevated: string | undefined
+  let flipButtonFloating: string | undefined
+  let flipButtonFloatingHover: string | undefined
   if (flipBase !== undefined) {
     flipLayer1 = mixHex(flipBase, LIGHT_BASE, 0.06)
     flipLayer2 = mixHex(flipBase, LIGHT_BASE, 0.12)
     flipSidebar = mixHex(flipBase, LIGHT_BASE, 0.03)
+    flipButtonElevated = 'rgb(67, 69, 74)'
+    flipButtonFloating = 'rgb(44, 44, 46)'
+    flipButtonFloatingHover = 'rgb(53, 54, 56)'
     emit('--dsw-alias-bg-layer-1', flipLayer1, flipLayer1)
     emit('--dsw-alias-bg-layer-2', flipLayer2, flipLayer2)
     emit('--dsw-specific-sidebar-fill', flipSidebar, flipSidebar)
@@ -175,9 +186,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-label-primary', '#fafaf9', '#fafaf9')
       emit('--dsw-alias-label-secondary', '#d6d3d1', '#d6d3d1')
     }
-    emit('--dsw-alias-button-elevated-fill', 'rgb(67, 69, 74)', 'rgb(67, 69, 74)')
-    emit('--dsw-alias-button-floating-fill', 'rgb(44, 44, 46)', 'rgb(44, 44, 46)')
-    emit('--dsw-alias-button-floating-hover', 'rgb(53, 54, 56)', 'rgb(53, 54, 56)')
+    emit('--dsw-alias-button-elevated-fill', flipButtonElevated, flipButtonElevated)
+    emit('--dsw-alias-button-floating-fill', flipButtonFloating, flipButtonFloating)
+    emit('--dsw-alias-button-floating-hover', flipButtonFloatingHover, flipButtonFloatingHover)
   }
 
   if (surfaceAlpha < 1) {
@@ -213,6 +224,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-input-major', input, undefined)
     translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
     translucent('--dsw-specific-bubble', assistantBubble, undefined)
+    // Neutral buttons ride the same translucency so they do not stand out as
+    // solid chips on a translucent interface.
+    translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
+    translucent('--dsw-alias-button-floating-fill', undefined, flipButtonFloating)
+    translucent('--dsw-alias-button-floating-hover', undefined, flipButtonFloatingHover)
   }
 
   return tokens

@@ -87,6 +87,15 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
+  it('neutral buttons follow the surface translucency; brand buttons stay solid', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
+    expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(255, 255, 255, 0.6)')
+    expect(tokens['--dsw-alias-button-floating-fill']).toBeDefined()
+    expect(tokens['--dsw-alias-button-floating-hover']).toBeDefined()
+    // Primary action buttons (brand fill) are not translucenced.
+    expect(tokens['--dsw-alias-brand-primary']).toBeUndefined()
+  })
+
   it('accent never overrides the brand-text ink token', () => {
     const tokens = buildTokenOverrides(full({ accent: '#4176e6' }))
     expect(tokens['--dsw-alias-brand-text']).toBeUndefined()
