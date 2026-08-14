@@ -1,8 +1,6 @@
-/** Appearance customization settings stored in the Host user-settings document. */
+﻿/** Appearance customization settings persisted in localStorage. */
 
-import z from '@deepseek-ai/schemastery'
-
-/** Settings namespace owned by the appearance plugin. */
+/** Settings namespace owned by the appearance plugin (kept for the record). */
 export const APPEARANCE_SETTINGS_NAMESPACE = 'ui-appearance'
 
 /**
@@ -69,23 +67,3 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   glassBlur: 0,
   preset: '',
 }
-
-/** Durable appearance schema; also the wire envelope the browser scope validates against. */
-export const AppearanceSettingsSchema: z<AppearanceSettings> = z.object({
-  accent: z.string().default(''),
-  background: z.string().default(''),
-  panel: z.string().default(''),
-  input: z.string().default(''),
-  text: z.string().default(''),
-  border: z.string().default(''),
-  userBubble: z.string().default(''),
-  assistantBubble: z.string().default(''),
-  backgroundImage: z.string().default(''),
-  imageDark: z.boolean().default(false),
-  backgroundOpacity: z.number().min(0).max(1).default(1),
-  backgroundBlur: z.number().min(0).max(30).default(0),
-  scrim: z.number().min(0).max(1).default(0),
-  surfaceAlpha: z.number().min(0).max(1).default(1),
-  glassBlur: z.number().min(0).max(20).default(0),
-  preset: z.string().default(''),
-})

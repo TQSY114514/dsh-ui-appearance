@@ -1,15 +1,20 @@
 /**
- * Appearance customization plugin, browser half. Binds the `ui-appearance`
- * settings scope, projects every accepted snapshot onto the document through
- * the DOM applier (theme token overrides + background layer), and registers
- * the customizer row into the settings General section. The scope is the
- * single source of truth: writes queue through it, its subscription feeds
- * both the applier and the row store.
+ * Appearance customization plugin, browser half. Persists the `ui-appearance`
+ * settings section in localStorage (the harness settings gateway only exposes
+ * its hard-coded product namespaces to browser clients, so a third-party
+ * namespace cannot be written through the settings RPC), projects every
+ * change onto the document through the DOM applier (theme token overrides +
+ * background layer), and registers the customizer row into the settings
+ * General section. Writes are synchronous: update the section, persist it,
+ * publish to the store and the applier. Cross-tab sync rides the `storage`
+ * event.
  */
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only: pulls the settings scope, locale, and theme Context merges
-// (client bundle purity gate).
+// Type-only: pulls the locale and theme Context merges plus the settings
+// slot declarations ('settings.general.item' lives in the settings domain's
+// client contract). No settings scope: the gateway refuses non-product
+// namespaces, so settings persist in localStorage instead.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
@@ -18,7 +23,7 @@ import { AppearanceCustomizerRow } from './AppearanceCustomizerRow.tsx'
 import { createAppearanceRowStore } from './settings-store.ts'
 import { en, zh, type AppearanceKey } from './locales.ts'
 import {
-  APPEARANCE_ROLES, APPEARANCE_SETTINGS_NAMESPACE, DEFAULT_SETTINGS,
+  APPEARANCE_ROLES, DEFAULT_SETTINGS,
   type AppearanceSettings,
 } from '../appearance-settings.ts'
 import { APPEARANCE_PRESETS } from './tokens.ts'
@@ -39,76 +44,76 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Required services: slots/locale for the row, settings transport, theme for overrides. */
-export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope', 'theme']
+/** Required services: slots/locale for the row, theme for token overrides. */
+export const inject = ['slots', 'locale', 'theme']
 
-/** Debounce for coalescing slider bursts into one settings write round. */
-const FLUSH_DEBOUNCE_MS = 120
+/** localStorage key holding the whole settings section. */
+export const STORAGE_KEY = 'dsh-ui-appearance.settings'
 
 /**
- * Client plugin body: bind the scope, mount the DOM applier, and register the
- * customizer row into the General section.
+ * Read the persisted section, tolerating a missing or corrupt entry.
+ * @returns the stored settings, or the stock defaults.
+ */
+function readStoredSettings(): AppearanceSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw === null) return { ...DEFAULT_SETTINGS }
+    const parsed = JSON.parse(raw) as Partial<AppearanceSettings>
+    return { ...DEFAULT_SETTINGS, ...parsed }
+  } catch (_unreadableStorage) {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+/**
+ * Client plugin body: load the persisted section, mount the DOM applier, and
+ * register the customizer row into the General section.
  * @param ctx - client cordis context.
  */
 export function apply(ctx: ClientContext): void {
-  const host = ctx.settingsScope.bind<AppearanceSettings>({ namespace: APPEARANCE_SETTINGS_NAMESPACE })
-
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-appearance: settings row dictionaries')
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined
-  let current: AppearanceSettings = { ...DEFAULT_SETTINGS }
-  let appliedRevision = -1
-  /** Fields edited but not yet flushed to the scope. */
-  const dirty = new Set<keyof AppearanceSettings>()
-  /** Fields whose latest optimistic value has not yet settled back from the scope. */
-  const pending = new Map<keyof AppearanceSettings, string | number | boolean>()
-  let flushTimer: ReturnType<typeof setTimeout> | undefined
+  let current: AppearanceSettings = readStoredSettings()
+  let revision = 0
+  let applier: AppearanceApplier | undefined
 
-  const sync = (): void => {
-    const snapshot = host.getSnapshot()
-    if (snapshot.value === undefined) return
-    const revision = snapshot.revision ?? 0
-    if (revision <= appliedRevision) return
-    appliedRevision = revision
-    const next = { ...snapshot.value }
-    // A settled snapshot can lag our own in-flight writes: the scope
-    // controller bumps the revision on every settlement, including suppressed
-    // stale ones, so adopting the raw value here would clobber a newer
-    // optimistic edit and make the last slider tweak snap back. Overlay every
-    // pending field's latest value; once a snapshot actually carries that
-    // value the write has landed and the field can stop overlaying.
-    for (const [field, value] of pending) {
-      ;(next as Record<string, string | number | boolean>)[field] = value
-    }
-    current = next
+  const publish = (): void => {
+    revision += 1
     bound?.sync(current, revision)
-    for (const [field, value] of [...pending]) {
-      if (snapshot.value[field] === value) pending.delete(field)
-    }
+    applier?.apply(current)
   }
-  const off = host.subscribe(sync)
-  ctx.effect(() => () => { off() }, 'ui-appearance: scope sync')
 
-  // DOM applier: rebuild on every scope change, retract everything on dispose.
-  // Subscribed after `sync` and fed the overlaid view, so a suppressed stale
-  // settlement cannot flash the previous background image or token set.
+  // DOM applier: created once, retracts everything on dispose.
   ctx.effect(() => {
-    const applier = new AppearanceApplier(ctx)
-    const apply = (): void => { applier.apply(current) }
-    apply()
-    const listener = host.subscribe(apply)
-    return () => { listener(); applier.dispose() }
+    applier = new AppearanceApplier(ctx)
+    applier.apply(current)
+    return () => {
+      applier?.dispose()
+      applier = undefined
+    }
   }, 'ui-appearance: DOM applier')
 
-  const flush = (): void => {
-    if (flushTimer !== undefined) { clearTimeout(flushTimer); flushTimer = undefined }
-    for (const field of dirty) void host.set(field, pending.get(field) ?? current[field])
-    dirty.clear()
-  }
-  const scheduleFlush = (): void => {
-    if (flushTimer !== undefined) clearTimeout(flushTimer)
-    flushTimer = setTimeout(flush, FLUSH_DEBOUNCE_MS)
+  // Cross-tab sync: another tab persisted a section change.
+  ctx.effect(() => {
+    const onStorage = (event: StorageEvent): void => {
+      if (event.key !== null && event.key !== STORAGE_KEY) return
+      current = readStoredSettings()
+      publish()
+    }
+    window.addEventListener('storage', onStorage)
+    return () => { window.removeEventListener('storage', onStorage) }
+  }, 'ui-appearance: storage sync')
+
+  const commit = (): void => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+    } catch (_storageQuota) {
+      // Quota exceeded (e.g. an oversized image): keep the in-memory state so
+      // this session still works; the change just does not survive a reload.
+    }
+    publish()
   }
   const set = (field: keyof AppearanceSettings, value: string | number): void => {
     const patch = { ...current }
@@ -116,22 +121,14 @@ export function apply(ctx: ClientContext): void {
     // number fields intersect to never), so write through an index view.
     ;(patch as Record<string, string | number | boolean>)[field] = value
     current = patch
-    pending.set(field, value)
-    bound?.patch(patch)
-    dirty.add(field)
-    scheduleFlush()
+    commit()
   }
   const setImage = (image: { url: string; imageDark: boolean } | null): void => {
     const patch = { ...current }
     patch.backgroundImage = image?.url ?? ''
     patch.imageDark = image?.imageDark ?? false
     current = patch
-    pending.set('backgroundImage', patch.backgroundImage)
-    pending.set('imageDark', patch.imageDark)
-    bound?.patch(patch)
-    dirty.add('backgroundImage')
-    dirty.add('imageDark')
-    flush()
+    commit()
   }
   const applyPreset = (id: string): void => {
     const preset = APPEARANCE_PRESETS.find(candidate => candidate.id === id)
@@ -146,29 +143,17 @@ export function apply(ctx: ClientContext): void {
       }
     }
     current = { ...current, ...partial }
-    bound?.patch(partial)
-    for (const field of Object.keys(partial) as (keyof AppearanceSettings)[]) {
-      pending.set(field, partial[field] as string)
-      dirty.add(field)
-    }
-    flush()
+    commit()
   }
   const resetAll = (): void => {
-    const next: AppearanceSettings = { ...DEFAULT_SETTINGS, preset: 'default' }
-    current = next
-    bound?.patch(next)
-    for (const field of Object.keys(next) as (keyof AppearanceSettings)[]) {
-      pending.set(field, next[field])
-      dirty.add(field)
-    }
-    flush()
+    current = { ...DEFAULT_SETTINGS, preset: 'default' }
+    commit()
   }
 
   const injected = (actions: BoundActions<typeof store>): AppearanceCustomizerInjected => {
     bound = actions
-    // Re-sync from the getter so no snapshot is lost between registration and
-    // first render (the store's revision guard drops stale duplicates).
-    sync()
+    // Push the initial section so the row renders the persisted values.
+    publish()
     return { set, setImage, applyPreset, resetAll }
   }
 

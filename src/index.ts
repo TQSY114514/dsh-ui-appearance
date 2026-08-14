@@ -1,23 +1,21 @@
-/** Host registration for the appearance settings section. */
-
+/**
+ * Host registration for the appearance plugin.
+ *
+ * Deliberately empty: settings persist in browser localStorage (the harness
+ * settings gateway exposes only its hard-coded product namespaces to browser
+ * clients, so a third-party settings namespace cannot be written through the
+ * settings RPC), which keeps this half free of any @deepseek-ai runtime
+ * dependency — the plugin installs anywhere the host can load it.
+ */
 import type { Context } from '@deepseek-ai/cordis'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
-import { APPEARANCE_SETTINGS_NAMESPACE, AppearanceSettingsSchema } from './appearance-settings.ts'
 
 export {
   APPEARANCE_SETTINGS_NAMESPACE, APPEARANCE_ROLES, DEFAULT_SETTINGS,
   type AppearanceRole, type AppearanceSettings,
 } from './appearance-settings.ts'
 
-const APPEARANCE_NAMESPACE = settingsNamespace(APPEARANCE_SETTINGS_NAMESPACE)
-
 /**
- * Register the durable appearance section when the settings service is
- * composed; the browser scope validates against this schema.
- * @param ctx - Host context that may acquire the settings service.
+ * No host-side work: everything runs in the browser half.
+ * @param ctx - Host context (unused).
  */
-export function apply(ctx: Context): void {
-  ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.register(APPEARANCE_NAMESPACE, AppearanceSettingsSchema)
-  })
-}
+export function apply(_ctx: Context): void {}
