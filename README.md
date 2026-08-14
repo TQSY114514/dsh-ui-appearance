@@ -20,9 +20,9 @@
 ### 方式 A:源码安装(推荐开发 / 尝鲜)
 
 1. 克隆 DeepSeek Harness 仓库,把本仓库的 `packages/client/ui-appearance/` 目录完整复制到其 `packages/client/ui-appearance/`。
-2. 按以下三处接线(均为一次性修改):
+2. 按以下三处接线(均为一次性修改,**注意 `cordis.patch.yml` 的行必须加在 `- insert:` 列表内**——放在文件顶层是"覆写已有行"语义,新插件不会被装载):
 
-   - `packages/bundle/web-app/cordis.patch.yml` —— 在 `ui-theme` 行后新增:
+   - `packages/bundle/web-app/cordis.patch.yml` —— 在 `- insert:` 块内的 `ui-theme` 行后新增:
      ```yaml
      - id: ui-appearance
        name: '@deepseek-ai/dsh-client-ui-appearance'
