@@ -53,12 +53,14 @@ function ColorField(props: { label: string; value: string; onChange: (hex: strin
       <input
         type="color"
         className={css.colorSwatch}
+        aria-label={`${label} (color picker)`}
         value={value === '' ? '#ffffff' : value}
         onChange={event => { onChange(event.target.value) }}
       />
       <input
         type="text"
         className={css.colorHex}
+        aria-label={`${label} (hex)`}
         value={draft}
         spellCheck={false}
         onChange={event => { setDraft(event.target.value) }}
@@ -86,6 +88,7 @@ function Slider(props: {
       <input
         type="range"
         className={css.slider}
+        aria-label={label}
         min={min}
         max={max}
         step={step}

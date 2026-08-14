@@ -76,8 +76,16 @@ export function apply(ctx: ClientContext): void {
     const revision = snapshot.revision ?? 0
     if (revision <= appliedRevision) return
     appliedRevision = revision
-    current = { ...snapshot.value }
-    bound?.sync(current, revision)
+    // The incoming snapshot can predate edits still queued in the debounce:
+    // merge the unflushed fields over it so a round-trip never loses the
+    // user's last adjustment.
+    const incoming = { ...snapshot.value }
+    const pending = current
+    for (const field of dirty) {
+      ;(incoming as unknown as Record<string, string | number | boolean>)[field] = pending[field]
+    }
+    current = incoming
+    bound?.sync(incoming, revision)
   }
   const off = host.subscribe(sync)
   ctx.effect(() => () => { off() }, 'ui-appearance: scope sync')

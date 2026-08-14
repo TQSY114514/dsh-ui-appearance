@@ -45,7 +45,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   if (accent !== '') {
     const [light, dark] = modePair(accent)
     emit('--dsw-alias-brand-primary', light, dark)
-    emit('--dsw-alias-brand-text', light, dark)
+    // Deliberately NOT overriding --dsw-alias-brand-text: it is the ink ON
+    // the brand fill (label-primary-foreground drives buttons), and painting
+    // it the accent color makes on-brand text unreadable.
     emit('--dsw-alias-state-business-primary', light, dark)
     emit('--dsw-alias-button-info-fill', light, dark)
     const [hoverLight, hoverDark] = step(accent, 0.15)
@@ -162,8 +164,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const alpha = surfaceAlpha
     const translucent = (hex: string | undefined, token: string): void => {
       // A known role color is baked in; otherwise resolve the token's own
-      // (possibly overridden) value at runtime.
-      const source = hex ?? `var(${token})`
+      // (possibly overridden) value at runtime. Empty-string roles mean
+      // "keep the stock token", so they must fall through to var() too —
+      // baking '' into color-mix would produce invalid CSS.
+      const source = hex !== undefined && hex !== '' ? hex : `var(${token})`
       const value = `color-mix(in srgb, ${source} ${Math.round(alpha * 100)}%, transparent)`
       emit(token, value, value)
     }

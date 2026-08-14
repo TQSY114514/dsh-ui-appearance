@@ -108,7 +108,16 @@ export async function readImageFile(file: File): Promise<CompressedImage> {
   if (!file.type.startsWith('image/')) throw new Error(`unsupported file type "${file.type}"`)
   if (file.size > MAX_INPUT_BYTES) throw new Error(`image exceeds the ${MAX_INPUT_BYTES / 1024 / 1024}MB input limit`)
   const bitmap = await tryDecode(file)
-  if (bitmap === undefined) return { url: await readRawDataUrl(file), imageDark: false }
+  if (bitmap === undefined) {
+    const raw = await readRawDataUrl(file)
+    // The raw fallback bypasses the compression ladder, so it must still
+    // respect the storage budget — an oversized original would bloat the
+    // user-settings document.
+    if (estimateDataUrlBytes(raw) > MAX_STORED_BYTES) {
+      throw new Error(`image exceeds the ${MAX_STORED_BYTES / 1024 / 1024}MB storage budget`)
+    }
+    return { url: raw, imageDark: false }
+  }
   try {
     const imageDark = sampleImageDarkness(bitmap)
     const url = await encodeWithinBudget(bitmap, file.type === 'image/png')

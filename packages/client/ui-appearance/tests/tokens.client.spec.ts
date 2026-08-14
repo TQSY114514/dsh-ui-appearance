@@ -64,6 +64,22 @@ describe('buildTokenOverrides', () => {
     for (const value of Object.values(tokens)) expect(value.light).not.toContain('color-mix')
   })
 
+  it('translucency with every role color empty never emits invalid color-mix', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
+    expect(Object.keys(tokens).length).toBeGreaterThan(0)
+    for (const value of Object.values(tokens)) {
+      // Empty role colors fall through to var() — baking '' into color-mix
+      // would make the token guaranteed-invalid and surfaces transparent.
+      expect(value.light).toMatch(/^color-mix\(in srgb, (var\(--dsw-[a-z0-9-]+\)|rgba?\([^)]+\)) \d+%, transparent\)$/)
+    }
+  })
+
+  it('accent never overrides the brand-text ink token', () => {
+    const tokens = buildTokenOverrides(full({ accent: '#4176e6' }))
+    expect(tokens['--dsw-alias-brand-text']).toBeUndefined()
+    expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#4176e6', dark: '#4176e6' })
+  })
+
   it('makes the base canvas transparent when a background image is set', () => {
     const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA' }))
     expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
