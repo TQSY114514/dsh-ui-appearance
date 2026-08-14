@@ -2,7 +2,7 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) WebUI 提供个性化外观系统:主题调色盘、自定义背景图片、背景透明度/模糊、UI 面板透明度与毛玻璃效果。所有修改实时预览、持久保存,禁用插件后界面完整恢复默认。
 
-> 零核心代码改动:完全通过 Harness 官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点 + `ctx.settingsScope` 设置持久化 + `settings.general.item` 插槽)实现。
+> 零核心代码改动:完全通过 Harness 官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点 + `settings.general.item` 插槽)实现;设置持久化在浏览器 localStorage(harness 的 settings 网关只对硬编码的产品命名空间开放浏览器写入,第三方命名空间会被 `settings-not-exposed` 拒绝)。
 
 ## 安装(一条命令)
 
@@ -13,7 +13,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 
 卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`
 
-> 必须用 `file:` 安装(而非 git URL):`file:` 会把插件包复制进 profile 目录树,host 半部才能经 `$DSH_HOME/profiles/node_modules` 的宿主依赖回退目录解析到 `@deepseek-ai/*` 私有包;git URL 安装会落在 pnpm store(链接),真实路径脱离该树,host 半部加载失败。克隆后 `pnpm install` 会自动触发 `prepare` 构建出 `lib/`;`tests/` 依赖 harness 工作区的测试运行时,独立仓库不跑测试。
+> 用 `file:` 安装会把插件包复制进 profile 目录树,host 半部(已零 `@deepseek-ai` 运行时依赖)与浏览器 bundle 都能正确加载——已验证端到端。克隆后 `pnpm install` 会自动触发 `prepare` 构建出 `lib/`;`tests/` 依赖 harness 工作区的测试运行时,独立仓库不跑测试。
 
 ## 功能
 
@@ -76,8 +76,9 @@ dsh plugin --profile <name> add file:<克隆路径>
 
 ## 持久化与恢复
 
-- 设置通过 Harness 自带用户设置机制(`ctx.settingsScope`,命名空间 `ui-appearance`)写入 Host 设置文档,重启后全部保留。
-- 从 `cordis.patch.yml` 删除该行或设为 `disabled: true` 并重建,界面即恢复默认;插件卸载时也会自动回收所有覆写 token、样式表与图层。
+- 设置持久化在浏览器 **localStorage**(键 `dsh-ui-appearance.settings`),写入即时生效,重启/刷新后保留;多标签页通过 `storage` 事件同步。
+- 从 profile 移除插件(`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`)后界面即恢复默认;插件卸载时也会自动回收所有覆写 token、样式表与图层。
+- 注意:设置跟随浏览器(换浏览器或清除站点数据会丢失);图片以压缩后的 data URL 存储,受 localStorage 配额约束(超限时本次会话仍生效,但不持久化)。
 
 ## 工作原理
 
@@ -87,7 +88,7 @@ dsh plugin --profile <name> add file:<克隆路径>
 | 背景图层 | 自有的固定定位图层,位于页面背景之上、内容之下,由 CSS 变量驱动 `background-image` / `opacity` / `filter: blur()` |
 | 背景遮罩 | 背景图层 `background-image` 栈内叠加渐变纱帘,alpha 由 `--dsw-appearance-scrim` 驱动,随 `data-ds-dark-theme` 自动换色 |
 | 界面透明度 | 表面 token 覆写为 `color-mix(... transparent)` 半透明值 |
-| 持久化 | `ctx.settingsScope` 命名空间 `ui-appearance` |
+| 持久化 | 浏览器 localStorage(harness settings 网关仅对产品命名空间开放浏览器写入) |
 
 ## 兼容性
 
