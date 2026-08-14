@@ -26,14 +26,14 @@ export const zh = {
   'background.reading': '读取中…',
   'background.dropHint': '支持 JPG / PNG / WebP,也可以把图片拖到这里',
   'background.readError': '无法读取该图片,请换一张试试',
-  'background.opacity': '背景图片透明度',
+  'background.opacity': '背景图片不透明度',
   'background.blur': '背景模糊',
   'background.scrim': '背景遮罩',
   'background.scrimHint': '调高遮罩,背景图片上的文字更易读',
   'surface.title': '界面',
-  'surface.opacity': '面板透明度',
+  'surface.opacity': '面板不透明度',
   'surface.glass': '毛玻璃强度',
-  'surface.hint': '背景图会显示在主区域;调低面板透明度可让卡片、侧边栏也透出',
+  'surface.hint': '背景图会显示在主区域;调低面板不透明度可让卡片、侧边栏也透出',
   'actions.reset': '恢复默认',
 } satisfies Record<string, string>
 
