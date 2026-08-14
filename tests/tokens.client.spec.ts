@@ -52,8 +52,9 @@ describe('buildTokenOverrides', () => {
   it('turns the surface tokens translucent below full opacity', () => {
     const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.6 }))
     const base = tokens['--dsw-alias-bg-base']!
-    expect(base.light).toContain('color-mix(in srgb,')
-    expect(base.light).toContain('60%')
+    // A role color is baked as plain rgba per mode.
+    expect(base.light).toBe('rgba(16, 20, 24, 0.6)')
+    expect(base.dark).toBe(base.light)
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
     expect(tokens['--dsw-specific-input-major']).toBeDefined()
     expect(tokens['--dsw-specific-bubble']).toBeDefined()
@@ -61,17 +62,29 @@ describe('buildTokenOverrides', () => {
 
   it('stays opaque at full surface opacity', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 1 }))
-    for (const value of Object.values(tokens)) expect(value.light).not.toContain('color-mix')
+    for (const value of Object.values(tokens)) expect(value.light).not.toContain('rgba(')
   })
 
-  it('translucency with every role color empty never emits invalid color-mix', () => {
+  it('translucency with every role color empty falls back to the stock palette', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(Object.keys(tokens).length).toBeGreaterThan(0)
     for (const value of Object.values(tokens)) {
-      // Empty role colors fall through to var() — baking '' into color-mix
-      // would make the token guaranteed-invalid and surfaces transparent.
-      expect(value.light).toMatch(/^color-mix\(in srgb, (var\(--dsw-[a-z0-9-]+\)|rgba?\([^)]+\)) \d+%, transparent\)$/)
+      // Every translucent value must be a valid rgba() (never a var() or
+      // color-mix: referencing the token itself would cycle and turn the
+      // surface fully transparent — the 0%/100%-only regression).
+      expect(value.light).toMatch(/^rgba\(\d+, \d+, \d+, 0\.\d+\)$/)
     }
+    // Stock light-mode base becomes translucent white.
+    expect(tokens['--dsw-alias-bg-base']!.light).toBe('rgba(255, 255, 255, 0.6)')
+    // Stock dark-mode base becomes translucent near-black.
+    expect(tokens['--dsw-alias-bg-base']!.dark).toBe('rgba(21, 21, 23, 0.6)')
+  })
+
+  it('translucent surfaces follow the dark-flip derived colors', () => {
+    const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.5 }))
+    // #101418 is dark -> flip lifts layer-1 to mix(#101418, white, 0.06) = rgb(30, 34, 38).
+    expect(tokens['--dsw-alias-bg-layer-1']!.light).toBe('rgba(30, 34, 38, 0.5)')
+    expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
   it('accent never overrides the brand-text ink token', () => {

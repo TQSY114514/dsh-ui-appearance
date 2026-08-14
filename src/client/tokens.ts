@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { isDarkColor, mixHex } from './color.ts'
+import { isDarkColor, mixHex, withAlpha } from './color.ts'
 
 /** Override-layer source name pinned to this package (also names inspection). */
 export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
@@ -22,6 +22,25 @@ export const GLASS_BLUR_MAX = 20
 
 /** Max background image blur in px (schema bound). */
 export const BACKGROUND_BLUR_MAX = 30
+
+/**
+ * Stock surface colors per mode (design-platform.css alias tokens, resolved
+ * to their static steps). The translucent pass bakes these into rgba() when
+ * no role color or dark-flip value applies; keep in sync with the theme
+ * package's design-platform.css.
+ */
+const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = {
+  '--dsw-alias-bg-base': { light: '#ffffff', dark: '#151517' }, // bluish-00 / bluish-950
+  '--dsw-alias-bg-layer-1': { light: '#ffffff', dark: '#232324' }, // bluish-00 / bluish-875
+  '--dsw-alias-bg-layer-2': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
+  '--dsw-alias-bg-layer-3': { light: '#ffffff', dark: '#353638' }, // bluish-00 / bluish-800
+  '--dsw-alias-bg-overlay': { light: '#e9ecf2', dark: '#61666b' }, // bluish-150 / bluish-700
+  '--dsw-alias-bg-module-platform': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
+  '--dsw-specific-sidebar-fill': { light: '#f9fafb', dark: '#1b1b1c' }, // bluish-50 / bluish-900
+  '--dsw-specific-input-major': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
+  '--dsw-specific-bubble-highlight': { light: '#d3e2ff', dark: '#43454a' }, // deepseek-200 / bluish-750
+  '--dsw-specific-bubble': { light: '#edf3fe', dark: '#2c2c2e' }, // deepseek-50 / bluish-850
+}
 
 /**
  * Compute the full override layer for one settings snapshot. Every role with
@@ -140,17 +159,18 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const flipBase = backgroundImage !== ''
     ? (imageDark ? '#151517' : undefined)
     : (background !== '' && isDarkColor(background) ? background : undefined)
+  // The flip's derived surface colors feed the translucent pass below, so a
+  // translucent dark theme stays coordinated.
+  let flipLayer1: string | undefined
+  let flipLayer2: string | undefined
+  let flipSidebar: string | undefined
   if (flipBase !== undefined) {
-    const lighten = (weight: number): [string, string] => {
-      const value = mixHex(flipBase, LIGHT_BASE, weight)
-      return [value, value]
-    }
-    const [l1l, l1d] = lighten(0.06)
-    emit('--dsw-alias-bg-layer-1', l1l, l1d)
-    const [l2l, l2d] = lighten(0.12)
-    emit('--dsw-alias-bg-layer-2', l2l, l2d)
-    const [sideL, sideD] = lighten(0.03)
-    emit('--dsw-specific-sidebar-fill', sideL, sideD)
+    flipLayer1 = mixHex(flipBase, LIGHT_BASE, 0.06)
+    flipLayer2 = mixHex(flipBase, LIGHT_BASE, 0.12)
+    flipSidebar = mixHex(flipBase, LIGHT_BASE, 0.03)
+    emit('--dsw-alias-bg-layer-1', flipLayer1, flipLayer1)
+    emit('--dsw-alias-bg-layer-2', flipLayer2, flipLayer2)
+    emit('--dsw-specific-sidebar-fill', flipSidebar, flipSidebar)
     if (text === '') {
       emit('--dsw-alias-label-primary', '#fafaf9', '#fafaf9')
       emit('--dsw-alias-label-secondary', '#d6d3d1', '#d6d3d1')
@@ -162,26 +182,37 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
-    const translucent = (hex: string | undefined, token: string): void => {
-      // A known role color is baked in; otherwise resolve the token's own
-      // (possibly overridden) value at runtime. Empty-string roles mean
-      // "keep the stock token", so they must fall through to var() too —
-      // baking '' into color-mix would produce invalid CSS.
-      const source = hex !== undefined && hex !== '' ? hex : `var(${token})`
-      const value = `color-mix(in srgb, ${source} ${Math.round(alpha * 100)}%, transparent)`
-      emit(token, value, value)
+    // Surface translucency bakes a plain rgba() per mode — NEVER a
+    // color-mix referencing the token itself: `color-mix(in srgb,
+    // var(--x) n%, transparent)` assigned to --x is a custom-property
+    // cycle, the property goes guaranteed-invalid, and every surface using
+    // it turns fully transparent (only 0%/100% looked "working").
+    // Resolution order: explicit role color → dark-flip derived value →
+    // the stock palette for that mode (design-platform.css, kept in sync
+    // manually).
+    const translucent = (token: string, explicit: string | undefined, flip: string | undefined): void => {
+      if (explicit === 'transparent') {
+        emit(token, 'transparent', 'transparent')
+        return
+      }
+      const base = explicit !== undefined && explicit !== ''
+        ? { light: explicit, dark: explicit }
+        : flip !== undefined
+          ? { light: flip, dark: flip }
+          : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
+      emit(token, withAlpha(base.light, alpha), withAlpha(base.dark, alpha))
     }
     // An image keeps the base transparent even under surface translucency.
-    translucent(backgroundImage !== '' ? 'transparent' : background, '--dsw-alias-bg-base')
-    translucent(panel, '--dsw-alias-bg-layer-1')
-    translucent(undefined, '--dsw-alias-bg-layer-2')
-    translucent(undefined, '--dsw-alias-bg-layer-3')
-    translucent(undefined, '--dsw-alias-bg-overlay')
-    translucent(undefined, '--dsw-alias-bg-module-platform')
-    translucent(panel ?? background, '--dsw-specific-sidebar-fill')
-    translucent(input, '--dsw-specific-input-major')
-    translucent(userBubble, '--dsw-specific-bubble-highlight')
-    translucent(assistantBubble, '--dsw-specific-bubble')
+    translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : background, undefined)
+    translucent('--dsw-alias-bg-layer-1', panel, flipLayer1)
+    translucent('--dsw-alias-bg-layer-2', undefined, flipLayer2)
+    translucent('--dsw-alias-bg-layer-3', undefined, undefined)
+    translucent('--dsw-alias-bg-overlay', undefined, undefined)
+    translucent('--dsw-alias-bg-module-platform', undefined, undefined)
+    translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
+    translucent('--dsw-specific-input-major', input, undefined)
+    translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
+    translucent('--dsw-specific-bubble', assistantBubble, undefined)
   }
 
   return tokens
