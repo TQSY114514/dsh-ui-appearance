@@ -42,6 +42,7 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-specific-bubble': { light: '#edf3fe', dark: '#2c2c2e' }, // deepseek-50 / bluish-850
   // Settings nav selected state and floating menus are surfaces too.
   '--dsw-specific-sidebar-nav-item-active': { light: '#ebeef2', dark: '#43454a' }, // bluish-100 / bluish-750
+  '--dsw-specific-sidebar-nav-item-hover': { light: '#f1f3f5', dark: '#2c2c2e' }, // bluish-75 / bluish-850
   '--dsw-specific-menu': { light: '#ffffff', dark: '#353638' }, // layer-3 / layer-3
   // Neutral buttons follow the surface translucency too; brand/accent action
   // buttons stay solid so primary operations remain unmistakable.
@@ -228,6 +229,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
     translucent('--dsw-specific-bubble', assistantBubble, undefined)
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
+    translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.

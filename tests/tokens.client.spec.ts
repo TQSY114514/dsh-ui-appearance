@@ -99,6 +99,7 @@ describe('buildTokenOverrides', () => {
   it('settings surfaces (selected nav tab, menus) follow the translucency too', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0.5)')
+    expect(tokens['--dsw-specific-sidebar-nav-item-hover']!.light).toBe('rgba(241, 243, 245, 0.5)')
     expect(tokens['--dsw-specific-menu']).toBeDefined()
   })
 
