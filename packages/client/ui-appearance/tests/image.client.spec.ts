@@ -145,6 +145,6 @@ describe('readImageFile', () => {
   it('refuses an oversized raw fallback instead of bloating the settings document', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn(async () => { throw new Error('decode failed') }))
     const big = new File([new Uint8Array(3 * 1024 * 1024)], 'huge.png', { type: 'image/png' })
-    await expect(readImageFile(big)).rejects.toThrow(/storage budget/)
+    await expect(readImageFile(big)).rejects.toThrow(/too large|storage budget/)
   })
 })

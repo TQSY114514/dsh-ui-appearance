@@ -180,6 +180,11 @@ function encodeDataUrl(canvas: HTMLCanvasElement, keepAlpha: boolean, quality: n
 
 /** Fallback: hand back the original file bytes when decoding is impossible. */
 function readRawDataUrl(file: File): Promise<string> {
+  // A data URL is ~4/3 the file size plus its prefix, so a file at or above
+  // the storage budget can never fit — reject before reading.
+  if (file.size > MAX_STORED_BYTES) {
+    return Promise.reject(new Error(`image too large (${file.size} bytes) to persist without re-encoding`))
+  }
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => { resolve(reader.result as string) }

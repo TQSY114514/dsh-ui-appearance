@@ -34,7 +34,7 @@ describe('AppearanceApplier', () => {
     const applier = new AppearanceApplier(ctx)
     const settings = full({
       accent: '#4176e6', backgroundImage: 'data:image/png;base64,AAAA',
-      backgroundOpacity: 0.5, backgroundBlur: 12, glassBlur: 8,
+      backgroundOpacity: 0.5, backgroundBlur: 12, scrim: 0.4, glassBlur: 8,
     })
     applier.apply(settings)
     expect(overrideTokens).toHaveBeenCalledTimes(1)
@@ -46,6 +46,7 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-bg-image')).toBe('url("data:image/png;base64,AAAA")')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-opacity')).toBe('0.5')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-blur')).toBe('12px')
+    expect(body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('0.4')
     expect(body.style.getPropertyValue('--dsw-appearance-glass-blur')).toBe('8px')
     expect(body.classList.contains(GLASS_CLASS)).toBe(true)
     applier.dispose()
@@ -74,12 +75,13 @@ describe('AppearanceApplier', () => {
   it('dispose removes the elements, body variables, and the glass class', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
-    applier.apply(full({ glassBlur: 10 }))
+    applier.apply(full({ glassBlur: 10, scrim: 0.5 }))
     expect(document.body.classList.contains(GLASS_CLASS)).toBe(true)
     applier.dispose()
     expect(document.getElementById(STYLE_ID)).toBeNull()
     expect(document.getElementById(BG_LAYER_ID)).toBeNull()
     expect(document.body.classList.contains(GLASS_CLASS)).toBe(false)
     expect(document.body.style.getPropertyValue('--dsw-appearance-bg-blur')).toBe('')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('')
   })
 })

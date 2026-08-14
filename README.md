@@ -7,10 +7,11 @@
 ## 功能
 
 - **预设主题**:默认 / 午夜 / 海洋 / 森林 / 玫瑰 / 单色,一键应用后可继续微调
-- **主题颜色**:8 个颜色角色(主色、背景色、面板色、输入框色、文字色、边框色、用户/AI 消息气泡),支持取色器与 HEX 输入
+- **主题颜色**:8 个颜色角色(主色、背景色、面板色、输入框色、文字色、边框色、用户/AI 消息气泡),支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色
 - **背景图片**:点击上传或拖拽上传(JPG / PNG / WebP),自动压缩(最长边阶梯 1920/1280/960px、WebP/JPEG 质量阶梯、存储预算 2MB、输入上限 5MB),支持预览/更换/删除;**深色壁纸自动协调**(采样亮度 <35% 时表面抬亮、文字翻亮、按钮跟随变暗)
 - **背景透明度** 0–100%:只作用于背景图层,不影响文字与控件
 - **背景模糊** 0–30px:模糊背景图层,前景内容保持清晰
+- **背景遮罩** 0–100%:在背景图上叠加随浅/深色模式自动配色的渐变纱帘,保证图片上的文字可读
 - **界面透明度** 0–100%:侧边栏、聊天区、输入框等表面半透明
 - **毛玻璃强度** 0–20px:轻量 `backdrop-filter` 毛玻璃
 
@@ -44,20 +45,15 @@
    pnpm dsh web
    ```
 
-### 方式 B:npm 包安装
+### 方式 B:插件安装(推荐终端用户,无需改动仓库)
 
-发布后终端用户只需:
+包内自带 `cordis.patch.yml`(声明于 `dsh.bundle.patch`)与自包含的独立构建(`prepare` 脚本 + `tsdown.standalone.config.ts`,不依赖 harness 仓库):
 
 ```sh
-npm install @deepseek-ai/dsh-client-ui-appearance
+dsh plugin --profile <name> add <path-or-git-url>
 ```
 
-并在 `$DSH_HOME/profiles/<name>/cordis.patch.yml` 中加一行:
-
-```yaml
-- id: ui-appearance
-  name: '@deepseek-ai/dsh-client-ui-appearance'
-```
+`dsh plugin add` 会执行 `prepare` 构建出 `lib/`,并把 `ui-appearance` 行自动插入浏览器插件名单与 Host 装载列表。卸载:`dsh plugin remove ui-appearance`。
 
 ## 使用
 

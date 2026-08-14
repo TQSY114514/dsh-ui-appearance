@@ -40,6 +40,8 @@ export interface AppearanceSettings extends AppearanceColors {
   backgroundOpacity: number
   /** Background image blur in px, 0..30. */
   backgroundBlur: number
+  /** Readability scrim over the background image, 0..1 (0 = no veil). */
+  scrim: number
   /** UI surface opacity, 0..1 (1 = fully opaque surfaces). */
   surfaceAlpha: number
   /** Glass backdrop blur in px, 0..20 (0 = no backdrop-filter). */
@@ -62,6 +64,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   imageDark: false,
   backgroundOpacity: 1,
   backgroundBlur: 0,
+  scrim: 0,
   surfaceAlpha: 1,
   glassBlur: 0,
   preset: '',
@@ -81,6 +84,7 @@ export const AppearanceSettingsSchema: z<AppearanceSettings> = z.object({
   imageDark: z.boolean().default(false),
   backgroundOpacity: z.number().min(0).max(1).default(1),
   backgroundBlur: z.number().min(0).max(30).default(0),
+  scrim: z.number().min(0).max(1).default(0),
   surfaceAlpha: z.number().min(0).max(1).default(1),
   glassBlur: z.number().min(0).max(20).default(0),
   preset: z.string().default(''),

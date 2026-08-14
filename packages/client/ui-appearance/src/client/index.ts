@@ -53,21 +53,16 @@ const FLUSH_DEBOUNCE_MS = 120
 export function apply(ctx: ClientContext): void {
   const host = ctx.settingsScope.bind<AppearanceSettings>({ namespace: APPEARANCE_SETTINGS_NAMESPACE })
 
-  // DOM applier: rebuild on every scope change, retract everything on dispose.
-  ctx.effect(() => {
-    const applier = new AppearanceApplier(ctx)
-    applier.apply(host.getSnapshot().value)
-    const off = host.subscribe(() => { applier.apply(host.getSnapshot().value) })
-    return () => { off(); applier.dispose() }
-  }, 'ui-appearance: DOM applier')
-
   ctx.effect(() => ctx.locale.register(SETTINGS_NS, { zh, en }), 'ui-appearance: settings row dictionaries')
 
   const store = createAppearanceRowStore()
   let bound: BoundActions<typeof store> | undefined
   let current: AppearanceSettings = { ...DEFAULT_SETTINGS }
   let appliedRevision = -1
+  /** Fields edited but not yet flushed to the scope. */
   const dirty = new Set<keyof AppearanceSettings>()
+  /** Fields whose latest optimistic value has not yet settled back from the scope. */
+  const pending = new Map<keyof AppearanceSettings, string | number | boolean>()
   let flushTimer: ReturnType<typeof setTimeout> | undefined
 
   const sync = (): void => {
@@ -76,23 +71,39 @@ export function apply(ctx: ClientContext): void {
     const revision = snapshot.revision ?? 0
     if (revision <= appliedRevision) return
     appliedRevision = revision
-    // The incoming snapshot can predate edits still queued in the debounce:
-    // merge the unflushed fields over it so a round-trip never loses the
-    // user's last adjustment.
-    const incoming = { ...snapshot.value }
-    const pending = current
-    for (const field of dirty) {
-      ;(incoming as unknown as Record<string, string | number | boolean>)[field] = pending[field]
+    const next = { ...snapshot.value }
+    // A settled snapshot can lag our own in-flight writes: the scope
+    // controller bumps the revision on every settlement, including suppressed
+    // stale ones, so adopting the raw value here would clobber a newer
+    // optimistic edit and make the last slider tweak snap back. Overlay every
+    // pending field's latest value; once a snapshot actually carries that
+    // value the write has landed and the field can stop overlaying.
+    for (const [field, value] of pending) {
+      ;(next as Record<string, string | number | boolean>)[field] = value
     }
-    current = incoming
-    bound?.sync(incoming, revision)
+    current = next
+    bound?.sync(current, revision)
+    for (const [field, value] of [...pending]) {
+      if (snapshot.value[field] === value) pending.delete(field)
+    }
   }
   const off = host.subscribe(sync)
   ctx.effect(() => () => { off() }, 'ui-appearance: scope sync')
 
+  // DOM applier: rebuild on every scope change, retract everything on dispose.
+  // Subscribed after `sync` and fed the overlaid view, so a suppressed stale
+  // settlement cannot flash the previous background image or token set.
+  ctx.effect(() => {
+    const applier = new AppearanceApplier(ctx)
+    const apply = (): void => { applier.apply(current) }
+    apply()
+    const listener = host.subscribe(apply)
+    return () => { listener(); applier.dispose() }
+  }, 'ui-appearance: DOM applier')
+
   const flush = (): void => {
     if (flushTimer !== undefined) { clearTimeout(flushTimer); flushTimer = undefined }
-    for (const field of dirty) void host.set(field, current[field])
+    for (const field of dirty) void host.set(field, pending.get(field) ?? current[field])
     dirty.clear()
   }
   const scheduleFlush = (): void => {
@@ -105,6 +116,7 @@ export function apply(ctx: ClientContext): void {
     // number fields intersect to never), so write through an index view.
     ;(patch as Record<string, string | number | boolean>)[field] = value
     current = patch
+    pending.set(field, value)
     bound?.patch(patch)
     dirty.add(field)
     scheduleFlush()
@@ -114,6 +126,8 @@ export function apply(ctx: ClientContext): void {
     patch.backgroundImage = image?.url ?? ''
     patch.imageDark = image?.imageDark ?? false
     current = patch
+    pending.set('backgroundImage', patch.backgroundImage)
+    pending.set('imageDark', patch.imageDark)
     bound?.patch(patch)
     dirty.add('backgroundImage')
     dirty.add('imageDark')
@@ -133,14 +147,20 @@ export function apply(ctx: ClientContext): void {
     }
     current = { ...current, ...partial }
     bound?.patch(partial)
-    for (const field of Object.keys(partial) as (keyof AppearanceSettings)[]) dirty.add(field)
+    for (const field of Object.keys(partial) as (keyof AppearanceSettings)[]) {
+      pending.set(field, partial[field] as string)
+      dirty.add(field)
+    }
     flush()
   }
   const resetAll = (): void => {
     const next: AppearanceSettings = { ...DEFAULT_SETTINGS, preset: 'default' }
     current = next
     bound?.patch(next)
-    for (const field of Object.keys(next) as (keyof AppearanceSettings)[]) dirty.add(field)
+    for (const field of Object.keys(next) as (keyof AppearanceSettings)[]) {
+      pending.set(field, next[field])
+      dirty.add(field)
+    }
     flush()
   }
 

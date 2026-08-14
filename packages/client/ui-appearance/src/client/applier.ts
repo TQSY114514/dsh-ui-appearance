@@ -24,6 +24,7 @@ const BODY_VARIABLES = [
   '--dsw-appearance-bg-image',
   '--dsw-appearance-bg-opacity',
   '--dsw-appearance-bg-blur',
+  '--dsw-appearance-scrim',
   '--dsw-appearance-glass-blur',
 ] as const
 
@@ -33,6 +34,13 @@ const BODY_VARIABLES = [
  * translucent tokens show the image through; the glass rule blurs whatever
  * paints behind #root (the image layer). `inset: -48px` gives the blur filter
  * room so edges never show transparent bleed.
+ *
+ * The readability scrim rides inside the layer's own background-image stack:
+ * a uniform veil whose alpha is `var(--dsw-appearance-scrim)` — the browser
+ * re-rasterizes the backdrop live as the slider moves, no JS wiring needed.
+ * The veil hue follows the base theme (white-ish in light mode, near-black in
+ * dark mode). Selection and focus rings follow the user's accent through the
+ * overridden brand tokens.
  */
 const SHEET = `
 #${BG_LAYER_ID} {
@@ -43,13 +51,28 @@ const SHEET = `
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
-  background-image: var(--dsw-appearance-bg-image, none);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%, rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%),
+    var(--dsw-appearance-bg-image, none);
   opacity: var(--dsw-appearance-bg-opacity, 1);
   filter: blur(var(--dsw-appearance-bg-blur, 0px));
+}
+body[data-ds-dark-theme] #${BG_LAYER_ID} {
+  background-image:
+    linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
+    var(--dsw-appearance-bg-image, none);
 }
 #root {
   position: relative;
   z-index: 1;
+}
+#root ::selection {
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+#root :focus-visible {
+  outline: 2px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 2px;
 }
 body.${GLASS_CLASS} #root {
   backdrop-filter: blur(var(--dsw-appearance-glass-blur, 0px));
@@ -99,6 +122,7 @@ export class AppearanceApplier {
     )
     body.style.setProperty('--dsw-appearance-bg-opacity', String(value.backgroundOpacity))
     body.style.setProperty('--dsw-appearance-bg-blur', `${value.backgroundBlur}px`)
+    body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
     body.style.setProperty('--dsw-appearance-glass-blur', `${value.glassBlur}px`)
     body.classList.toggle(GLASS_CLASS, value.glassBlur > 0)
   }

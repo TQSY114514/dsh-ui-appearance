@@ -5,11 +5,12 @@
 ## 功能
 
 - **预设主题**:默认 / 午夜 / 海洋 / 森林 / 玫瑰 / 单色,点击立即应用,之后仍可自由微调
-- **主题颜色**:8 个颜色角色,支持系统取色器与 HEX 输入,一键恢复默认
+- **主题颜色**:8 个颜色角色,支持系统取色器与 HEX 输入,一键恢复默认;文字选区与键盘焦点环自动跟随主色
   - 主色、背景色、面板色、输入框色、文字色、边框色、用户消息气泡、AI 消息气泡
 - **背景图片**:点击上传或拖拽上传(JPG / PNG / WebP 等),带预览、更换、删除;自动压缩(最长边阶梯 1920/1280/960px,WebP/JPEG 质量阶梯,存储预算 2MB,输入上限 5MB);上传时自动采样亮度,深色壁纸自动协调表面/文字/按钮对比度
 - **背景透明度**:0–100% 滑块,只影响背景图片层,不影响文字与控件
 - **背景模糊**:0–30px 滑块,模糊背景图层,前景内容始终清晰
+- **背景遮罩**:0–100% 滑块,在背景图上叠加一层随浅/深色模式自动配色的渐变纱帘,保证图片上的文字可读
 - **界面透明度**:0–100% 滑块,让侧边栏、聊天区、输入框等表面半透明
 - **毛玻璃强度**:0–20px 滑块,对主要表面施加轻量 `backdrop-filter` 毛玻璃
 
@@ -17,19 +18,20 @@
 
 不修改任何 Harness 核心代码,完全走官方插件机制:
 
-1. **颜色**:通过 `ctx.theme.overrideTokens()` 把用户颜色映射到 `--dsw-alias-*` 语义 token(品牌色、背景、层级表面、文字、边框、气泡等)。这是主题系统为第三方定制提供的官方扩展点;浅色/深色切换时由 `ThemePresenter` 自动重新套用,派生色(次要文字、层级表面)按当前模式自动推导,保证两种模式下都可读。
+1. **颜色**:通过 `ctx.theme.overrideTokens()` 把用户颜色映射到 `--dsw-alias-*` 语义 token(品牌色、背景、层级表面、文字、边框、气泡等)。这是主题系统为第三方定制提供的官方扩展点;浅色/深色切换时由 `ThemePresenter` 自动重新套用,派生色(次要文字、层级表面)按当前模式自动推导,保证两种模式下都可读。文字选区与键盘焦点环通过覆写后的品牌 token 自动跟随主色。
 2. **背景图层**:插件自有的固定定位图层(`#dsw-appearance-bg`),位于页面背景之上、内容之下(`#root` 提升为 `z-index:1`),`background-image` / `opacity` / `filter: blur()` 全部由 CSS 变量驱动,实时生效。
-3. **界面透明度**:把表面 token 覆写为 `color-mix(... transparent)` 半透明值,不透明时保持原值(老浏览器无 `color-mix` 时自动降级为不透明界面)。
-4. **持久化**:通过 Harness 自带的用户设置机制(`ctx.settingsScope`,命名空间 `ui-appearance`),写入 Host 用户设置文档,重启后仍然存在。
+3. **背景遮罩**:叠加在背景图层自身 `background-image` 栈内的渐变纱帘,alpha 由 `--dsw-appearance-scrim` 变量驱动,随滑块实时重绘;纱帘色随 `data-ds-dark-theme` 自动切换(浅色模式白纱、深色模式近黑纱)。
+4. **界面透明度**:把表面 token 覆写为 `color-mix(... transparent)` 半透明值,不透明时保持原值(老浏览器无 `color-mix` 时自动降级为不透明界面)。
+5. **持久化**:通过 Harness 自带的用户设置机制(`ctx.settingsScope`,命名空间 `ui-appearance`),写入 Host 用户设置文档,重启后仍然存在。
 
 ## 安装
 
-在 DeepSeek Harness 源码仓库中,新增一个客户端插件包需要三处接线(本插件已按此配置好):
+### 方式 A:源码安装(harness 仓库内,本插件已按此配置好)
 
 1. `packages/client/ui-appearance/` — 插件包本体
-2. `packages/bundle/web-app/cordis.patch.yml` — 浏览器插件名单新增 `ui-appearance` 行(已加)
-3. `packages/bundle/web-app/package.json` — 新增依赖 `@deepseek-ai/dsh-client-ui-appearance`(已加)
-4. `tsconfig.client.json` / `tsconfig.base.json` — 类型检查聚合与源码解析映射(已加)
+2. `packages/bundle/web-app/cordis.patch.yml` — 浏览器插件名单新增 `ui-appearance` 行(注意必须加在 **`- insert:` 列表内**——顶层行是"覆写已有行"语义,新插件不会被装载)
+3. `packages/bundle/web-app/package.json` — 新增依赖 `@deepseek-ai/dsh-client-ui-appearance`
+4. `tsconfig.client.json` / `tsconfig.base.json` — 类型检查聚合与源码解析映射
 
 之后安装依赖并重新构建:
 
@@ -41,7 +43,15 @@ pnpm run build:web             # 重建前端 dist
 pnpm dsh web                   # 启动 WebUI
 ```
 
-> 发布为 npm 包后,终端用户只需安装 `@deepseek-ai/dsh-client-ui-appearance` 并在自己的 profile 补丁(`$DSH_HOME/profiles/<name>/cordis.patch.yml`)中加一行 `- id: ui-appearance` 即可,无需改动仓库。
+### 方式 B:插件安装(独立仓库分发,终端用户无需改动 harness)
+
+独立仓库的包内自带 `cordis.patch.yml`(声明于 `dsh.bundle.patch`)与自包含构建(`prepare` 脚本 + `tsdown.standalone.config.ts`,不依赖 harness 仓库):
+
+```sh
+dsh plugin --profile <name> add <path-or-git-url>
+```
+
+`dsh plugin add` 执行 `prepare` 构建出 `lib/`,并自动把 `ui-appearance` 行插入浏览器插件名单与 Host 装载列表;卸载用 `dsh plugin remove ui-appearance`。
 
 ## 使用
 

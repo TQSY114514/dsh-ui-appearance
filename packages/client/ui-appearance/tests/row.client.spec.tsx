@@ -32,6 +32,8 @@ const COPY: Record<string, string> = {
   'background.dropHint': 'drop an image here',
   'background.opacity': 'Image opacity',
   'background.blur': 'Background blur',
+  'background.scrim': 'Background scrim',
+  'background.scrimHint': 'Raise the scrim to keep text readable',
   'surface.title': 'Interface',
   'surface.opacity': 'Panel opacity',
   'surface.glass': 'Glass blur',
@@ -127,6 +129,8 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('backgroundOpacity', 0.5)
     fireEvent.change(sliders[1]!, { target: { value: '10' } })
     expect(b.set).toHaveBeenCalledWith('backgroundBlur', 10)
+    fireEvent.change(sliders[2]!, { target: { value: '0.4' } })
+    expect(b.set).toHaveBeenCalledWith('scrim', 0.4)
   })
 
   it('shows the preview and remove action once an image is set', () => {

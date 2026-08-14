@@ -242,6 +242,16 @@ export function AppearanceCustomizerRow({
               format={value => `${value}px`}
               onChange={value => { set('backgroundBlur', value) }}
             />
+            <Slider
+              label={t('background.scrim')}
+              value={settings.scrim}
+              min={0}
+              max={1}
+              step={0.05}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('scrim', value) }}
+            />
+            <div className={css.hint}>{t('background.scrimHint')}</div>
           </div>
 
           <div className={css.section}>
