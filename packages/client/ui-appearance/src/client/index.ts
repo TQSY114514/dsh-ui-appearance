@@ -95,14 +95,20 @@ export function apply(ctx: ClientContext): void {
     const patch = { ...current }
     // The union key cannot be assigned through the keyed type (mixed string /
     // number fields intersect to never), so write through an index view.
-    ;(patch as Record<string, string | number>)[field] = value
+    ;(patch as Record<string, string | number | boolean>)[field] = value
     current = patch
     bound?.patch(patch)
     dirty.add(field)
     scheduleFlush()
   }
-  const setImage = (dataUrl: string | null): void => {
-    set('backgroundImage', dataUrl ?? '')
+  const setImage = (image: { url: string; imageDark: boolean } | null): void => {
+    const patch = { ...current }
+    patch.backgroundImage = image?.url ?? ''
+    patch.imageDark = image?.imageDark ?? false
+    current = patch
+    bound?.patch(patch)
+    dirty.add('backgroundImage')
+    dirty.add('imageDark')
     flush()
   }
   const applyPreset = (id: string): void => {

@@ -34,6 +34,8 @@ export type AppearanceColors = Record<AppearanceRole, string>
 export interface AppearanceSettings extends AppearanceColors {
   /** Compressed background image data URL; '' clears the image. */
   backgroundImage: string
+  /** True when the compressed image sampled as dark (< 35% average brightness). */
+  imageDark: boolean
   /** Background image layer opacity, 0..1. */
   backgroundOpacity: number
   /** Background image blur in px, 0..30. */
@@ -57,6 +59,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   userBubble: '',
   assistantBubble: '',
   backgroundImage: '',
+  imageDark: false,
   backgroundOpacity: 1,
   backgroundBlur: 0,
   surfaceAlpha: 1,
@@ -75,6 +78,7 @@ export const AppearanceSettingsSchema: z<AppearanceSettings> = z.object({
   userBubble: z.string().default(''),
   assistantBubble: z.string().default(''),
   backgroundImage: z.string().default(''),
+  imageDark: z.boolean().default(false),
   backgroundOpacity: z.number().min(0).max(1).default(1),
   backgroundBlur: z.number().min(0).max(30).default(0),
   surfaceAlpha: z.number().min(0).max(1).default(1),

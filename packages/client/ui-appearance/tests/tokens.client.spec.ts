@@ -25,15 +25,15 @@ describe('buildTokenOverrides', () => {
   })
 
   it('maps background to the base and derived layer tokens', () => {
-    const tokens = buildTokenOverrides(full({ background: '#101418' }))
-    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#101418', dark: '#101418' })
+    const tokens = buildTokenOverrides(full({ background: '#8899aa' }))
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#8899aa', dark: '#8899aa' })
     expect(tokens['--dsw-alias-bg-layer-1']!.light).not.toBe(tokens['--dsw-alias-bg-layer-1']!.dark)
     // Derived sidebar fill exists when panel is unset.
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
   it('panel wins the layer-1 and sidebar tokens', () => {
-    const tokens = buildTokenOverrides(full({ background: '#101418', panel: '#203040' }))
+    const tokens = buildTokenOverrides(full({ background: '#8899aa', panel: '#203040' }))
     expect(tokens['--dsw-alias-bg-layer-1']).toEqual({ light: '#203040', dark: '#203040' })
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
@@ -62,6 +62,52 @@ describe('buildTokenOverrides', () => {
   it('stays opaque at full surface opacity', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 1 }))
     for (const value of Object.values(tokens)) expect(value.light).not.toContain('color-mix')
+  })
+
+  it('makes the base canvas transparent when a background image is set', () => {
+    const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA' }))
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
+  })
+
+  it('a dark user background flips the whole surface family together', () => {
+    const tokens = buildTokenOverrides(full({ background: '#101418' }))
+    // Layers lift from the dark base so cards stay distinguishable.
+    const layer1 = tokens['--dsw-alias-bg-layer-1']!
+    expect(layer1.light).toBe(layer1.dark)
+    expect(layer1.light).not.toBe('#101418')
+    // Labels flip light so text on the dark base stays readable.
+    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(tokens['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#d6d3d1' })
+    // Buttons follow the darkened surface instead of staying white.
+    expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: 'rgb(67, 69, 74)', dark: 'rgb(67, 69, 74)' })
+    expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
+  })
+
+  it('a light user background leaves the surface family alone', () => {
+    const tokens = buildTokenOverrides(full({ background: '#d0d0d0' }))
+    expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+  })
+
+  it('a dark image (imageDark) flips the family from the dark base', () => {
+    const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true }))
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
+    const layer1 = tokens['--dsw-alias-bg-layer-1']!
+    expect(layer1.light).not.toBe('#151517')
+    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+  })
+
+  it('a bright image (no imageDark) flips nothing beyond the transparent base', () => {
+    const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA' }))
+    expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+  })
+
+  it('an explicit text color wins over the flipped labels', () => {
+    const tokens = buildTokenOverrides(full({ background: '#101418', text: '#111111' }))
+    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#111111', dark: '#111111' })
+    // Buttons still follow the darkened surface.
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeDefined()
   })
 })
 

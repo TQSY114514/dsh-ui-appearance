@@ -31,7 +31,7 @@ export const zh = {
   'surface.title': '界面',
   'surface.opacity': '面板透明度',
   'surface.glass': '毛玻璃强度',
-  'surface.hint': '提示:调低面板透明度,背景图片会透出来',
+  'surface.hint': '背景图会显示在主区域;调低面板透明度可让卡片、侧边栏也透出',
   'actions.reset': '恢复默认',
 } satisfies Record<string, string>
 
@@ -69,6 +69,6 @@ export const en = {
   'surface.title': 'Interface',
   'surface.opacity': 'Panel opacity',
   'surface.glass': 'Glass blur',
-  'surface.hint': 'Lower panel opacity to reveal the background image',
+  'surface.hint': 'The wallpaper shows in the main area; lower panel opacity to reveal cards and the sidebar',
   'actions.reset': 'Reset to default',
 } satisfies Record<AppearanceKey, string>

@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { mixHex } from './color.ts'
+import { isDarkColor, mixHex } from './color.ts'
 
 /** Override-layer source name pinned to this package (also names inspection). */
 export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
@@ -40,7 +40,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, userBubble, assistantBubble, surfaceAlpha } = settings
+  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -122,6 +122,42 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-specific-bubble', light, dark)
   }
 
+  // A background image makes the base canvas transparent so the wallpaper
+  // layer shows through; surfaces stay opaque unless the image (or a dark
+  // user background color) triggers the dark-family flip below.
+  if (backgroundImage !== '') {
+    emit('--dsw-alias-bg-base', 'transparent', 'transparent')
+  }
+
+  // Dark-family coordinated flip: a dark wallpaper or a dark user background
+  // color demands the whole surface family adapt together — layers lift so
+  // cards stay distinguishable, the sidebar fill follows, labels flip light
+  // so text stays readable, and buttons follow the darkened surface instead
+  // of staying white (white button + light ink = unreadable). An explicit
+  // user text color still wins over the flipped labels.
+  const flipBase = backgroundImage !== ''
+    ? (imageDark ? '#151517' : undefined)
+    : (background !== '' && isDarkColor(background) ? background : undefined)
+  if (flipBase !== undefined) {
+    const lighten = (weight: number): [string, string] => {
+      const value = mixHex(flipBase, LIGHT_BASE, weight)
+      return [value, value]
+    }
+    const [l1l, l1d] = lighten(0.06)
+    emit('--dsw-alias-bg-layer-1', l1l, l1d)
+    const [l2l, l2d] = lighten(0.12)
+    emit('--dsw-alias-bg-layer-2', l2l, l2d)
+    const [sideL, sideD] = lighten(0.03)
+    emit('--dsw-specific-sidebar-fill', sideL, sideD)
+    if (text === '') {
+      emit('--dsw-alias-label-primary', '#fafaf9', '#fafaf9')
+      emit('--dsw-alias-label-secondary', '#d6d3d1', '#d6d3d1')
+    }
+    emit('--dsw-alias-button-elevated-fill', 'rgb(67, 69, 74)', 'rgb(67, 69, 74)')
+    emit('--dsw-alias-button-floating-fill', 'rgb(44, 44, 46)', 'rgb(44, 44, 46)')
+    emit('--dsw-alias-button-floating-hover', 'rgb(53, 54, 56)', 'rgb(53, 54, 56)')
+  }
+
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
     const translucent = (hex: string | undefined, token: string): void => {
@@ -131,7 +167,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       const value = `color-mix(in srgb, ${source} ${Math.round(alpha * 100)}%, transparent)`
       emit(token, value, value)
     }
-    translucent(background, '--dsw-alias-bg-base')
+    // An image keeps the base transparent even under surface translucency.
+    translucent(backgroundImage !== '' ? 'transparent' : background, '--dsw-alias-bg-base')
     translucent(panel, '--dsw-alias-bg-layer-1')
     translucent(undefined, '--dsw-alias-bg-layer-2')
     translucent(undefined, '--dsw-alias-bg-layer-3')

@@ -12,7 +12,7 @@ import type {} from '../src/client/index.ts'
 
 vi.mock('../src/client/image.ts', () => ({
   ACCEPTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
-  readImageFile: vi.fn(async () => 'data:image/jpeg;base64,AAAA'),
+  readImageFile: vi.fn(async () => ({ url: 'data:image/jpeg;base64,AAAA', imageDark: true })),
 }))
 
 afterEach(cleanup)
@@ -149,7 +149,7 @@ describe('AppearanceCustomizerRow', () => {
     Object.defineProperty(file, 'type', { value: 'image/png' })
     fireEvent.drop(section, { dataTransfer: { files: [file] } })
     await act(async () => { await Promise.resolve() })
-    expect(b.setImage).toHaveBeenCalledWith('data:image/jpeg;base64,AAAA')
+    expect(b.setImage).toHaveBeenCalledWith({ url: 'data:image/jpeg;base64,AAAA', imageDark: true })
   })
 
   it('reset drives the injected resetAll', () => {

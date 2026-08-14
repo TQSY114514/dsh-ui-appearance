@@ -24,7 +24,7 @@ export interface AppearanceCustomizerInjected {
   /** Update one settings field (optimistic + debounced persistence). */
   set: (field: keyof AppearanceSettings, value: string | number) => void
   /** Set or clear the background image (null removes it). */
-  setImage: (dataUrl: string | null) => void
+  setImage: (image: { url: string; imageDark: boolean } | null) => void
   /** Apply one shipped preset (colors only). */
   applyPreset: (id: string) => void
   /** Restore every setting to its stock value. */
