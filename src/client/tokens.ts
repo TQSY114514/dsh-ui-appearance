@@ -42,6 +42,11 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-specific-sidebar-nav-item-active': { light: '#ebeef2', dark: '#43454a' }, // bluish-100 / bluish-750
   '--dsw-specific-sidebar-nav-item-hover': { light: '#f1f3f5', dark: '#2c2c2e' }, // bluish-75 / bluish-850
   '--dsw-specific-menu': { light: '#ffffff', dark: '#353638' }, // layer-3 / layer-3
+  // Composer + button (the round command trigger) and the jobs action's
+  // hover fill; fill-l2 is referenced by ui-jobs but undefined in the theme
+  // package — defining it here gives the job button its intended hover fill.
+  '--dsw-specific-selector': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
+  '--dsw-alias-fill-l2': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
   // Neutral buttons follow the surface translucency too; brand/accent action
   // buttons ride it as well — translucent brand color keeps the emphasis via
   // hue without a solid white block on a translucent interface.
@@ -235,6 +240,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
     translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)
+    translucent('--dsw-specific-selector', undefined, undefined)
+    translucent('--dsw-alias-fill-l2', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
