@@ -8,6 +8,12 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 ![demo](docs/demo.gif)
 -->
 
+## 界面
+
+| 设置面板 | 应用「午夜」预设后 |
+|---|---|
+| ![设置面板](docs/screenshot-settings.png) | ![午夜预设](docs/screenshot-midnight.png) |
+
 ## 功能
 
 **主题颜色** —— 8 个颜色角色:主色、背景色、面板色、输入框色、文字色、边框色、用户/AI 消息气泡。每个角色都支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色。
@@ -67,6 +73,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 - 深色壁纸或深色背景色自动触发表面家族协调翻转;显式设置的文字色仍然优先
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导
 - 图片压缩预算 2MB、输入上限 5MB;受 localStorage 配额约束
+- 视频背景建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸
 
 ## 包结构
 
@@ -85,7 +92,7 @@ src/
     ├── settings-store.ts     # 设置镜像 store
     ├── locales.ts            # 中英文案
     └── AppearanceCustomizerRow.tsx + .module.css   # 设置行 UI
-tests/                        # 69 个测试(依赖 harness 工作区运行时)
+tests/                        # 80 个测试(依赖 harness 工作区运行时)
 types/client.d.ts             # 手写 client 半部类型声明
 cordis.patch.yml              # bundle patch
 tsdown.standalone.config.ts   # 自包含构建
