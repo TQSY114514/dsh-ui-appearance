@@ -373,15 +373,6 @@ export function AppearanceCustomizerRow({
               <input
                 type="checkbox"
                 className={css.checkbox}
-                checked={settings.syntaxAccent}
-                onChange={event => { set('syntaxAccent', event.target.checked) }}
-              />
-              <span className={css.sliderLabel}>{t('surface.syntax')}</span>
-            </label>
-            <label className={css.checkRow}>
-              <input
-                type="checkbox"
-                className={css.checkbox}
                 checked={settings.sidebarOpaque}
                 onChange={event => { set('sidebarOpaque', event.target.checked) }}
               />

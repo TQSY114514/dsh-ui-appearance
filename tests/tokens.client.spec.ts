@@ -126,18 +126,6 @@ describe('buildTokenOverrides', () => {
     expect(stock['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
   })
 
-  it('syntaxAccent recolors the blue syntax tokens with the accent', () => {
-    const stock = buildTokenOverrides(full({ surfaceAlpha: 1, syntaxAccent: true }))
-    // Default brand accent darkened 35% toward #151517 = rgb(48, 50, 53).
-    expect(stock['--shiki-token-constant']).toBeDefined()
-    // The toggle is inert when off.
-    const off = buildTokenOverrides(full({ surfaceAlpha: 1 }))
-    expect(off['--shiki-token-constant']).toBeUndefined()
-    // White accent darkens to a readable gray, not invisible white.
-    const white = buildTokenOverrides(full({ surfaceAlpha: 1, syntaxAccent: true, accent: '#ffffff' }))
-    expect(white['--shiki-token-constant']!.light).toBe('#adadae')
-  })
-
   it('the sidebar can opt out of the surface translucency', () => {
     const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
     expect(translucent['--dsw-specific-sidebar-fill']).toBeDefined()

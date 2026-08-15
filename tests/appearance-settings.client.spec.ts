@@ -59,11 +59,10 @@ describe('sanitizeSettings', () => {
   it('coerces legacy 1/0 booleans to real booleans', () => {
     const sanitized = sanitizeSettings({
       ...DEFAULT_SETTINGS,
-      sidebarOpaque: 1, imageDark: 0, syntaxAccent: 1,
+      sidebarOpaque: 1, imageDark: 0,
     })
     expect(sanitized.sidebarOpaque).toBe(true)
     expect(sanitized.imageDark).toBe(false)
-    expect(sanitized.syntaxAccent).toBe(true)
   })
 
   it('drops unknown fields and keeps known strings', () => {
