@@ -10,9 +10,9 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 ## 界面
 
-| 设置面板 | 应用「午夜」预设后 |
+| 设置面板 | 壁纸 + 毛玻璃效果 |
 |---|---|
-| ![设置面板](docs/screenshot-settings.png) | ![午夜预设](docs/screenshot-midnight.png) |
+| ![设置面板](docs/screenshot-settings.png) | ![壁纸毛玻璃](docs/screenshot-wallpaper.png) |
 
 ## 功能
 
