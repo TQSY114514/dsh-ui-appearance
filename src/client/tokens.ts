@@ -86,7 +86,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha } = settings
+  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha, syntaxAccent } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -216,6 +216,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-button-elevated-fill', flipButtonElevated, flipButtonElevated)
     emit('--dsw-alias-button-floating-fill', flipButtonFloating, flipButtonFloating)
     emit('--dsw-alias-button-floating-hover', flipButtonFloatingHover, flipButtonFloatingHover)
+  }
+
+  // The blue syntax tokens (constant/link) can follow the accent color so a
+  // monochrome theme has no stray blue in code. The accent is darkened
+  // toward the dark base so the tint stays readable on any surface.
+  if (syntaxAccent) {
+    const base = accent !== '' && accent !== undefined ? accent : '#4176e6'
+    const tint = mixHex(base, DARK_BASE, 0.35)
+    emit('--shiki-token-constant', tint, tint)
+    emit('--shiki-token-link', tint, tint)
   }
 
   if (surfaceAlpha < 1) {

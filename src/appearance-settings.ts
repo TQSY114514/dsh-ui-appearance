@@ -62,6 +62,8 @@ export interface AppearanceSettings extends AppearanceColors {
   glassBlur: number
   /** Tint alpha of emphasized text chips (inline code), 0..0.45. */
   emphasisAlpha: number
+  /** Recolor the blue syntax tokens (constant/link) with the accent color. */
+  syntaxAccent: boolean
   /** Last applied preset id, or 'custom' after manual edits. */
   preset: string
 }
@@ -86,6 +88,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   sidebarOpaque: false,
   glassBlur: 0,
   emphasisAlpha: 0.22,
+  syntaxAccent: false,
   preset: '',
 }
 
@@ -100,7 +103,7 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
 }
 
 /** Boolean fields, used to sanitize persisted input. */
-const BOOLEAN_FIELDS = ['imageDark', 'sidebarOpaque'] as const
+const BOOLEAN_FIELDS = ['imageDark', 'sidebarOpaque', 'syntaxAccent'] as const
 
 /** Canonicalize a hex color: lowercase, 3-digit expanded to 6-digit. */
 function normalizeHex(value: string): string {
