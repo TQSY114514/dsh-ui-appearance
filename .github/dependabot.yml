@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: pnpm
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
