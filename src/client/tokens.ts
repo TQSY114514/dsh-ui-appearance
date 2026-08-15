@@ -50,6 +50,9 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   // Solid interactive hover (the composer + button hover, chips, etc.) rides
   // the translucency too so hovers never snap back to an opaque chip.
   '--dsw-alias-interactive-bg-hover-solid': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
+  // Task surfaces in the conversation area (todo panel, queue dock, goal
+  // bar) ride the translucency with the other panels.
+  '--dsw-specific-tip': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
   // Neutral buttons follow the surface translucency too; brand/accent action
   // buttons ride it as well — translucent brand color keeps the emphasis via
   // hue without a solid white block on a translucent interface.
@@ -246,6 +249,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-selector', undefined, undefined)
     translucent('--dsw-alias-fill-l2', undefined, undefined)
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
+    translucent('--dsw-specific-tip', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
