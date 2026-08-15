@@ -18,6 +18,9 @@ export const EMPHASIS_ALPHA_MIN = 0
 /**
  * The color roles the customizer exposes. Each role maps to one or more
  * `--dsw-alias-*` tokens; an empty string means "keep the stock token".
+ * Bubble roles were removed: the harness renders its only bubble background
+ * on user messages (assistant turns have none), so bubbles now follow the
+ * accent color instead of owning separate settings.
  */
 export const APPEARANCE_ROLES = [
   'accent',
@@ -26,8 +29,6 @@ export const APPEARANCE_ROLES = [
   'input',
   'text',
   'border',
-  'userBubble',
-  'assistantBubble',
 ] as const
 
 /** One customizable color role id. */
@@ -74,8 +75,6 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   input: '',
   text: '',
   border: '',
-  userBubble: '',
-  assistantBubble: '',
   backgroundImage: '',
   backgroundVideo: '',
   imageDark: false,

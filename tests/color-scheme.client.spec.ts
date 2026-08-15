@@ -15,7 +15,7 @@ describe('exportColorScheme', () => {
     expect(parsed.version).toBe(1)
     expect(parsed.colors.accent).toBe('#4176e6')
     expect(parsed.colors.background).toBe('#101418')
-    expect(Object.keys(parsed.colors)).toHaveLength(8)
+    expect(Object.keys(parsed.colors)).toHaveLength(6)
     // Sliders and the image are not part of a color scheme.
     expect(parsed.colors.backgroundImage).toBeUndefined()
   })

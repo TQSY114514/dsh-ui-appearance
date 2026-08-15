@@ -25,7 +25,6 @@ const COPY: Record<string, string> = {
   'colors.title': 'Theme colors',
   'color.accent': 'Accent',
   'color.background': 'Background color',
-  'color.userBubble': 'User bubble',
   'background.title': 'Background',
   'background.upload': 'Upload image',
   'background.remove': 'Remove image',

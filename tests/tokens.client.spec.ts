@@ -38,22 +38,17 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
-  it('maps text, border, and bubble roles to their token groups', () => {
+  it('maps text and border roles to their token groups; bubbles follow the accent', () => {
     const tokens = buildTokenOverrides(full({
-      text: '#111111', border: '#333333', userBubble: '#3a4674', assistantBubble: '#262b3f',
+      text: '#111111', border: '#333333', accent: '#3a4674',
     }))
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#111111', dark: '#111111' })
     expect(tokens['--dsw-alias-label-secondary']).toBeDefined()
     expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#333333', dark: '#333333' })
-    expect(tokens['--dsw-specific-bubble-highlight']).toEqual({ light: '#3a4674', dark: '#3a4674' })
-    // The user-bubble role owns the bubble background (harness renders it on
-    // user messages); it wins over the AI fallback when both are set.
+    // Bubbles follow the accent hue (no dedicated bubble roles anymore).
     expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#3a4674', dark: '#3a4674' })
-  })
-
-  it('the AI-bubble role is the bubble fallback when the user role is unset', () => {
-    const tokens = buildTokenOverrides(full({ assistantBubble: '#262b3f' }))
-    expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#262b3f', dark: '#262b3f' })
+    expect(tokens['--dsw-specific-bubble-highlight']).toEqual({ light: '#3a4674', dark: '#3a4674' })
+    // Without an accent the bubbles stay stock.
     const none = buildTokenOverrides(full({}))
     expect(none['--dsw-specific-bubble']).toBeUndefined()
   })
@@ -205,13 +200,13 @@ describe('buildTokenOverrides', () => {
 })
 
 describe('preset catalog', () => {
-  it('every named preset defines all eight role colors; default defines none', () => {
+  it('every named preset defines all six role colors; default defines none', () => {
     for (const preset of APPEARANCE_PRESETS) {
       if (preset.id === 'default') {
         expect(Object.keys(preset.colors)).toHaveLength(0)
         continue
       }
-      expect(Object.keys(preset.colors)).toHaveLength(8)
+      expect(Object.keys(preset.colors)).toHaveLength(6)
     }
   })
 })

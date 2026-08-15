@@ -86,7 +86,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha } = settings
+  const { accent, background, panel, input, text, border, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -100,6 +100,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-button-info-hover', hoverLight, hoverDark)
     const [primaryHoverLight, primaryHoverDark] = step(accent, 0.22)
     emit('--dsw-alias-button-primary-hover', primaryHoverLight, primaryHoverDark)
+    // Message bubbles (the harness renders its only bubble background on
+    // user messages; assistant turns have none) follow the accent color.
+    // Both bubble tokens get the hue; the translucent pass adds the alpha.
+    emit('--dsw-specific-bubble', light, dark)
+    emit('--dsw-specific-bubble-highlight', light, dark)
   }
 
   if (background !== '') {
@@ -160,24 +165,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-border-l3', l3l, l3d)
   }
 
-  if (assistantBubble !== '') {
-    const [light, dark] = modePair(assistantBubble)
-    // The harness renders its only bubble background (--dsw-specific-bubble)
-    // on USER messages — assistant turns have no bubble at all. This role is
-    // therefore the fallback bubble tint, applied only when the user-bubble
-    // role (which owns the actual bubble) is unset.
-    emit('--dsw-specific-bubble', light, dark)
-  }
-
-  if (userBubble !== '') {
-    const [light, dark] = modePair(userBubble)
-    emit('--dsw-specific-bubble-highlight', light, dark)
-    // User messages own the bubble background in the harness; the user-bubble
-    // role wins over the assistant fallback when both are set.
-    emit('--dsw-specific-bubble', light, dark)
-  }
-
-  // A background image makes the base canvas transparent so the wallpaper
+  // Background image makes the base canvas transparent so the wallpaper
   // layer shows through; surfaces stay opaque unless the image (or a dark
   // user background color) triggers the dark-family flip below.
   if (backgroundImage !== '') {
@@ -256,10 +244,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // solid even when everything else melts into the wallpaper.
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
     translucent('--dsw-specific-input-major', input, undefined)
-    translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
-    // The user-bubble role owns the bubble background (harness renders it on
-    // user messages only); the AI-bubble role is the fallback when unset.
-    translucent('--dsw-specific-bubble', userBubble !== '' ? userBubble : assistantBubble, undefined)
+    // Bubbles follow the accent hue at the surface alpha (set above).
+    translucent('--dsw-specific-bubble', accent, undefined)
+    translucent('--dsw-specific-bubble-highlight', accent, undefined)
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
     translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)
@@ -311,8 +298,6 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       input: '#202435',
       text: '#e6e9f4',
       border: '#343a52',
-      userBubble: '#3a4674',
-      assistantBubble: '#262b3f',
     },
   },
   {
@@ -324,8 +309,6 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       input: '#0f2a38',
       text: '#e1f1fa',
       border: '#1e455c',
-      userBubble: '#0f526f',
-      assistantBubble: '#123b4e',
     },
   },
   {
@@ -337,8 +320,6 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       input: '#152b21',
       text: '#e7f0ea',
       border: '#2b4637',
-      userBubble: '#2c5a40',
-      assistantBubble: '#1c3b2c',
     },
   },
   {
@@ -350,8 +331,6 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       input: '#2e1f27',
       text: '#f7e9ee',
       border: '#4a3340',
-      userBubble: '#743951',
-      assistantBubble: '#46293a',
     },
   },
   {
@@ -363,8 +342,6 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       input: '#1c1c20',
       text: '#eeeef0',
       border: '#333338',
-      userBubble: '#3a3a40',
-      assistantBubble: '#27272c',
     },
   },
 ]
