@@ -175,6 +175,13 @@ export class AppearanceApplier {
     video.play().catch(() => {
       // Autoplay policy or unsupported codec: keep the layer fallback silent.
     })
+    // Unsupported codec (e.g. HEVC in an mp4): drop the video layer so the
+    // wallpaper fallback (if any) shows instead of a black frame.
+    video.onerror = (): void => {
+      this.videoKey = ''
+      this.layer.removeAttribute('data-video')
+      this.teardownVideo()
+    }
     this.layer.setAttribute('data-video', '')
   }
 
