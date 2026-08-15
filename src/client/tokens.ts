@@ -42,10 +42,13 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-specific-sidebar-nav-item-hover': { light: '#f1f3f5', dark: '#2c2c2e' }, // bluish-75 / bluish-850
   '--dsw-specific-menu': { light: '#ffffff', dark: '#353638' }, // layer-3 / layer-3
   // Neutral buttons follow the surface translucency too; brand/accent action
-  // buttons stay solid so primary operations remain unmistakable.
+  // buttons ride it as well — translucent brand color keeps the emphasis via
+  // hue without a solid white block on a translucent interface.
   '--dsw-alias-button-elevated-fill': { light: '#ffffff', dark: '#43454a' }, // bluish-00 / bluish-750
   '--dsw-alias-button-floating-fill': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
   '--dsw-alias-button-floating-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
+  '--dsw-alias-button-primary-fill': { light: '#0f1115', dark: '#f9fafb' }, // bluish-1000 / bluish-50
+  '--dsw-alias-button-info-fill': { light: '#4176e6', dark: '#679efe' }, // deepseek-500 / deepseek-400
 }
 
 /**
@@ -235,6 +238,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
     translucent('--dsw-alias-button-floating-fill', undefined, flipButtonFloating)
     translucent('--dsw-alias-button-floating-hover', undefined, flipButtonFloatingHover)
+    // Brand/accent action buttons (send, primary) follow too: a translucent
+    // brand color keeps the hue-based emphasis without a solid block.
+    translucent('--dsw-alias-button-primary-fill', accent, undefined)
+    translucent('--dsw-alias-button-info-fill', accent, undefined)
   }
 
   return tokens

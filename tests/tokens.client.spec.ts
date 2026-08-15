@@ -87,13 +87,19 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
-  it('neutral buttons follow the surface translucency; brand buttons stay solid', () => {
+  it('brand/accent action buttons follow the translucency too (hue keeps the emphasis)', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(255, 255, 255, 0.6)')
     expect(tokens['--dsw-alias-button-floating-fill']).toBeDefined()
     expect(tokens['--dsw-alias-button-floating-hover']).toBeDefined()
-    // Primary action buttons (brand fill) are not translucenced.
-    expect(tokens['--dsw-alias-brand-primary']).toBeUndefined()
+    // Primary button falls back to the stock brand hue per mode.
+    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(15, 17, 21, 0.6)')
+    expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(249, 250, 251, 0.6)')
+  })
+
+  it('a custom accent makes the primary button translucent in that hue', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5, accent: '#4176e6' }))
+    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.5)')
   })
 
   it('the sidebar can opt out of the surface translucency', () => {
