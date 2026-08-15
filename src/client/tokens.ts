@@ -53,6 +53,12 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   // Task surfaces in the conversation area (todo panel, queue dock, goal
   // bar) ride the translucency with the other panels.
   '--dsw-specific-tip': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
+  // Inline code (`pnpm-lock.yaml`, `lib/`) and code blocks are emphasized
+  // text surfaces too — they must not stay solid white chips in a
+  // translucent interface.
+  '--dsw-alias-markdown-inline-code': { light: '#ebeef2', dark: '#2c2c2e' }, // bluish-100 / bluish-850
+  '--dsw-alias-markdown-code-block': { light: '#f9fafb', dark: '#1b1b1c' }, // bluish-50 / bluish-900
+  '--dsw-alias-markdown-code-block-banner': { light: '#f9fafb', dark: '#2c2c2e' }, // bluish-50 / bluish-850
   // Neutral buttons follow the surface translucency too; brand/accent action
   // buttons ride it as well — translucent brand color keeps the emphasis via
   // hue without a solid white block on a translucent interface.
@@ -250,6 +256,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-fill-l2', undefined, undefined)
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
     translucent('--dsw-specific-tip', undefined, undefined)
+    translucent('--dsw-alias-markdown-inline-code', undefined, undefined)
+    translucent('--dsw-alias-markdown-code-block', undefined, undefined)
+    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
