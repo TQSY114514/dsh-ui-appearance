@@ -160,18 +160,20 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-border-l3', l3l, l3d)
   }
 
-  if (userBubble !== '') {
-    const [light, dark] = modePair(userBubble)
-    emit('--dsw-specific-bubble-highlight', light, dark)
-    // The harness renders every message bubble with --dsw-specific-bubble
-    // (bubble-highlight has no consumer), so the user-bubble color only has
-    // an effect when it also lands on the shared bubble token. The AI-bubble
-    // block below wins when both roles are set.
+  if (assistantBubble !== '') {
+    const [light, dark] = modePair(assistantBubble)
+    // The harness renders its only bubble background (--dsw-specific-bubble)
+    // on USER messages — assistant turns have no bubble at all. This role is
+    // therefore the fallback bubble tint, applied only when the user-bubble
+    // role (which owns the actual bubble) is unset.
     emit('--dsw-specific-bubble', light, dark)
   }
 
-  if (assistantBubble !== '') {
-    const [light, dark] = modePair(assistantBubble)
+  if (userBubble !== '') {
+    const [light, dark] = modePair(userBubble)
+    emit('--dsw-specific-bubble-highlight', light, dark)
+    // User messages own the bubble background in the harness; the user-bubble
+    // role wins over the assistant fallback when both are set.
     emit('--dsw-specific-bubble', light, dark)
   }
 
@@ -255,9 +257,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
     translucent('--dsw-specific-input-major', input, undefined)
     translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
-    // Both bubble roles map onto the shared bubble token (see the user-bubble
-    // block); the AI-bubble role wins when both are set.
-    translucent('--dsw-specific-bubble', assistantBubble !== '' ? assistantBubble : userBubble, undefined)
+    // The user-bubble role owns the bubble background (harness renders it on
+    // user messages only); the AI-bubble role is the fallback when unset.
+    translucent('--dsw-specific-bubble', userBubble !== '' ? userBubble : assistantBubble, undefined)
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
     translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)

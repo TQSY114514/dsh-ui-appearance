@@ -46,7 +46,16 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-label-secondary']).toBeDefined()
     expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#333333', dark: '#333333' })
     expect(tokens['--dsw-specific-bubble-highlight']).toEqual({ light: '#3a4674', dark: '#3a4674' })
+    // The user-bubble role owns the bubble background (harness renders it on
+    // user messages); it wins over the AI fallback when both are set.
+    expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#3a4674', dark: '#3a4674' })
+  })
+
+  it('the AI-bubble role is the bubble fallback when the user role is unset', () => {
+    const tokens = buildTokenOverrides(full({ assistantBubble: '#262b3f' }))
     expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#262b3f', dark: '#262b3f' })
+    const none = buildTokenOverrides(full({}))
+    expect(none['--dsw-specific-bubble']).toBeUndefined()
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
