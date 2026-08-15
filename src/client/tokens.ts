@@ -33,6 +33,7 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-alias-bg-layer-3': { light: '#ffffff', dark: '#353638' }, // bluish-00 / bluish-800
   '--dsw-alias-bg-overlay': { light: '#e9ecf2', dark: '#61666b' }, // bluish-150 / bluish-700
   '--dsw-alias-bg-module-platform': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
+  '--dsw-alias-bg-multi-select': { light: '#f5f6f7', dark: '#2c2c2e' }, // bluish-60 / bluish-850
   '--dsw-specific-sidebar-fill': { light: '#f9fafb', dark: '#1b1b1c' }, // bluish-50 / bluish-900
   '--dsw-specific-input-major': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
   '--dsw-specific-bubble-highlight': { light: '#d3e2ff', dark: '#43454a' }, // deepseek-200 / bluish-750
@@ -224,6 +225,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-bg-layer-3', undefined, undefined)
     translucent('--dsw-alias-bg-overlay', undefined, undefined)
     translucent('--dsw-alias-bg-module-platform', undefined, undefined)
+    translucent('--dsw-alias-bg-multi-select', undefined, undefined)
     // The sidebar can opt out of the surface translucency: navigation stays
     // solid even when everything else melts into the wallpaper.
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
