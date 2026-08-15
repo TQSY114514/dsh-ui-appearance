@@ -23,11 +23,12 @@ import { AppearanceCustomizerRow } from './AppearanceCustomizerRow.tsx'
 import { createAppearanceRowStore } from './settings-store.ts'
 import { en, zh, type AppearanceKey } from './locales.ts'
 import {
-  APPEARANCE_ROLES, DEFAULT_SETTINGS,
-  type AppearanceSettings,
+  APPEARANCE_ROLES, DEFAULT_SETTINGS, sanitizeSettings,
+  type AppearanceRole, type AppearanceSettings,
 } from '../appearance-settings.ts'
 import { APPEARANCE_PRESETS } from './tokens.ts'
 import { AppearanceApplier } from './applier.ts'
+import { deleteVideo } from './video-store.ts'
 
 export type { AppearanceCustomizerComponentProps, AppearanceCustomizerInjected } from './AppearanceCustomizerRow.tsx'
 export type { AppearanceRowState } from './settings-store.ts'
@@ -51,15 +52,16 @@ export const inject = ['slots', 'locale', 'theme']
 export const STORAGE_KEY = 'dsh-ui-appearance.settings'
 
 /**
- * Read the persisted section, tolerating a missing or corrupt entry.
+ * Read the persisted section, tolerating a missing, corrupt, or out-of-schema
+ * entry: parse failures fall back to the stock defaults, and every parsed
+ * field is validated against the schema bounds before it reaches the UI.
  * @returns the stored settings, or the stock defaults.
  */
 function readStoredSettings(): AppearanceSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw === null) return { ...DEFAULT_SETTINGS }
-    const parsed = JSON.parse(raw) as Partial<AppearanceSettings>
-    return { ...DEFAULT_SETTINGS, ...parsed }
+    return sanitizeSettings(JSON.parse(raw))
   } catch (_unreadableStorage) {
     return { ...DEFAULT_SETTINGS }
   }
@@ -115,10 +117,10 @@ export function apply(ctx: ClientContext): void {
     }
     publish()
   }
-  const set = (field: keyof AppearanceSettings, value: string | number): void => {
+  const set = (field: keyof AppearanceSettings, value: string | number | boolean): void => {
     const patch = { ...current }
     // The union key cannot be assigned through the keyed type (mixed string /
-    // number fields intersect to never), so write through an index view.
+    // number / boolean fields intersect to never), so write through an index view.
     ;(patch as Record<string, string | number | boolean>)[field] = value
     current = patch
     commit()
@@ -133,6 +135,11 @@ export function apply(ctx: ClientContext): void {
     commit()
   }
   const setVideo = (key: string | null): void => {
+    // A replacement supersedes the previous record; drop it now so repeated
+    // swaps cannot accumulate orphaned blobs in IndexedDB.
+    if (key !== null && key !== current.backgroundVideo && current.backgroundVideo !== '') {
+      void deleteVideo(current.backgroundVideo)
+    }
     const patch = { ...current }
     patch.backgroundVideo = key ?? ''
     // Image and video backgrounds are mutually exclusive.
@@ -158,6 +165,19 @@ export function apply(ctx: ClientContext): void {
     current = { ...current, ...partial }
     commit()
   }
+  // One commit for a whole batch of role colors (scheme import), instead of a
+  // per-role set() storm of localStorage writes and override rebuilds.
+  const applyColors = (colors: Partial<Record<AppearanceRole, string>>): void => {
+    const entries = Object.entries(colors).filter(
+      (entry): entry is [string, string] =>
+        APPEARANCE_ROLES.includes(entry[0] as AppearanceRole) && entry[1] !== undefined && entry[1] !== '',
+    )
+    if (entries.length === 0) return
+    const partial: Partial<AppearanceSettings> = { preset: 'custom' }
+    for (const [role, hex] of entries) partial[role as AppearanceRole] = hex
+    current = { ...current, ...partial }
+    commit()
+  }
   const resetAll = (): void => {
     current = { ...DEFAULT_SETTINGS, preset: 'default' }
     commit()
@@ -167,7 +187,7 @@ export function apply(ctx: ClientContext): void {
     bound = actions
     // Push the initial section so the row renders the persisted values.
     publish()
-    return { set, setImage, setVideo, applyPreset, resetAll }
+    return { set, setImage, setVideo, applyPreset, applyColors, resetAll }
   }
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({

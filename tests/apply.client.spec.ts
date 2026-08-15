@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 /** Plugin write path: localStorage persistence, publish fan-out, cross-tab sync. */
+import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import { apply, STORAGE_KEY } from '../src/client/index.ts'
 import { createAppearanceRowStore } from '../src/client/settings-store.ts'
+import * as videoStore from '../src/client/video-store.ts'
 import type { AppearanceCustomizerInjected } from '../src/client/AppearanceCustomizerRow.tsx'
 
 /** Minimal cordis client context: runs effects synchronously, captures the row registration. */
@@ -118,5 +120,40 @@ describe('apply write path (localStorage)', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('QuotaExceededError') })
     face.set('accent', '#4176e6')
     expect(store.getSnapshot().settings.accent).toBe('#4176e6')
+  })
+
+  it('applyColors persists a whole batch of role colors in one write', () => {
+    const { store, face } = mount()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    face.applyColors({ accent: '#112233', background: '#445566' })
+    const stored = storedSettings()
+    expect(stored?.accent).toBe('#112233')
+    expect(stored?.background).toBe('#445566')
+    expect(stored?.preset).toBe('custom')
+    expect(store.getSnapshot().settings.accent).toBe('#112233')
+    expect(setItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('applyColors ignores unknown roles and empty values', () => {
+    const { store, face } = mount()
+    face.applyColors({ hacker: '#000000', accent: '' } as unknown as Parameters<typeof face.applyColors>[0])
+    // Nothing valid to apply: no write happens, nothing changes.
+    expect(storedSettings()).toBeUndefined()
+    expect(store.getSnapshot().settings).toEqual(DEFAULT_SETTINGS)
+  })
+
+  it('setVideo deletes the superseded record on replacement', () => {
+    const { face } = mount()
+    const del = vi.spyOn(videoStore, 'deleteVideo').mockResolvedValue(undefined)
+    face.setVideo('key-a')
+    expect(storedSettings()?.backgroundVideo).toBe('key-a')
+    expect(del).not.toHaveBeenCalled()
+    face.setVideo('key-b')
+    expect(storedSettings()?.backgroundVideo).toBe('key-b')
+    expect(del).toHaveBeenCalledWith('key-a')
+    del.mockClear()
+    face.setVideo(null)
+    expect(storedSettings()?.backgroundVideo).toBe('')
+    expect(del).not.toHaveBeenCalled()
   })
 })

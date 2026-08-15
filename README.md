@@ -66,16 +66,17 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 |---|---|
 | 颜色 | `ctx.theme.overrideTokens()` 覆写 `--dsw-alias-*` 语义 token,浅/深模式切换自动重套,派生色按模式推导 |
 | 背景图层 | 自有的固定定位图层,位于页面背景之上、内容之下,由 CSS 变量驱动 |
+| 毛玻璃 | 背景图层整体模糊(`filter: blur`,背景模糊 + 毛玻璃两滑块之和),不动 `#root`,不产生 `backdrop-filter` 的包含块副作用 |
 | 半透明 | 表面 token 按模式烘焙为 `rgba()`(角色色 → 深色翻转色 → 默认面色表),不依赖 `color-mix`,全浏览器可用 |
-| 持久化 | 浏览器 localStorage(harness 的 settings 网关仅对产品命名空间开放浏览器写入) |
+| 持久化 | 浏览器 localStorage(harness 的 settings 网关仅对产品命名空间开放浏览器写入),加载时按 schema 校验钳制 |
 
 ## 兼容性与限制
 
-- 半透明直接烘焙为 `rgba()`,滑块全程平滑;毛玻璃仅在滑块大于 0 时启用 `backdrop-filter`,低端设备可调回 0
+- 半透明直接烘焙为 `rgba()`,滑块全程平滑;毛玻璃与背景模糊合并为背景图层的一次模糊(两滑块之和),不依赖 `backdrop-filter`,开启时不会改变页面内固定定位元素的包含块,低端设备可把模糊调回 0
 - 深色壁纸或深色背景色自动触发表面家族协调翻转;显式设置的文字色仍然优先
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导
-- 图片压缩预算 2MB、输入上限 5MB;受 localStorage 配额约束
-- 视频背景建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸
+- 图片压缩预算 2MB、输入上限 5MB;受 localStorage 配额约束;持久化数据加载时会按 schema 校验与钳制,手改坏 localStorage 也不会产生无效样式
+- 视频背景建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸;更换视频会同步清理 IndexedDB 中的旧记录
 
 ## 包结构
 
@@ -94,10 +95,11 @@ src/
     ├── settings-store.ts     # 设置镜像 store
     ├── locales.ts            # 中英文案
     └── AppearanceCustomizerRow.tsx + .module.css   # 设置行 UI
-tests/                        # 80 个测试(依赖 harness 工作区运行时)
+tests/                        # 测试(`pnpm test` 独立运行,@deepseek-ai 运行时以 tests/stubs 桩替代)
 types/client.d.ts             # 手写 client 半部类型声明
 cordis.patch.yml              # bundle patch
 tsdown.standalone.config.ts   # 自包含构建
+vitest.config.ts              # 独立测试配置(alias 指向 tests/stubs)
 lib/                          # 构建产物
 ```
 

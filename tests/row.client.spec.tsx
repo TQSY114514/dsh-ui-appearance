@@ -1,6 +1,6 @@
-﻿// @vitest-environment jsdom
+// @vitest-environment jsdom
 /** Appearance customizer row: disclosure, preset chips, color fields, sliders,
- * image upload via drop, and the reset action 鈥?all through the injected face. */
+ * image upload via drop, and the reset action — all through the injected face. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createSnapshotStore, type SessionListState, type WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
@@ -38,6 +38,14 @@ const COPY: Record<string, string> = {
   'surface.opacity': 'Panel opacity',
   'surface.glass': 'Glass blur',
   'surface.hint': 'Lower panel opacity',
+  'scheme.title': 'Color scheme',
+  'scheme.export': 'Export colors',
+  'scheme.import': 'Import colors',
+  'scheme.importPlaceholder': 'Paste an exported color scheme JSON…',
+  'scheme.apply': 'Apply',
+  'scheme.cancel': 'Cancel',
+  'scheme.invalid': 'Invalid color scheme JSON',
+  'scheme.exported': 'Copied to clipboard',
   'actions.reset': 'Reset to default',
 }
 
@@ -61,6 +69,7 @@ function mount() {
   const setImage = vi.fn()
   const setVideo = vi.fn()
   const applyPreset = vi.fn()
+  const applyColors = vi.fn()
   const resetAll = vi.fn()
   const props: AppearanceCustomizerComponentProps = {
     useSessions: emptySessions(),
@@ -72,10 +81,11 @@ function mount() {
     setImage,
     setVideo,
     applyPreset,
+    applyColors,
     resetAll,
   }
   render(<AppearanceCustomizerRow {...props} />)
-  return { store, set, setImage, setVideo, applyPreset, resetAll }
+  return { store, set, setImage, setVideo, applyPreset, applyColors, resetAll }
 }
 
 function openRow() {
@@ -163,5 +173,29 @@ describe('AppearanceCustomizerRow', () => {
     openRow()
     fireEvent.click(screen.getByRole('button', { name: 'Reset to default' }))
     expect(b.resetAll).toHaveBeenCalled()
+  })
+
+  it('scheme import parses the pasted JSON and applies colors in one batch', () => {
+    const b = mount()
+    openRow()
+    fireEvent.click(screen.getByRole('button', { name: 'Import colors' }))
+    const textarea = screen.getByPlaceholderText('Paste an exported color scheme JSON…')
+    fireEvent.change(textarea, {
+      target: { value: JSON.stringify({ version: 1, colors: { accent: '#112233', background: '#445566' } }) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(b.applyColors).toHaveBeenCalledWith({ accent: '#112233', background: '#445566' })
+  })
+
+  it('scheme import keeps the panel open and flags invalid JSON', () => {
+    const b = mount()
+    openRow()
+    fireEvent.click(screen.getByRole('button', { name: 'Import colors' }))
+    const textarea = screen.getByPlaceholderText('Paste an exported color scheme JSON…')
+    fireEvent.change(textarea, { target: { value: '{not json' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    expect(b.applyColors).not.toHaveBeenCalled()
+    expect(screen.getByText('Invalid color scheme JSON')).toBeDefined()
+    expect(screen.getByPlaceholderText('Paste an exported color scheme JSON…')).toBeDefined()
   })
 })

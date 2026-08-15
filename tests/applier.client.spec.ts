@@ -1,13 +1,32 @@
 // @vitest-environment jsdom
 /** DOM applier: element ownership, variable writes, override lifecycle, disposal. */
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
-import { AppearanceApplier, BG_LAYER_ID, GLASS_CLASS, STYLE_ID } from '../src/client/applier.ts'
+import { AppearanceApplier, BG_LAYER_ID, STYLE_ID } from '../src/client/applier.ts'
+
+// jsdom implements none of the media/blob URL surface the video path touches.
+beforeAll(() => {
+  URL.createObjectURL = vi.fn(() => 'blob:mock')
+  URL.revokeObjectURL = vi.fn()
+  HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
+})
+
+// Controllable video-store: only the in-flight-dispose test drives a real
+// pending load; every other test never reaches getVideo (empty key short-circuits).
+const videoMock = vi.hoisted(() => ({
+  getVideo: vi.fn<(key: string) => Promise<Blob | undefined>>(),
+  resolveLoad: undefined as ((value: Blob | undefined) => void) | undefined,
+}))
+vi.mock('../src/client/video-store.ts', () => ({
+  getVideo: (_key: string): Promise<Blob | undefined> =>
+    new Promise(resolve => { videoMock.resolveLoad = resolve }),
+}))
 
 afterEach(() => {
   document.head.querySelectorAll(`#${STYLE_ID}`).forEach(node => node.remove())
   document.body.querySelectorAll(`#${BG_LAYER_ID}`).forEach(node => node.remove())
   vi.restoreAllMocks()
+  videoMock.resolveLoad = undefined
 })
 
 /** Minimal ctx.theme double: records override layers and hands out disposers. */
@@ -45,10 +64,9 @@ describe('AppearanceApplier', () => {
     const body = document.body
     expect(body.style.getPropertyValue('--dsw-appearance-bg-image')).toBe('url("data:image/png;base64,AAAA")')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-opacity')).toBe('0.5')
-    expect(body.style.getPropertyValue('--dsw-appearance-bg-blur')).toBe('12px')
+    // Wallpaper blur and glass merge into one layer blur.
+    expect(body.style.getPropertyValue('--dsw-appearance-blur')).toBe('20px')
     expect(body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('0.4')
-    expect(body.style.getPropertyValue('--dsw-appearance-glass-blur')).toBe('8px')
-    expect(body.classList.contains(GLASS_CLASS)).toBe(true)
     applier.dispose()
     expect(remove).toHaveBeenCalled()
   })
@@ -72,16 +90,42 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('dispose removes the elements, body variables, and the glass class', () => {
+  it('dispose removes the elements, body variables, and the blur', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     applier.apply(full({ glassBlur: 10, scrim: 0.5 }))
-    expect(document.body.classList.contains(GLASS_CLASS)).toBe(true)
+    expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('10px')
     applier.dispose()
     expect(document.getElementById(STYLE_ID)).toBeNull()
     expect(document.getElementById(BG_LAYER_ID)).toBeNull()
-    expect(document.body.classList.contains(GLASS_CLASS)).toBe(false)
-    expect(document.body.style.getPropertyValue('--dsw-appearance-bg-blur')).toBe('')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('')
     expect(document.body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('')
+  })
+
+  it('dispose cancels an in-flight video load (no orphan element or URL)', async () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const layer = document.getElementById(BG_LAYER_ID)!
+    applier.apply(full({ backgroundVideo: 'key-1' }))
+    expect(videoMock.resolveLoad).toBeDefined()
+    // Dispose while the IndexedDB read is still pending.
+    applier.dispose()
+    // The load settles afterwards: the stale key check must drop it.
+    videoMock.resolveLoad!(new Blob(['x'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    expect(layer.querySelector('video')).toBeNull()
+    expect(layer.hasAttribute('data-video')).toBe(false)
+  })
+
+  it('a settled video load applies the layer before dispose', async () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const layer = document.getElementById(BG_LAYER_ID)!
+    applier.apply(full({ backgroundVideo: 'key-2' }))
+    videoMock.resolveLoad!(new Blob(['x'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    expect(layer.hasAttribute('data-video')).toBe(true)
+    applier.dispose()
+    expect(layer.querySelector('video')).toBeNull()
   })
 })

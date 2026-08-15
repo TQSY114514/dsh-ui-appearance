@@ -1,5 +1,5 @@
-﻿/**
- * Standalone build preset for the appearance plugin 鈥?a self-contained port
+/**
+ * Standalone build preset for the appearance plugin — a self-contained port
  * of the harness repo's `packages/client/tsdown.client.ts`, so this package
  * builds OUTSIDE the deepseek-harness checkout (the dsh-web-ui skins' pattern:
  * `dsh plugin add <path-or-git-url>` runs `prepare` and produces lib/ with no
@@ -61,7 +61,7 @@ const purityGate = {
     if (VENDORED_LIBRARY.test(source)) return null
     if (INLINE_SAFE.test(source)) return null
     throw new Error(
-      `client bundle purity: "${source}" is not a platform module or inline-safe wire layer 鈥?`
+      `client bundle purity: "${source}" is not a platform module or inline-safe wire layer — `
       + 'cross-plugin value imports are forbidden; collaborate through cordis services (type-only imports are erased and never reach this gate)',
     )
   },

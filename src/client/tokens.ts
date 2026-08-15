@@ -8,6 +8,9 @@
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
 import { isDarkColor, mixHex, withAlpha } from './color.ts'
+// Schema bounds live next to the settings document; re-exported here so the
+// slider caps and the persistence sanitizer share one source of truth.
+export { BACKGROUND_BLUR_MAX, GLASS_BLUR_MAX } from '../appearance-settings.ts'
 
 /** Override-layer source name pinned to this package (also names inspection). */
 export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
@@ -16,12 +19,6 @@ export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
 const LIGHT_BASE = '#ffffff'
 /** Mode base a derived step mixes toward: dark mixes toward near-black. */
 const DARK_BASE = '#151517'
-
-/** Max glass backdrop blur in px (schema bound). */
-export const GLASS_BLUR_MAX = 20
-
-/** Max background image blur in px (schema bound). */
-export const BACKGROUND_BLUR_MAX = 30
 
 /**
  * Stock surface colors per mode (design-platform.css alias tokens, resolved

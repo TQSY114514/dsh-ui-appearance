@@ -24,13 +24,15 @@ import css from './AppearanceCustomizerRow.module.css'
 /** Injected business face: the row's whole write path. */
 export interface AppearanceCustomizerInjected {
   /** Update one settings field (optimistic + debounced persistence). */
-  set: (field: keyof AppearanceSettings, value: string | number) => void
+  set: (field: keyof AppearanceSettings, value: string | number | boolean) => void
   /** Set or clear the background image (null removes it). */
   setImage: (image: { url: string; imageDark: boolean } | null) => void
   /** Set or clear the background video by its IndexedDB record key. */
   setVideo: (key: string | null) => void
   /** Apply one shipped preset (colors only). */
   applyPreset: (id: string) => void
+  /** Apply a batch of role colors in one write (scheme import). */
+  applyColors: (colors: Partial<Record<AppearanceRole, string>>) => void
   /** Restore every setting to its stock value. */
   resetAll: () => void
 }
@@ -110,7 +112,7 @@ function Slider(props: {
  * @returns the row element tree.
  */
 export function AppearanceCustomizerRow({
-  t, useStore, set, setImage, setVideo, applyPreset, resetAll,
+  t, useStore, set, setImage, setVideo, applyPreset, applyColors, resetAll,
 }: AppearanceCustomizerComponentProps) {
   const settings = useStore(s => s.settings)
   const [open, setOpen] = useState(false)
@@ -147,6 +149,10 @@ export function AppearanceCustomizerRow({
     setVideoReading(true)
     setVideoError(false)
     try {
+      // Replacing a video must drop the previous IndexedDB record, or the
+      // store accumulates one entry per upload.
+      const oldKey = settings.backgroundVideo
+      if (oldKey !== '') void deleteVideo(oldKey)
       const key = await saveVideo(file, file.name)
       setVideo(key)
     } catch {
@@ -194,9 +200,7 @@ export function AppearanceCustomizerRow({
     setSchemeError(false)
     try {
       const colors = parseColorScheme(schemeDraft)
-      const entries = Object.entries(colors)
-      for (const [role, hex] of entries) set(role as AppearanceRole, hex as string)
-      if (entries.length > 0) set('preset', 'custom')
+      applyColors(colors)
       setSchemeOpen(false)
       setSchemeDraft('')
     } catch {
@@ -361,7 +365,7 @@ export function AppearanceCustomizerRow({
                 type="checkbox"
                 className={css.checkbox}
                 checked={settings.sidebarOpaque}
-                onChange={event => { set('sidebarOpaque', event.target.checked ? 1 : 0) }}
+                onChange={event => { set('sidebarOpaque', event.target.checked) }}
               />
               <span className={css.sliderLabel}>{t('surface.sidebar')}</span>
             </label>
