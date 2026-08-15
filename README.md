@@ -1,6 +1,10 @@
 # dsh-ui-appearance
 
-DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁纸背景、毛玻璃与背景氛围,全部实时预览、自动持久化。
+DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁纸/视频背景、毛玻璃与背景氛围,全部实时预览、自动持久化。
+
+[![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
+[![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
+[![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
 
 > 零核心代码改动:完全通过官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点与 `settings.general.item` 插槽)实现;卸载后界面完整恢复默认。
 
@@ -45,15 +49,27 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 
 卸载:`dsh plugin --profile <name> remove dsh-ui-appearance`
 
-> 安装流程已验证端到端:`file:` 安装会把插件复制进 profile 目录树,host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
+**更新**:新版本发布后,重新执行 `add` 命令即可升级到最新版。
+
+> 安装流程已验证端到端:npm registry 与 `file:` 源码直装两种方式均实测可用(host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载)。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
 > 版本演进见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 使用
 
 1. 打开 WebUI,进入侧栏「设置」→「通用」
 2. 在「外观」行下方找到「个性化外观」,点击展开
-3. 点预设快速换肤 → 用取色器或 HEX 微调每个颜色角色 → 上传或拖入壁纸 → 拖动氛围滑块
-4. 完成。所有调整实时生效
+3. 点预设快速换肤 → 用取色器或 HEX 微调 6 个颜色角色 → 上传或拖入壁纸/视频 → 拖动氛围与界面滑块
+4. 完成。所有调整实时生效,无需刷新、无需保存
+
+设置面板内容一览:
+
+| 区块 | 控件 |
+|---|---|
+| 预设主题 | 默认 / 午夜 / 海洋 / 森林 / 玫瑰 / 单色,一键应用后可继续微调 |
+| 主题颜色 | 6 个角色 × (取色器 + HEX 输入):主色、背景色、面板色、输入框色、文字色、边框色 |
+| 背景 | 图片上传/更换/删除、视频上传/删除、背景不透明度、背景模糊、背景遮罩 |
+| 界面 | 面板不透明度、强调字浓度、侧边栏保持不透明、毛玻璃强度 |
+| 配色方案 | 导出配色、导入配色(JSON 文本) |
 
 ## 持久化与恢复
 
@@ -108,7 +124,7 @@ vitest.config.ts              # 独立测试配置(alias 指向 tests/stubs)
 lib/                          # 构建产物
 ```
 
-`@deepseek-ai/*` 依赖全部为 optional peer,运行期由宿主提供;唯一运行时依赖是 `clsx`。CI 构建与产物断言全绿。
+`@deepseek-ai/*` 依赖全部为 optional peer,运行期由宿主提供;唯一运行时依赖是 `clsx`。97 个 vitest 测试全绿(独立仓库可独立运行),CI 构建与产物断言全绿。
 
 ## License
 
