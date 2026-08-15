@@ -71,7 +71,7 @@
     "@deepseek-ai/dsh-invariants": "*",
     "@deepseek-ai/dsh-settings": "*",
     "@deepseek-ai/schemastery": "*",
-    "react": "^18.2.0"
+    "react": "^19.2.8"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {
@@ -112,11 +112,11 @@
     }
   },
   "devDependencies": {
-    "@types/react": "~18.3.1",
+    "@types/react": "~19.2.18",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "lightningcss": "^1.32.0",
-    "react": "^18.2.0",
+    "react": "^19.2.8",
     "tsdown": "^0.22.2",
     "typescript": "^5.5.0",
     "unrun": "^0.3.1"
