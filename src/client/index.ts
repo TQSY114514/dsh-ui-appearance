@@ -127,6 +127,19 @@ export function apply(ctx: ClientContext): void {
     const patch = { ...current }
     patch.backgroundImage = image?.url ?? ''
     patch.imageDark = image?.imageDark ?? false
+    // Image and video backgrounds are mutually exclusive.
+    if (image !== null) patch.backgroundVideo = ''
+    current = patch
+    commit()
+  }
+  const setVideo = (key: string | null): void => {
+    const patch = { ...current }
+    patch.backgroundVideo = key ?? ''
+    // Image and video backgrounds are mutually exclusive.
+    if (key !== null) {
+      patch.backgroundImage = ''
+      patch.imageDark = false
+    }
     current = patch
     commit()
   }
@@ -154,7 +167,7 @@ export function apply(ctx: ClientContext): void {
     bound = actions
     // Push the initial section so the row renders the persisted values.
     publish()
-    return { set, setImage, applyPreset, resetAll }
+    return { set, setImage, setVideo, applyPreset, resetAll }
   }
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({

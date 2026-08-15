@@ -32,6 +32,8 @@ export type AppearanceColors = Record<AppearanceRole, string>
 export interface AppearanceSettings extends AppearanceColors {
   /** Compressed background image data URL; '' clears the image. */
   backgroundImage: string
+  /** IndexedDB key of the background video; '' clears the video. */
+  backgroundVideo: string
   /** True when the compressed image sampled as dark (< 35% average brightness). */
   imageDark: boolean
   /** Background image layer opacity, 0..1. */
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   userBubble: '',
   assistantBubble: '',
   backgroundImage: '',
+  backgroundVideo: '',
   imageDark: false,
   backgroundOpacity: 1,
   backgroundBlur: 0,

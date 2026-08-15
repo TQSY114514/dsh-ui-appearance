@@ -192,3 +192,23 @@
   outline-offset: 6px;
   border-radius: 8px;
 }
+
+.schemePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schemeInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  resize: vertical;
+}

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-client-ui-appearance",
+  "name": "dsh-ui-appearance",
   "version": "0.1.0-rc.6",
   "description": "Appearance customization plugin for DeepSeek Harness WebUI: theme palette, background image, transparency and blur over the --dsw-* token system",
   "license": "MIT",
@@ -113,6 +113,7 @@
   },
   "devDependencies": {
     "@types/react": "~18.3.1",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "lightningcss": "^1.32.0",
     "react": "^18.2.0",

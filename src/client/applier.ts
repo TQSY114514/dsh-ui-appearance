@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
 import { buildTokenOverrides, OVERRIDE_SOURCE } from './tokens.ts'
+import { getVideo } from './video-store.ts'
 
 /** Background layer element id (the stylesheet targets it). */
 export const BG_LAYER_ID = 'dsw-appearance-bg'
@@ -57,6 +58,20 @@ const SHEET = `
   opacity: var(--dsw-appearance-bg-opacity, 1);
   filter: blur(var(--dsw-appearance-bg-blur, 0px));
 }
+#${BG_LAYER_ID} video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+#${BG_LAYER_ID}[data-video] video {
+  display: block;
+}
+#${BG_LAYER_ID}[data-video] {
+  background-image: none;
+}
 body[data-ds-dark-theme] #${BG_LAYER_ID} {
   background-image:
     linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
@@ -86,6 +101,9 @@ body.${GLASS_CLASS} #root {
 export class AppearanceApplier {
   private readonly style: HTMLStyleElement
   private readonly layer: HTMLDivElement
+  private videoEl: HTMLVideoElement | undefined
+  private videoUrl: string | undefined
+  private videoKey = ''
   private removeOverrides: (() => void) | undefined
 
   /**
@@ -125,12 +143,70 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
     body.style.setProperty('--dsw-appearance-glass-blur', `${value.glassBlur}px`)
     body.classList.toggle(GLASS_CLASS, value.glassBlur > 0)
+    // A background video (IndexedDB record key) replaces the image layer;
+    // loading is async and only re-runs when the key changes.
+    void this.syncVideo(value.backgroundVideo)
+  }
+
+  /**
+   * Load or clear the background video for a record key. Reuses the element
+   * and object URL when the key is unchanged, so repeated applies never
+   * re-read IndexedDB.
+   * @param key - video record key, or '' to clear.
+   */
+  private async syncVideo(key: string): Promise<void> {
+    if (key === this.videoKey) return
+    this.videoKey = key
+    this.teardownVideo()
+    if (key === '') {
+      this.layer.removeAttribute('data-video')
+      return
+    }
+    const record = await getVideo(key)
+    if (record === undefined || this.videoKey !== key) {
+      // Deleted while loading, or superseded by a newer apply.
+      this.videoKey = ''
+      this.layer.removeAttribute('data-video')
+      return
+    }
+    const video = this.ensureVideo()
+    this.videoUrl = URL.createObjectURL(record)
+    video.src = this.videoUrl
+    video.play().catch(() => {
+      // Autoplay policy or unsupported codec: keep the layer fallback silent.
+    })
+    this.layer.setAttribute('data-video', '')
+  }
+
+  /** Create the background video element once. */
+  private ensureVideo(): HTMLVideoElement {
+    if (this.videoEl === undefined) {
+      const video = document.createElement('video')
+      video.muted = true
+      video.loop = true
+      video.playsInline = true
+      video.autoplay = true
+      this.layer.append(video)
+      this.videoEl = video
+    }
+    return this.videoEl
+  }
+
+  /** Remove the video element and revoke its object URL. */
+  private teardownVideo(): void {
+    this.videoEl?.remove()
+    this.videoEl = undefined
+    if (this.videoUrl !== undefined) {
+      URL.revokeObjectURL(this.videoUrl)
+      this.videoUrl = undefined
+    }
   }
 
   /** Retract the override layer, the stylesheet, the layer element, and body variables. */
   dispose(): void {
     this.removeOverrides?.()
     this.removeOverrides = undefined
+    this.teardownVideo()
     this.style.remove()
     this.layer.remove()
     const body = document.body

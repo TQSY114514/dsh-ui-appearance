@@ -14,6 +14,8 @@ import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-cli
 import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, readImageFile } from './image.ts'
+import { ACCEPTED_VIDEO_TYPES, deleteVideo, saveVideo } from './video-store.ts'
+import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, GLASS_BLUR_MAX } from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
 import type { createAppearanceRowStore } from './settings-store.ts'
@@ -25,6 +27,8 @@ export interface AppearanceCustomizerInjected {
   set: (field: keyof AppearanceSettings, value: string | number) => void
   /** Set or clear the background image (null removes it). */
   setImage: (image: { url: string; imageDark: boolean } | null) => void
+  /** Set or clear the background video by its IndexedDB record key. */
+  setVideo: (key: string | null) => void
   /** Apply one shipped preset (colors only). */
   applyPreset: (id: string) => void
   /** Restore every setting to its stock value. */
@@ -106,14 +110,21 @@ function Slider(props: {
  * @returns the row element tree.
  */
 export function AppearanceCustomizerRow({
-  t, useStore, set, setImage, applyPreset, resetAll,
+  t, useStore, set, setImage, setVideo, applyPreset, resetAll,
 }: AppearanceCustomizerComponentProps) {
   const settings = useStore(s => s.settings)
   const [open, setOpen] = useState(false)
   const [reading, setReading] = useState(false)
   const [readError, setReadError] = useState(false)
+  const [videoReading, setVideoReading] = useState(false)
+  const [videoError, setVideoError] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [schemeOpen, setSchemeOpen] = useState(false)
+  const [schemeDraft, setSchemeDraft] = useState('')
+  const [schemeError, setSchemeError] = useState(false)
+  const [exported, setExported] = useState(false)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const videoRef = useRef<HTMLInputElement | null>(null)
 
   const readFile = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
@@ -127,20 +138,70 @@ export function AppearanceCustomizerRow({
       setReading(false)
     }
   }
+  const readVideo = async (file: File | undefined): Promise<void> => {
+    if (file === undefined) return
+    if (!file.type.startsWith('video/')) {
+      setVideoError(true)
+      return
+    }
+    setVideoReading(true)
+    setVideoError(false)
+    try {
+      const key = await saveVideo(file, file.name)
+      setVideo(key)
+    } catch {
+      setVideoError(true)
+    } finally {
+      setVideoReading(false)
+    }
+  }
+  const removeVideo = (): void => {
+    if (settings.backgroundVideo !== '') void deleteVideo(settings.backgroundVideo)
+    setVideo(null)
+  }
   const onPick = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0]
     event.target.value = ''
     void readFile(file)
   }
+  const onPickVideo = (event: ChangeEvent<HTMLInputElement>): void => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    void readVideo(file)
+  }
   const onDrop = (event: DragEvent<HTMLDivElement>): void => {
     event.preventDefault()
     setDragging(false)
-    void readFile(event.dataTransfer.files?.[0])
+    const file = event.dataTransfer.files?.[0]
+    if (file?.type.startsWith('video/')) void readVideo(file)
+    else void readFile(file)
   }
   const changeRole = (role: AppearanceRole, hex: string): void => {
     const normalized = hex.length === 4 ? formatHex(parseHex(hex)) : hex.toLowerCase()
     set(role, normalized)
     set('preset', 'custom')
+  }
+  const doExport = async (): Promise<void> => {
+    setExported(false)
+    try {
+      await navigator.clipboard.writeText(exportColorScheme(settings))
+      setExported(true)
+    } catch {
+      setSchemeError(true)
+    }
+  }
+  const doImport = (): void => {
+    setSchemeError(false)
+    try {
+      const colors = parseColorScheme(schemeDraft)
+      const entries = Object.entries(colors)
+      for (const [role, hex] of entries) set(role as AppearanceRole, hex as string)
+      if (entries.length > 0) set('preset', 'custom')
+      setSchemeOpen(false)
+      setSchemeDraft('')
+    } catch {
+      setSchemeError(true)
+    }
   }
 
   return (
@@ -220,9 +281,39 @@ export function AppearanceCustomizerRow({
                   </button>
                 </>
               )}
+              <input
+                ref={videoRef}
+                className={css.fileInput}
+                type="file"
+                accept={ACCEPTED_VIDEO_TYPES.join(',')}
+                onChange={onPickVideo}
+              />
+              <button
+                type="button"
+                className={css.ghostButton}
+                disabled={videoReading}
+                onClick={() => { videoRef.current?.click() }}
+              >
+                {videoReading
+                  ? t('background.reading')
+                  : settings.backgroundVideo !== ''
+                    ? t('background.replace')
+                    : t('background.videoUpload')}
+              </button>
+              {settings.backgroundVideo !== '' && (
+                <button type="button" className={css.ghostButton} onClick={removeVideo}>
+                  {t('background.videoRemove')}
+                </button>
+              )}
             </div>
             <div className={css.hint}>
-              {readError ? t('background.readError') : t('background.dropHint')}
+              {videoError
+                ? t('background.videoError')
+                : settings.backgroundVideo !== ''
+                  ? t('background.videoHint')
+                  : readError
+                    ? t('background.readError')
+                    : t('background.dropHint')}
             </div>
             <Slider
               label={t('background.opacity')}
@@ -275,6 +366,48 @@ export function AppearanceCustomizerRow({
               onChange={value => { set('glassBlur', value) }}
             />
             <div className={css.hint}>{t('surface.hint')}</div>
+          </div>
+
+          <div className={css.section}>
+            <div className={css.sectionTitle}>{t('scheme.title')}</div>
+            <div className={css.uploadRow}>
+              <button type="button" className={css.ghostButton} onClick={() => { void doExport() }}>
+                {t('scheme.export')}
+              </button>
+              <button
+                type="button"
+                className={css.ghostButton}
+                onClick={() => { setSchemeOpen(value => !value) }}
+              >
+                {t('scheme.import')}
+              </button>
+              {exported && <span className={css.hint}>{t('scheme.exported')}</span>}
+            </div>
+            {schemeOpen && (
+              <div className={css.schemePanel}>
+                <textarea
+                  className={css.schemeInput}
+                  aria-label={t('scheme.import')}
+                  rows={4}
+                  placeholder={t('scheme.importPlaceholder')}
+                  value={schemeDraft}
+                  onChange={event => { setSchemeDraft(event.target.value); setSchemeError(false) }}
+                />
+                {schemeError && <div className={css.hint}>{t('scheme.invalid')}</div>}
+                <div className={css.uploadRow}>
+                  <button type="button" className={css.ghostButton} onClick={doImport}>
+                    {t('scheme.apply')}
+                  </button>
+                  <button
+                    type="button"
+                    className={css.ghostButton}
+                    onClick={() => { setSchemeOpen(false); setSchemeDraft(''); setSchemeError(false) }}
+                  >
+                    {t('scheme.cancel')}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={css.footer}>
