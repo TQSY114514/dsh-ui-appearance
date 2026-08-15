@@ -12,7 +12,7 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 **主题颜色** —— 8 个颜色角色:主色、背景色、面板色、输入框色、文字色、边框色、用户/AI 消息气泡。每个角色都支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色。
 
-**壁纸背景** —— 点击上传或拖拽图片(JPG / PNG / WebP),自动压缩后作为全界面壁纸;上传时自动采样亮度,深色壁纸会协调抬亮表面、翻亮文字、按钮跟随变暗,保证可读性。
+**壁纸背景** —— 点击上传或拖拽图片(JPG / PNG / WebP),自动压缩后作为全界面壁纸;上传时自动采样亮度,深色壁纸会协调抬亮表面、翻亮文字、按钮跟随变暗,保证可读性。也支持**视频背景**(MP4 / WebM,静音循环,与图片互斥),视频存入 IndexedDB,不占用 localStorage 配额。
 
 **毛玻璃与半透明** —— 面板不透明度与毛玻璃强度两个滑块,让侧边栏、聊天区、卡片、按钮一同融进壁纸,而非突兀的实心色块。
 
@@ -20,18 +20,22 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 **预设起步** —— 默认 / 午夜 / 海洋 / 森林 / 玫瑰 / 单色六套预设,一键应用后仍可自由微调,不被预设锁死。
 
+**配色分享** —— 一键导出配色 JSON(复制到剪贴板),粘贴导入即应用;与朋友交换配色方案只需一段文本。
+
 所有修改实时生效,无需刷新,无需保存。
 
 ## 安装
 
-一条命令:
-
 ```sh
+# npm(推荐,发布后可用)
+dsh plugin --profile <name> add dsh-ui-appearance
+
+# 或从源码(已验证端到端)
 git clone https://github.com/TQSY114514/dsh-ui-appearance.git
 dsh plugin --profile <name> add file:<克隆到的本地路径>
 ```
 
-卸载:`dsh plugin --profile <name> remove @deepseek-ai/dsh-client-ui-appearance`
+卸载:`dsh plugin --profile <name> remove dsh-ui-appearance`
 
 > 安装流程已验证端到端:`file:` 安装会把插件复制进 profile 目录树,host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
 
@@ -76,6 +80,8 @@ src/
     ├── applier.ts            # DOM 应用器(token 覆写、背景图层、毛玻璃)
     ├── tokens.ts             # 颜色角色 → token 映射、预设、半透明烘焙
     ├── color.ts / image.ts   # 色值工具 / 图片压缩
+    ├── video-store.ts        # IndexedDB 视频存储(20MB 上限)
+    ├── color-scheme.ts       # 配色导出/导入(纯函数)
     ├── settings-store.ts     # 设置镜像 store
     ├── locales.ts            # 中英文案
     └── AppearanceCustomizerRow.tsx + .module.css   # 设置行 UI
