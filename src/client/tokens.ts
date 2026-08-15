@@ -243,7 +243,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // An image keeps the base transparent even under surface translucency.
     translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : background, undefined)
     translucent('--dsw-alias-bg-layer-1', panel, flipLayer1)
-    translucent('--dsw-alias-bg-layer-2', undefined, flipLayer2)
+    // Layer-2 backs the settings panel root, so it must follow the panel
+    // color too (its 8% light-derived step keeps the layer depth).
+    translucent('--dsw-alias-bg-layer-2', panel !== '' ? mixHex(panel, LIGHT_BASE, 0.08) : undefined, flipLayer2)
     translucent('--dsw-alias-bg-layer-3', undefined, undefined)
     translucent('--dsw-alias-bg-overlay', undefined, undefined)
     translucent('--dsw-alias-bg-module-platform', undefined, undefined)

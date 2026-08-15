@@ -87,6 +87,15 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
+  it('layer-2 (settings panel root) follows the panel color under translucency', () => {
+    const tokens = buildTokenOverrides(full({ panel: '#9a2323', surfaceAlpha: 0.6 }))
+    // mix(#9a2323, #ffffff, 0.08) = rgb(162, 53, 53).
+    expect(tokens['--dsw-alias-bg-layer-2']!.light).toBe('rgba(162, 53, 53, 0.6)')
+    // Without a panel color it stays on the neutral surface family.
+    const stock = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
+    expect(stock['--dsw-alias-bg-layer-2']!.light).toBe('rgba(255, 255, 255, 0.6)')
+  })
+
   it('brand/accent action buttons follow the translucency too (hue keeps the emphasis)', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(255, 255, 255, 0.6)')
