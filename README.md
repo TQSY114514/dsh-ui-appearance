@@ -35,7 +35,7 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 ## 安装
 
 ```sh
-# npm(推荐,发布后可用)
+# npm 发布版(推荐)
 dsh plugin --profile <name> add dsh-ui-appearance
 
 # 或从源码(已验证端到端)
@@ -46,6 +46,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 卸载:`dsh plugin --profile <name> remove dsh-ui-appearance`
 
 > 安装流程已验证端到端:`file:` 安装会把插件复制进 profile 目录树,host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
+> 版本演进见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 使用
 
