@@ -10,7 +10,7 @@ import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.
 import { isDarkColor, mixHex, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
-export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, GLASS_BLUR_MAX } from '../appearance-settings.ts'
+export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from '../appearance-settings.ts'
 
 /** Override-layer source name pinned to this package (also names inspection). */
 export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
@@ -163,6 +163,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   if (userBubble !== '') {
     const [light, dark] = modePair(userBubble)
     emit('--dsw-specific-bubble-highlight', light, dark)
+    // The harness renders every message bubble with --dsw-specific-bubble
+    // (bubble-highlight has no consumer), so the user-bubble color only has
+    // an effect when it also lands on the shared bubble token. The AI-bubble
+    // block below wins when both roles are set.
+    emit('--dsw-specific-bubble', light, dark)
   }
 
   if (assistantBubble !== '') {
@@ -248,7 +253,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
     translucent('--dsw-specific-input-major', input, undefined)
     translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
-    translucent('--dsw-specific-bubble', assistantBubble, undefined)
+    // Both bubble roles map onto the shared bubble token (see the user-bubble
+    // block); the AI-bubble role wins when both are set.
+    translucent('--dsw-specific-bubble', assistantBubble !== '' ? assistantBubble : userBubble, undefined)
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
     translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)

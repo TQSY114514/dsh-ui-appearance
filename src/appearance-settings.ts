@@ -12,6 +12,9 @@ export const GLASS_BLUR_MAX = 20
 /** Max emphasized-text tint alpha (schema bound for the inline-code chips). */
 export const EMPHASIS_ALPHA_MAX = 0.45
 
+/** Min emphasized-text tint alpha; 0 = no chip background at all. */
+export const EMPHASIS_ALPHA_MIN = 0
+
 /**
  * The color roles the customizer exposes. Each role maps to one or more
  * `--dsw-alias-*` tokens; an empty string means "keep the stock token".
@@ -57,7 +60,7 @@ export interface AppearanceSettings extends AppearanceColors {
   sidebarOpaque: boolean
   /** Glass blur in px added to the wallpaper blur, 0..20 (0 = no extra blur). */
   glassBlur: number
-  /** Tint alpha of emphasized text chips (inline code), 0.1..0.45. */
+  /** Tint alpha of emphasized text chips (inline code), 0..0.45. */
   emphasisAlpha: number
   /** Last applied preset id, or 'custom' after manual edits. */
   preset: string
@@ -93,7 +96,7 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
   scrim: { min: 0, max: 1 },
   surfaceAlpha: { min: 0, max: 1 },
   glassBlur: { min: 0, max: GLASS_BLUR_MAX },
-  emphasisAlpha: { min: 0.1, max: EMPHASIS_ALPHA_MAX },
+  emphasisAlpha: { min: EMPHASIS_ALPHA_MIN, max: EMPHASIS_ALPHA_MAX },
 }
 
 /** Boolean fields, used to sanitize persisted input. */
