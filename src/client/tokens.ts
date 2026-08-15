@@ -10,7 +10,7 @@ import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.
 import { isDarkColor, mixHex, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
-export { BACKGROUND_BLUR_MAX, GLASS_BLUR_MAX } from '../appearance-settings.ts'
+export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, GLASS_BLUR_MAX } from '../appearance-settings.ts'
 
 /** Override-layer source name pinned to this package (also names inspection). */
 export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
@@ -86,7 +86,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque } = settings
+  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -258,11 +258,12 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-tip', undefined, undefined)
     // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
     // user accent, else the stock brand) instead of a translucent gray —
-    // path/file chips stay recognizable without a solid white block.
-    // 0.22 matches the harness's own reference-chip alpha.
+    // path/file chips stay recognizable without a solid white block. The
+    // tint alpha is user-controlled (emphasisAlpha, default 0.22 to match
+    // the harness's own reference-chip alpha).
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
-    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, 0.22), withAlpha(inlineCodeBaseDark, 0.22))
+    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
     translucent('--dsw-alias-markdown-code-block', undefined, undefined)
     translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as

@@ -1,7 +1,7 @@
 /** Persistence sanitizer: schema validation and clamping of stored settings. */
 import { describe, expect, it } from 'vitest'
 import {
-  BACKGROUND_BLUR_MAX, DEFAULT_SETTINGS, sanitizeSettings,
+  BACKGROUND_BLUR_MAX, DEFAULT_SETTINGS, EMPHASIS_ALPHA_MAX, sanitizeSettings,
 } from '../src/appearance-settings.ts'
 
 describe('sanitizeSettings', () => {
@@ -36,13 +36,14 @@ describe('sanitizeSettings', () => {
     const sanitized = sanitizeSettings({
       ...DEFAULT_SETTINGS,
       backgroundOpacity: 5, scrim: -1, surfaceAlpha: Number.NaN,
-      backgroundBlur: 999, glassBlur: -3,
+      backgroundBlur: 999, glassBlur: -3, emphasisAlpha: 9,
     })
     expect(sanitized.backgroundOpacity).toBe(1)
     expect(sanitized.scrim).toBe(0)
     expect(sanitized.surfaceAlpha).toBe(DEFAULT_SETTINGS.surfaceAlpha)
     expect(sanitized.backgroundBlur).toBe(BACKGROUND_BLUR_MAX)
     expect(sanitized.glassBlur).toBe(0)
+    expect(sanitized.emphasisAlpha).toBe(EMPHASIS_ALPHA_MAX)
   })
 
   it('rejects non-number numerics instead of feeding them into CSS', () => {

@@ -16,7 +16,7 @@ import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, readImageFile } from './image.ts'
 import { ACCEPTED_VIDEO_TYPES, deleteVideo, saveVideo } from './video-store.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
-import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, GLASS_BLUR_MAX } from './tokens.ts'
+import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, GLASS_BLUR_MAX } from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
 import type { createAppearanceRowStore } from './settings-store.ts'
 import css from './AppearanceCustomizerRow.module.css'
@@ -359,6 +359,15 @@ export function AppearanceCustomizerRow({
               step={0.01}
               format={value => `${Math.round(value * 100)}%`}
               onChange={value => { set('surfaceAlpha', value) }}
+            />
+            <Slider
+              label={t('surface.emphasis')}
+              value={settings.emphasisAlpha}
+              min={0.1}
+              max={EMPHASIS_ALPHA_MAX}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('emphasisAlpha', value) }}
             />
             <label className={css.checkRow}>
               <input
