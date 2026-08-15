@@ -14,6 +14,8 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 |---|---|
 | ![设置面板](docs/screenshot-settings.png) | ![壁纸毛玻璃](docs/screenshot-wallpaper.png) |
 
+> 效果图中的壁纸素材 © MadYY([原图](docs/wallpaper-madYY.png)),仅作演示;用户上传自己的图片即可。
+
 ## 功能
 
 **主题颜色** —— 8 个颜色角色:主色、背景色、面板色、输入框色、文字色、边框色、用户/AI 消息气泡。每个角色都支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色。
