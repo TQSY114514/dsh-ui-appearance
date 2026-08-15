@@ -102,6 +102,18 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.5)')
   })
 
+  it('inline code keeps a low-alpha brand tint so emphasized text stays visible', () => {
+    // Stock brand tint when no accent is set.
+    const stock = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
+    expect(stock['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.22)')
+    expect(stock['--dsw-alias-markdown-inline-code']!.dark).toBe('rgba(103, 158, 254, 0.22)')
+    // The user accent wins when set.
+    const accented = buildTokenOverrides(full({ surfaceAlpha: 0.6, accent: '#ff0000' }))
+    expect(accented['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(255, 0, 0, 0.22)')
+    // Code blocks stay on the translucent gray family.
+    expect(stock['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
+  })
+
   it('the sidebar can opt out of the surface translucency', () => {
     const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
     expect(translucent['--dsw-specific-sidebar-fill']).toBeDefined()

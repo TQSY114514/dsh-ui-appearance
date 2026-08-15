@@ -256,7 +256,13 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-fill-l2', undefined, undefined)
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
     translucent('--dsw-specific-tip', undefined, undefined)
-    translucent('--dsw-alias-markdown-inline-code', undefined, undefined)
+    // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
+    // user accent, else the stock brand) instead of a translucent gray —
+    // path/file chips stay recognizable without a solid white block.
+    // 0.22 matches the harness's own reference-chip alpha.
+    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
+    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
+    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, 0.22), withAlpha(inlineCodeBaseDark, 0.22))
     translucent('--dsw-alias-markdown-code-block', undefined, undefined)
     translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined)
     // Neutral buttons ride the same translucency so they do not stand out as
