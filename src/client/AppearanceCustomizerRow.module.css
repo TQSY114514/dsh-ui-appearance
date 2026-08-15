@@ -176,6 +176,17 @@
   text-align: right;
 }
 
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox {
+  accent-color: var(--dsw-alias-brand-primary);
+}
+
 .hint {
   font-size: 12px;
   line-height: 18px;

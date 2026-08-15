@@ -356,6 +356,15 @@ export function AppearanceCustomizerRow({
               format={value => `${Math.round(value * 100)}%`}
               onChange={value => { set('surfaceAlpha', value) }}
             />
+            <label className={css.checkRow}>
+              <input
+                type="checkbox"
+                className={css.checkbox}
+                checked={settings.sidebarOpaque}
+                onChange={event => { set('sidebarOpaque', event.target.checked ? 1 : 0) }}
+              />
+              <span className={css.sliderLabel}>{t('surface.sidebar')}</span>
+            </label>
             <Slider
               label={t('surface.glass')}
               value={settings.glassBlur}

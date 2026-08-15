@@ -96,6 +96,15 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-brand-primary']).toBeUndefined()
   })
 
+  it('the sidebar can opt out of the surface translucency', () => {
+    const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
+    expect(translucent['--dsw-specific-sidebar-fill']).toBeDefined()
+    const opaque = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarOpaque: true }))
+    expect(opaque['--dsw-specific-sidebar-fill']).toBeUndefined()
+    // Everything else still follows.
+    expect(opaque['--dsw-alias-bg-base']).toBeDefined()
+  })
+
   it('settings surfaces (selected nav tab, menus) follow the translucency too', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0.5)')

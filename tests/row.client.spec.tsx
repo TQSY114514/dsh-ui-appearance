@@ -1,6 +1,6 @@
-// @vitest-environment jsdom
+﻿// @vitest-environment jsdom
 /** Appearance customizer row: disclosure, preset chips, color fields, sliders,
- * image upload via drop, and the reset action — all through the injected face. */
+ * image upload via drop, and the reset action 鈥?all through the injected face. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createSnapshotStore, type SessionListState, type WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
@@ -59,6 +59,7 @@ function mount() {
   const store = createAppearanceRowStore().create()
   const set = vi.fn()
   const setImage = vi.fn()
+  const setVideo = vi.fn()
   const applyPreset = vi.fn()
   const resetAll = vi.fn()
   const props: AppearanceCustomizerComponentProps = {
@@ -69,11 +70,12 @@ function mount() {
     t: (key: string) => COPY[key] ?? key,
     set,
     setImage,
+    setVideo,
     applyPreset,
     resetAll,
   }
   render(<AppearanceCustomizerRow {...props} />)
-  return { store, set, setImage, applyPreset, resetAll }
+  return { store, set, setImage, setVideo, applyPreset, resetAll }
 }
 
 function openRow() {

@@ -68,7 +68,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha } = settings
+  const { accent, background, panel, input, text, border, userBubble, assistantBubble, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -224,7 +224,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-bg-layer-3', undefined, undefined)
     translucent('--dsw-alias-bg-overlay', undefined, undefined)
     translucent('--dsw-alias-bg-module-platform', undefined, undefined)
-    translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
+    // The sidebar can opt out of the surface translucency: navigation stays
+    // solid even when everything else melts into the wallpaper.
+    if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
     translucent('--dsw-specific-input-major', input, undefined)
     translucent('--dsw-specific-bubble-highlight', userBubble, undefined)
     translucent('--dsw-specific-bubble', assistantBubble, undefined)

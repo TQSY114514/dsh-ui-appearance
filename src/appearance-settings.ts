@@ -44,6 +44,8 @@ export interface AppearanceSettings extends AppearanceColors {
   scrim: number
   /** UI surface opacity, 0..1 (1 = fully opaque surfaces). */
   surfaceAlpha: number
+  /** Keep the sidebar fill opaque even when surfaceAlpha is below 1. */
+  sidebarOpaque: boolean
   /** Glass backdrop blur in px, 0..20 (0 = no backdrop-filter). */
   glassBlur: number
   /** Last applied preset id, or 'custom' after manual edits. */
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   backgroundBlur: 0,
   scrim: 0,
   surfaceAlpha: 1,
+  sidebarOpaque: false,
   glassBlur: 0,
   preset: '',
 }
