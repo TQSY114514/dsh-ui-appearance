@@ -1,6 +1,8 @@
 version: 2
 updates:
-  - package-ecosystem: pnpm
+  # Dependabot has no `pnpm` ecosystem; the npm ecosystem detects
+  # pnpm-lock.yaml and manages the pnpm dependency tree.
+  - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
