@@ -18,8 +18,9 @@ function stubFetch(init: () => Response | Promise<Response>): void {
 }
 
 /** A plain-object Response stand-in: jsdom's Response.blob() truncates
- * bodies above ~a few MB (known jsdom limitation), which would break the
- * size-gate tests. fetchBlob only touches ok/status and blob(). */
+ * bodies above ~a few MB and its Response constructor is unreliable across
+ * Node/jsdom versions, which would break the size gates and the type gates.
+ * fetchBlob only touches ok/status and blob(), so the shape is enough. */
 function stubFetchBlob(blob: Blob | null): void {
   globalThis.fetch = vi.fn(async () => ({
     ok: blob !== null,
@@ -28,8 +29,13 @@ function stubFetchBlob(blob: Blob | null): void {
   })) as unknown as typeof fetch
 }
 
-function okResponse(body: Blob | string, type?: string): Response {
-  return new Response(body, type === undefined ? { status: 200 } : { status: 200, headers: { 'Content-Type': type } })
+/** Same plain-object shape, for a non-2xx response. */
+function stubFetchStatus(status: number): void {
+  globalThis.fetch = vi.fn(async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    blob: async () => new Blob(['nope']),
+  })) as unknown as typeof fetch
 }
 
 describe('classifyUrl', () => {
@@ -60,13 +66,13 @@ describe('classifyUrl', () => {
 
 describe('fetchBlob', () => {
   it('returns the body blob on success', async () => {
-    stubFetch(() => okResponse('hello', 'text/plain'))
+    stubFetchBlob(new Blob(['hello'], { type: 'text/plain' }))
     const blob = await fetchBlob('https://example.com/x')
     expect(await blob.text()).toBe('hello')
   })
 
   it('maps a non-2xx response to http', async () => {
-    stubFetch(() => new Response('nope', { status: 404 }))
+    stubFetchStatus(404)
     await expect(fetchBlob('https://example.com/x')).rejects.toMatchObject({ code: 'http' })
   })
 
@@ -76,14 +82,14 @@ describe('fetchBlob', () => {
   })
 
   it('maps an empty body to network', async () => {
-    stubFetch(() => okResponse(''))
+    stubFetchBlob(new Blob([]))
     await expect(fetchBlob('https://example.com/x')).rejects.toMatchObject({ code: 'network' })
   })
 })
 
 describe('loadImageFromUrl', () => {
   it('rejects non-image content types', async () => {
-    stubFetch(() => okResponse(new Blob(['x'], { type: 'application/json' }), 'application/json'))
+    stubFetchBlob(new Blob(['x'], { type: 'application/json' }))
     await expect(loadImageFromUrl('https://example.com/x.jpg')).rejects.toMatchObject({ code: 'type' })
   })
 
@@ -94,8 +100,7 @@ describe('loadImageFromUrl', () => {
   })
 
   it('passes an image-sized blob into the compression pipeline', async () => {
-    const small = new Blob([new Uint8Array(64)], { type: 'image/png' })
-    stubFetch(() => okResponse(small, 'image/png'))
+    stubFetchBlob(new Blob([new Uint8Array(64)], { type: 'image/png' }))
     const result = await loadImageFromUrl('https://example.com/x.png')
     expect(result.url.startsWith('data:')).toBe(true)
   })
@@ -103,7 +108,7 @@ describe('loadImageFromUrl', () => {
 
 describe('loadVideoFromUrl', () => {
   it('rejects non-video content types', async () => {
-    stubFetch(() => okResponse(new Blob(['x'], { type: 'text/html' }), 'text/html'))
+    stubFetchBlob(new Blob(['x'], { type: 'text/html' }))
     await expect(loadVideoFromUrl('https://example.com/x.mp4')).rejects.toMatchObject({ code: 'type' })
   })
 
@@ -114,8 +119,7 @@ describe('loadVideoFromUrl', () => {
   })
 
   it('returns a File carrying the video type and a derived name', async () => {
-    const small = new Blob([new Uint8Array(64)], { type: 'video/webm' })
-    stubFetch(() => okResponse(small, 'video/webm'))
+    stubFetchBlob(new Blob([new Uint8Array(64)], { type: 'video/webm' }))
     const file = await loadVideoFromUrl('https://example.com/bg.webm')
     expect(file.type).toBe('video/webm')
     expect(file.name).toBe('bg.webm')
