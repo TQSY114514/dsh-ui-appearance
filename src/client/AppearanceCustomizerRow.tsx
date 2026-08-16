@@ -15,6 +15,7 @@ import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, readImageFile } from './image.ts'
 import { ACCEPTED_VIDEO_TYPES, deleteVideo, saveVideo } from './video-store.ts'
+import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
@@ -106,6 +107,12 @@ function Slider(props: {
   )
 }
 
+/** Map a remote-load failure code to the localized message key. */
+function urlErrorText(code: UrlLoadError, t: (key: AppearanceKey) => string): string {
+  const key: AppearanceKey = `background.urlError.${code}` as AppearanceKey
+  return t(key)
+}
+
 /**
  * Render the appearance customizer row.
  * @param props - composed slot props.
@@ -121,6 +128,9 @@ export function AppearanceCustomizerRow({
   const [videoReading, setVideoReading] = useState(false)
   const [videoError, setVideoError] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [urlDraft, setUrlDraft] = useState('')
+  const [urlReading, setUrlReading] = useState(false)
+  const [urlError, setUrlError] = useState<UrlLoadError | null>(null)
   const [schemeOpen, setSchemeOpen] = useState(false)
   const [schemeDraft, setSchemeDraft] = useState('')
   const [schemeError, setSchemeError] = useState(false)
@@ -164,6 +174,29 @@ export function AppearanceCustomizerRow({
   const removeVideo = (): void => {
     if (settings.backgroundVideo !== '') void deleteVideo(settings.backgroundVideo)
     setVideo(null)
+  }
+  const loadFromUrl = async (): Promise<void> => {
+    const url = urlDraft.trim()
+    if (url === '') return
+    setUrlReading(true)
+    setUrlError(null)
+    try {
+      if (classifyUrl(url) === 'video') {
+        const file = await loadVideoFromUrl(url)
+        // Replacing a video must drop the previous record (same rule as uploads).
+        const oldKey = settings.backgroundVideo
+        if (oldKey !== '') void deleteVideo(oldKey)
+        const key = await saveVideo(file, file.name)
+        setVideo(key)
+      } else {
+        setImage(await loadImageFromUrl(url))
+      }
+      setUrlDraft('')
+    } catch (error) {
+      setUrlError(error instanceof UrlLoadFailure ? error.code : 'network')
+    } finally {
+      setUrlReading(false)
+    }
   }
   const onPick = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0]
@@ -310,14 +343,36 @@ export function AppearanceCustomizerRow({
                 </button>
               )}
             </div>
+            <div className={css.urlRow}>
+              <input
+                type="url"
+                className={css.urlInput}
+                aria-label={t('background.url')}
+                placeholder={t('background.urlPlaceholder')}
+                value={urlDraft}
+                spellCheck={false}
+                onChange={event => { setUrlDraft(event.target.value); setUrlError(null) }}
+                onKeyDown={event => { if (event.key === 'Enter') void loadFromUrl() }}
+              />
+              <button
+                type="button"
+                className={css.ghostButton}
+                disabled={urlReading || urlDraft.trim() === ''}
+                onClick={() => { void loadFromUrl() }}
+              >
+                {urlReading ? t('background.urlLoading') : t('background.urlLoad')}
+              </button>
+            </div>
             <div className={css.hint}>
-              {videoError
-                ? t('background.videoError')
-                : settings.backgroundVideo !== ''
-                  ? t('background.videoHint')
-                  : readError
-                    ? t('background.readError')
-                    : t('background.dropHint')}
+              {urlError !== null
+                ? urlErrorText(urlError, t)
+                : videoError
+                  ? t('background.videoError')
+                  : settings.backgroundVideo !== ''
+                    ? t('background.videoHint')
+                    : readError
+                      ? t('background.readError')
+                      : t('background.dropHint')}
             </div>
             <Slider
               label={t('background.opacity')}

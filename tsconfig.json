@@ -9,7 +9,12 @@
     "skipLibCheck": true,
     "noEmit": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": []
+    "types": [],
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@deepseek-ai/*": ["types/peers.d.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "tests", "types"]
 }
