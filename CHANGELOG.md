@@ -2,6 +2,16 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.1] - 2026-08-15
+
+### Added
+
+- 背景区新增 **URL 加载**:粘贴图片或视频 URL 一键加载,按扩展名自动分流(视频走 IndexedDB,图片走压缩管线);CORS/网络/HTTP/类型/大小五类失败各有明确提示
+
+### Changed
+
+- 独立仓库支持自验证:tsconfig paths 映射 `@deepseek-ai/*` peer 到最小声明(`types/peers.d.ts`),`tsc --noEmit` 不再依赖 harness 工作区
+
 ## [0.1.0] - 2026-08-15
 
 正式发布版。功能自 rc.6 无变化,仅版本转正(rc 阶段已累计 97 个测试、双环境验证、端到端安装实测)。
