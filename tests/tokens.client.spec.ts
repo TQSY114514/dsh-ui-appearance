@@ -70,7 +70,19 @@ describe('buildTokenOverrides', () => {
 
   it('stays opaque at full surface opacity', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 1 }))
-    for (const value of Object.values(tokens)) expect(value.light).not.toContain('rgba(')
+    for (const [name, value] of Object.entries(tokens)) {
+      // The independent input/code knobs bake rgba(…, 1) even at full
+      // panel opacity; everything else stays free of rgba().
+      if (name.startsWith('--dsw-specific-input-major')) {
+        expect(value.light).toBe('rgba(255, 255, 255, 1)')
+        continue
+      }
+      if (name.startsWith('--dsw-alias-markdown-code-block')) {
+        expect(value.light).toBe('rgba(249, 250, 251, 1)')
+        continue
+      }
+      expect(value.light).not.toContain('rgba(')
+    }
   })
 
   it('translucency with every role color empty falls back to the stock palette', () => {
@@ -146,6 +158,13 @@ describe('buildTokenOverrides', () => {
     // Lower values are independent of the panel alpha too.
     const half = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
     expect(half['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.3)')
+  })
+
+  it('independent knobs survive a fully opaque panel (regression: 100% panel reset the input)', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 0.8, codeAlpha: 0.5 }))
+    // The panel at 100% must not disable the independent input/code baking.
+    expect(tokens['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.8)')
+    expect(tokens['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.5)')
   })
 
   it('the sidebar can opt out of the surface translucency', () => {

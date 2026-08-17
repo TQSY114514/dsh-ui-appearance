@@ -208,28 +208,37 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-button-floating-hover', flipButtonFloatingHover, flipButtonFloatingHover)
   }
 
+  // Surface translucency bakes a plain rgba() per mode — NEVER a
+  // color-mix referencing the token itself: `color-mix(in srgb,
+  // var(--x) n%, transparent)` assigned to --x is a custom-property
+  // cycle, the property goes guaranteed-invalid, and every surface using
+  // it turns fully transparent (only 0%/100% looked "working").
+  // Resolution order: explicit role color → dark-flip derived value →
+  // the stock palette for that mode (design-platform.css, kept in sync
+  // manually).
+  const bakeAlpha = (token: string, explicit: string | undefined, flip: string | undefined, a: number): void => {
+    if (explicit === 'transparent') {
+      emit(token, 'transparent', 'transparent')
+      return
+    }
+    const base = explicit !== undefined && explicit !== ''
+      ? { light: explicit, dark: explicit }
+      : flip !== undefined
+        ? { light: flip, dark: flip }
+        : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
+    emit(token, withAlpha(base.light, a), withAlpha(base.dark, a))
+  }
+  // Input and code surfaces are absolute, independent of the panel opacity —
+  // they bake at every panel value (even 100%), so their own knobs keep
+  // working no matter where the panel slider sits.
+  bakeAlpha('--dsw-specific-input-major', input, undefined, inputAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha)
+
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
-    // Surface translucency bakes a plain rgba() per mode — NEVER a
-    // color-mix referencing the token itself: `color-mix(in srgb,
-    // var(--x) n%, transparent)` assigned to --x is a custom-property
-    // cycle, the property goes guaranteed-invalid, and every surface using
-    // it turns fully transparent (only 0%/100% looked "working").
-    // Resolution order: explicit role color → dark-flip derived value →
-    // the stock palette for that mode (design-platform.css, kept in sync
-    // manually).
-    const translucent = (token: string, explicit: string | undefined, flip: string | undefined, alphaOverride?: number): void => {
-      if (explicit === 'transparent') {
-        emit(token, 'transparent', 'transparent')
-        return
-      }
-      const base = explicit !== undefined && explicit !== ''
-        ? { light: explicit, dark: explicit }
-        : flip !== undefined
-          ? { light: flip, dark: flip }
-          : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
-      const a = alphaOverride ?? alpha
-      emit(token, withAlpha(base.light, a), withAlpha(base.dark, a))
+    const translucent = (token: string, explicit: string | undefined, flip: string | undefined): void => {
+      bakeAlpha(token, explicit, flip, alpha)
     }
     // An image keeps the base transparent even under surface translucency.
     translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : background, undefined)
@@ -244,9 +253,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // The sidebar can opt out of the surface translucency: navigation stays
     // solid even when everything else melts into the wallpaper.
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
-    // Input and code surfaces are absolute, independent of the panel
-    // opacity: 100% = fully opaque, 0% = fully transparent, no coupling.
-    translucent('--dsw-specific-input-major', input, undefined, inputAlpha)
     // Bubbles follow the accent hue at the surface alpha (set above).
     translucent('--dsw-specific-bubble', accent, undefined)
     translucent('--dsw-specific-bubble-highlight', accent, undefined)
@@ -265,8 +271,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#ffffff'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#f9fafb'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    translucent('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha)
-    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
