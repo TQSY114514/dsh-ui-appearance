@@ -244,7 +244,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // The sidebar can opt out of the surface translucency: navigation stays
     // solid even when everything else melts into the wallpaper.
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
-    translucent('--dsw-specific-input-major', input, undefined, inputAlpha < 1 ? inputAlpha : alpha)
+    // Input and code surfaces are absolute, independent of the panel
+    // opacity: 100% = fully opaque, 0% = fully transparent, no coupling.
+    translucent('--dsw-specific-input-major', input, undefined, inputAlpha)
     // Bubbles follow the accent hue at the surface alpha (set above).
     translucent('--dsw-specific-bubble', accent, undefined)
     translucent('--dsw-specific-bubble-highlight', accent, undefined)
@@ -256,15 +258,15 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
     translucent('--dsw-specific-tip', undefined, undefined)
     // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
-    // user accent, else the stock brand) instead of a translucent gray —
-    // path/file chips stay recognizable without a solid white block. The
-    // tint alpha is user-controlled (emphasisAlpha, default 0.22 to match
-    // the harness's own reference-chip alpha).
-    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
-    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
+    // user accent when set, else white — the default accent) instead of a
+    // translucent gray or a stray blue. The tint alpha is user-controlled
+    // (emphasisAlpha, default 0.22 to match the harness's own
+    // reference-chip alpha).
+    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#ffffff'
+    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#f9fafb'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    translucent('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha < 1 ? codeAlpha : alpha)
-    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha < 1 ? codeAlpha : alpha)
+    translucent('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha)
+    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)

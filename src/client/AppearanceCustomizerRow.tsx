@@ -13,7 +13,7 @@ import {
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
-import { ACCEPTED_IMAGE_TYPES, readImageFile } from './image.ts'
+import { ACCEPTED_IMAGE_TYPES, derivePalette, readImageFile } from './image.ts'
 import { ACCEPTED_VIDEO_TYPES, deleteVideo, saveVideo } from './video-store.ts'
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
@@ -43,9 +43,20 @@ export type AppearanceCustomizerComponentProps =
   PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createAppearanceRowStore>>
   & PropsLocale<'settings.appearance'> & AppearanceCustomizerInjected
 
+/** Stock (light-mode) display color per role, shown when the role is unset
+ * so the swatch always mirrors what the theme actually uses. */
+const STOCK_ROLE_COLORS: Record<AppearanceRole, string> = {
+  accent: '#ffffff',
+  background: '#ffffff',
+  panel: '#ffffff',
+  input: '#ffffff',
+  text: '#0f1115',
+  border: '#d9dde3',
+}
+
 /** One color field row: native swatch + hex text input. */
-function ColorField(props: { label: string; value: string; onChange: (hex: string) => void }) {
-  const { label, value, onChange } = props
+function ColorField(props: { label: string; value: string; stock: string; onChange: (hex: string) => void; t: (key: AppearanceKey) => string }) {
+  const { label, value, stock, onChange } = props
   const [draft, setDraft] = useState(value)
   useEffect(() => { setDraft(value) }, [value])
   const commit = (): void => {
@@ -57,13 +68,15 @@ function ColorField(props: { label: string; value: string; onChange: (hex: strin
   return (
     <label className={css.colorField}>
       <span className={css.colorLabel}>{label}</span>
-      <input
-        type="color"
-        className={css.colorSwatch}
-        aria-label={`${label} (color picker)`}
-        value={value === '' ? '#ffffff' : value}
-        onChange={event => { onChange(event.target.value) }}
-      />
+      <span className={css.colorSwatch} style={{ backgroundColor: value === '' ? stock : value }}>
+        <input
+          type="color"
+          className={css.colorSwatchInput}
+          aria-label={`${label} (color picker)`}
+          value={value === '' ? '#ffffff' : value}
+          onChange={event => { onChange(event.target.value) }}
+        />
+      </span>
       <input
         type="text"
         className={css.colorHex}
@@ -138,6 +151,18 @@ export function AppearanceCustomizerRow({
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
 
+  const applyWallpaperPalette = (accentHex: string): void => {
+    // The accent always follows the sampled hue; the derived surfaces fill
+    // in only the roles the user has not customized, so a hand-tuned theme
+    // is never overwritten.
+    set('accent', accentHex)
+    const palette = derivePalette(accentHex)
+    for (const [role, hex] of Object.entries(palette)) {
+      if (settings[role as AppearanceRole] === '') set(role as AppearanceRole, hex)
+    }
+    set('preset', 'custom')
+  }
+
   const readFile = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
     setReading(true)
@@ -145,12 +170,9 @@ export function AppearanceCustomizerRow({
     try {
       const result = await readImageFile(file)
       setImage({ url: result.url, imageDark: result.imageDark })
-      // Auto-accent: the wallpaper's dominant hue becomes the accent color
-      // unless the sample found no usable hue.
-      if (result.accent !== null) {
-        set('accent', result.accent)
-        set('preset', 'custom')
-      }
+      // Auto-palette: the wallpaper's dominant hue becomes the accent color
+      // and fills the untouched surface roles.
+      if (result.accent !== null) applyWallpaperPalette(result.accent)
     } catch {
       setReadError(true)
     } finally {
@@ -198,11 +220,8 @@ export function AppearanceCustomizerRow({
       } else {
         const result = await loadImageFromUrl(url)
         setImage({ url: result.url, imageDark: result.imageDark })
-        // Auto-accent, same rule as uploads.
-        if (result.accent !== null) {
-          set('accent', result.accent)
-          set('preset', 'custom')
-        }
+        // Auto-palette, same rule as uploads.
+        if (result.accent !== null) applyWallpaperPalette(result.accent)
       }
       setUrlDraft('')
     } catch (error) {
@@ -290,7 +309,9 @@ export function AppearanceCustomizerRow({
                   key={role}
                   label={t(`color.${role}` as AppearanceKey)}
                   value={settings[role]}
+                  stock={STOCK_ROLE_COLORS[role]}
                   onChange={hex => { changeRole(role, hex) }}
+                  t={t}
                 />
               ))}
             </div>

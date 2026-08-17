@@ -2,7 +2,7 @@
 /** Image reading: rejection, brightness sampling, compression ladder, raw fallback. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  estimateDataUrlBytes, fitWithin, MAX_INPUT_BYTES, MAX_STORED_BYTES,
+  derivePalette, estimateDataUrlBytes, fitWithin, MAX_INPUT_BYTES, MAX_STORED_BYTES,
   readImageFile, sampleAccentColor, sampleImageDarkness,
 } from '../src/client/image.ts'
 
@@ -113,6 +113,32 @@ describe('sampleAccentColor', () => {
     const b = Number.parseInt(hex!.slice(5, 7), 16)
     // Normalized to a mid-tone red: clearly more red than blue.
     expect(r).toBeGreaterThan(b + 50)
+  })
+})
+
+describe('derivePalette', () => {
+  it('derives a coordinated dark family with lightness steps, not identical colors', () => {
+    const palette = derivePalette('#c04040')
+    expect(palette.background).toMatch(/^#[0-9a-f]{6}$/)
+    // Lightness steps: panel > background, input > panel (all dark hues).
+    const light = (hex: string): number => {
+      const r = Number.parseInt(hex.slice(1, 3), 16) / 255
+      const g = Number.parseInt(hex.slice(3, 5), 16) / 255
+      const b = Number.parseInt(hex.slice(5, 7), 16) / 255
+      return (Math.max(r, g, b) + Math.min(r, g, b)) / 2
+    }
+    const bg = light(palette.background)
+    const panel = light(palette.panel)
+    const input = light(palette.input)
+    expect(panel).toBeGreaterThan(bg)
+    expect(input).toBeGreaterThan(panel)
+    // The family keeps the hue: red-dominant background.
+    const r = Number.parseInt(palette.background.slice(1, 3), 16)
+    const b = Number.parseInt(palette.background.slice(5, 7), 16)
+    expect(r).toBeGreaterThan(b)
+    // The text role is deliberately not part of the palette: the user's
+    // text color stays in control.
+    expect(palette).not.toHaveProperty('text')
   })
 })
 

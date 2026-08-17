@@ -8,8 +8,12 @@ import {
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
 
 describe('buildTokenOverrides', () => {
-  it('emits nothing for the stock settings', () => {
-    expect(buildTokenOverrides(full())).toEqual({})
+  it('stock settings emit only the default white accent', () => {
+    const tokens = buildTokenOverrides(full())
+    expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#ffffff', dark: '#ffffff' })
+    // No surfaces, labels or borders are touched in the stock state.
+    expect(tokens['--dsw-alias-bg-base']).toBeUndefined()
+    expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
   })
 
   it('maps accent to the brand token group in both modes', () => {
@@ -48,9 +52,9 @@ describe('buildTokenOverrides', () => {
     // Bubbles follow the accent hue (no dedicated bubble roles anymore).
     expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#3a4674', dark: '#3a4674' })
     expect(tokens['--dsw-specific-bubble-highlight']).toEqual({ light: '#3a4674', dark: '#3a4674' })
-    // Without an accent the bubbles stay stock.
+    // Without a custom accent the bubbles follow the default white accent.
     const none = buildTokenOverrides(full({}))
-    expect(none['--dsw-specific-bubble']).toBeUndefined()
+    expect(none['--dsw-specific-bubble']).toEqual({ light: '#ffffff', dark: '#ffffff' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
@@ -73,10 +77,13 @@ describe('buildTokenOverrides', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(Object.keys(tokens).length).toBeGreaterThan(0)
     for (const value of Object.values(tokens)) {
-      // Every translucent value must be a valid rgba() (never a var() or
+      // The default white accent also emits plain hex tokens (brand group);
+      // every translucent value must be a valid rgba() (never a var() or
       // color-mix: referencing the token itself would cycle and turn the
-      // surface fully transparent — the 0%/100%-only regression).
-      expect(value.light).toMatch(/^rgba\(\d+, \d+, \d+, 0\.\d+\)$/)
+      // surface fully transparent — the 0%/100%-only regression). Alpha 1
+      // is legal: the independent input/code knobs stay opaque by default.
+      if (!value.light.startsWith('rgba')) continue
+      expect(value.light).toMatch(/^rgba\(\d+, \d+, \d+, (0\.\d+|1)\)$/)
     }
     // Stock light-mode base becomes translucent white.
     expect(tokens['--dsw-alias-bg-base']!.light).toBe('rgba(255, 255, 255, 0.6)')
@@ -105,9 +112,9 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(255, 255, 255, 0.6)')
     expect(tokens['--dsw-alias-button-floating-fill']).toBeDefined()
     expect(tokens['--dsw-alias-button-floating-hover']).toBeDefined()
-    // Primary button falls back to the stock brand hue per mode.
-    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(15, 17, 21, 0.6)')
-    expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(249, 250, 251, 0.6)')
+    // Primary button rides the default white accent per mode.
+    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(255, 255, 255, 0.6)')
+    expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(255, 255, 255, 0.6)')
   })
 
   it('a custom accent makes the primary button translucent in that hue', () => {
@@ -116,29 +123,29 @@ describe('buildTokenOverrides', () => {
   })
 
   it('inline code keeps a low-alpha brand tint so emphasized text stays visible', () => {
-    // Stock brand tint at the default emphasis alpha when no accent is set.
+    // The default white accent tints the chip white (no stray blue/black).
     const stock = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
-    expect(stock['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.22)')
-    expect(stock['--dsw-alias-markdown-inline-code']!.dark).toBe('rgba(103, 158, 254, 0.22)')
+    expect(stock['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(255, 255, 255, 0.22)')
+    expect(stock['--dsw-alias-markdown-inline-code']!.dark).toBe('rgba(255, 255, 255, 0.22)')
     // The user accent wins when set.
     const accented = buildTokenOverrides(full({ surfaceAlpha: 0.6, accent: '#ff0000' }))
     expect(accented['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(255, 0, 0, 0.22)')
     // The emphasis alpha slider is honored.
     const tuned = buildTokenOverrides(full({ surfaceAlpha: 0.6, emphasisAlpha: 0.35 }))
-    expect(tuned['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.35)')
-    // Code blocks stay on the translucent gray family.
-    expect(stock['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
+    expect(tuned['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(255, 255, 255, 0.35)')
+    // Code blocks are absolute: opaque by default (independent of the panel).
+    expect(stock['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 1)')
   })
 
-  it('input and code-block opacity follow their own knobs (1 = panel alpha)', () => {
-    const tuned = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3, codeAlpha: 0.8 }))
-    expect(tuned['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.3)')
+  it('input and code-block opacity are absolute and independent of the panel', () => {
+    const tuned = buildTokenOverrides(full({ surfaceAlpha: 0, inputAlpha: 1, codeAlpha: 0.8 }))
+    // 100% = fully opaque even when the panel is fully transparent.
+    expect(tuned['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 1)')
     expect(tuned['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.8)')
     expect(tuned['--dsw-alias-markdown-code-block-banner']!.light).toBe('rgba(249, 250, 251, 0.8)')
-    // Untouched knobs follow the panel opacity.
-    const follow = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
-    expect(follow['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.6)')
-    expect(follow['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
+    // Lower values are independent of the panel alpha too.
+    const half = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
+    expect(half['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.3)')
   })
 
   it('the sidebar can opt out of the surface translucency', () => {

@@ -71,12 +71,14 @@ describe('AppearanceApplier', () => {
     expect(remove).toHaveBeenCalled()
   })
 
-  it('apply with stock settings retracts the previous override layer', () => {
+  it('apply with undefined settings applies the default white accent', () => {
     const { ctx, overrideTokens, remove } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     applier.apply(full({ accent: '#4176e6' }))
     applier.apply(undefined)
-    expect(overrideTokens).toHaveBeenCalledTimes(1)
+    // undefined falls back to the defaults, which now carry the white accent,
+    // so the override layer is rebuilt rather than retracted.
+    expect(overrideTokens).toHaveBeenCalledTimes(2)
     expect(remove).toHaveBeenCalledTimes(1)
     applier.dispose()
   })

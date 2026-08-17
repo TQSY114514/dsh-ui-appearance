@@ -71,9 +71,11 @@ export interface AppearanceSettings extends AppearanceColors {
   preset: string
 }
 
-/** The section with every color role left stock and every effect off. */
+/** The section with every color role left stock and every effect off.
+ * The accent defaults to white per product decision: the stock theme keeps
+ * its colors while the emphasis (buttons, links, chips) rides white. */
 export const DEFAULT_SETTINGS: AppearanceSettings = {
-  accent: '',
+  accent: '#ffffff',
   background: '',
   panel: '',
   input: '',

@@ -197,7 +197,6 @@ function rgbToHsl(r: number, g: number, b: number, sat?: number, light?: number)
   }
   return [h, sat ?? s, light ?? l]
 }
-
 /** HSL (h: 0..1, s/l: 0..1) → `#rrggbb`. */
 function hslToHex([h, s, l]: [number, number, number]): string {
   const hue = (h - Math.floor(h)) * 6
@@ -213,6 +212,46 @@ function hslToHex([h, s, l]: [number, number, number]): string {
   else rgb = [c, 0, x]
   const toHex = (v: number): string => Math.round((v + m) * 255).toString(16).padStart(2, '0')
   return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`
+}
+
+/** One derived palette entry: role → hex. */
+export interface DerivedPalette {
+  /** Deep background tint carrying the wallpaper hue. */
+  background: string
+  /** Panel, one lightness step above the background. */
+  panel: string
+  /** Composer input, one lightness step above the panel. */
+  input: string
+  /** Muted border derived from the accent. */
+  border: string
+}
+
+/**
+ * Derive a coordinated dark palette from one accent color: the background
+ * family steps through lightness (background → panel → input), so the
+ * surfaces share the wallpaper hue without all being the same color. The
+ * text role is deliberately left alone — the user's text color stays in
+ * control.
+ * @param accentHex - the sampled accent (`#rrggbb`).
+ * @returns the derived role colors.
+ */
+export function derivePalette(accentHex: string): DerivedPalette {
+  const [h, s] = rgbToHsl(...hexToRgb(accentHex))
+  const hex = (sat: number, light: number): string => hslToHex([h, sat, light])
+  return {
+    background: hex(s * 0.35, 0.1),
+    panel: hex(s * 0.35, 0.16),
+    input: hex(s * 0.35, 0.21),
+    border: hex(s * 0.25, 0.34),
+  }
+}
+
+/** `#rrggbb` → RGB (0..1). */
+function hexToRgb(hex: string): [number, number, number] {
+  const r = Number.parseInt(hex.slice(1, 3), 16) / 255
+  const g = Number.parseInt(hex.slice(3, 5), 16) / 255
+  const b = Number.parseInt(hex.slice(5, 7), 16) / 255
+  return [r, g, b]
 }
 
 /**
