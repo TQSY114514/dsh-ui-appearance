@@ -26,9 +26,9 @@ An appearance customization plugin for the DeepSeek Harness WebUI — a freely r
 
 **Theme colors** — 6 color roles: accent, background, panel, input, text, border. Each role has a color picker and HEX input; text selection and the keyboard focus ring follow the accent automatically; message bubbles follow the accent too (keeping its hue when translucent).
 
-**Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); it is compressed automatically and used as a full-UI wallpaper. Brightness is sampled on upload: dark wallpapers trigger a coordinated lift of surfaces, lighten the text and darken buttons for readability. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported and stored in IndexedDB, keeping localStorage quota free.
+**Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); it is compressed automatically and used as a full-UI wallpaper. Brightness is sampled on upload (dark wallpapers lift the surface family) and the **dominant hue is auto-derived as the accent color**, so wallpaper and UI tones stay in harmony. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported and stored in IndexedDB, keeping localStorage quota free.
 
-**Glassmorphism & translucency** — Panel opacity and glass-blur sliders let the sidebar, settings panel, chat area, task panels, cards and buttons melt into the wallpaper instead of sitting as solid blocks; the sidebar can stay opaque on its own. Emphasized text chips (`pnpm-lock.yaml`, `lib/`) keep a low-alpha accent tint — emphasis via hue, not solid fill — with an "emphasis tint" slider (0% = fully transparent) for independent tuning.
+**Glassmorphism & translucency** — Panel opacity and glass-blur sliders let the sidebar, settings panel, chat area, task panels, cards and buttons melt into the wallpaper instead of sitting as solid blocks; the sidebar can stay opaque on its own. **Input and code blocks have independent opacity knobs** (100% = follow the panel opacity). Emphasized text chips (`pnpm-lock.yaml`, `lib/`) keep a low-alpha accent tint — emphasis via hue, not solid fill — with an "emphasis tint" slider (0% = fully transparent) for independent tuning.
 
 **Background ambience** — Three independent sliders: background opacity (how strong the wallpaper is), background blur (pushes it into the distance), and a scrim that auto-tints with the light/dark scheme to keep text on the image readable.
 
@@ -70,7 +70,7 @@ Settings panel at a glance:
 | Presets | Default / Midnight / Ocean / Forest / Rose / Monochrome; free to keep tuning after applying |
 | Theme colors | 6 roles × (picker + HEX): accent, background, panel, input, text, border |
 | Background | Image upload/replace/remove, video upload/remove, **load from URL (image/video)**, image opacity, background blur, scrim |
-| Interface | Panel opacity, emphasis tint, keep sidebar opaque, glass blur |
+| Interface | Panel opacity, input opacity, code-block opacity, emphasis tint, keep sidebar opaque, glass blur |
 | Color scheme | Export palette, import palette (JSON text) |
 
 ## Persistence & reset

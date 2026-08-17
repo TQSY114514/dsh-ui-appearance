@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateDataUrlBytes, fitWithin, MAX_INPUT_BYTES, MAX_STORED_BYTES,
-  readImageFile, sampleImageDarkness,
+  readImageFile, sampleAccentColor, sampleImageDarkness,
 } from '../src/client/image.ts'
 
 /** Fake 2d context with controllable luminance readback. */
@@ -85,6 +85,34 @@ describe('sampleImageDarkness', () => {
   it('degrades to false when the canvas is unavailable', () => {
     stubCanvas(() => 'data:image/webp;base64,AAAA')
     expect(sampleImageDarkness({ width: 24, height: 24 } as unknown as ImageBitmap)).toBe(false)
+  })
+})
+
+describe('sampleAccentColor', () => {
+  it('returns null for hue-less (gray) images', () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
+      return fakeContext(true) as unknown as CanvasRenderingContext2D
+    })
+    expect(sampleAccentColor({ width: 24, height: 24 } as unknown as ImageBitmap)).toBeNull()
+  })
+
+  it('extracts a readable accent from a dominant hue', () => {
+    const pixels = new Uint8ClampedArray(32 * 32 * 4)
+    for (let i = 0; i < pixels.length; i += 4) {
+      pixels[i] = 220
+      pixels[i + 1] = 40
+      pixels[i + 2] = 40
+      pixels[i + 3] = 255
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
+      return { drawImage: vi.fn(), getImageData: () => ({ data: pixels }) } as unknown as CanvasRenderingContext2D
+    })
+    const hex = sampleAccentColor({ width: 32, height: 32 } as unknown as ImageBitmap)
+    expect(hex).toMatch(/^#[0-9a-f]{6}$/)
+    const r = Number.parseInt(hex!.slice(1, 3), 16)
+    const b = Number.parseInt(hex!.slice(5, 7), 16)
+    // Normalized to a mid-tone red: clearly more red than blue.
+    expect(r).toBeGreaterThan(b + 50)
   })
 })
 

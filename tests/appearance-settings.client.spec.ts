@@ -37,6 +37,7 @@ describe('sanitizeSettings', () => {
       ...DEFAULT_SETTINGS,
       backgroundOpacity: 5, scrim: -1, surfaceAlpha: Number.NaN,
       backgroundBlur: 999, glassBlur: -3, emphasisAlpha: 9,
+      inputAlpha: 5, codeAlpha: -1,
     })
     expect(sanitized.backgroundOpacity).toBe(1)
     expect(sanitized.scrim).toBe(0)
@@ -44,6 +45,8 @@ describe('sanitizeSettings', () => {
     expect(sanitized.backgroundBlur).toBe(BACKGROUND_BLUR_MAX)
     expect(sanitized.glassBlur).toBe(0)
     expect(sanitized.emphasisAlpha).toBe(EMPHASIS_ALPHA_MAX)
+    expect(sanitized.inputAlpha).toBe(1)
+    expect(sanitized.codeAlpha).toBe(0)
   })
 
   it('rejects non-number numerics instead of feeding them into CSS', () => {

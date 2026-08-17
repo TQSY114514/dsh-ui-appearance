@@ -86,7 +86,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const step = (value: string, weight: number): [string, string] =>
     [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, backgroundImage, imageDark, surfaceAlpha, sidebarOpaque, emphasisAlpha } = settings
+  const { accent, background, panel, input, text, border, backgroundImage, imageDark, surfaceAlpha, inputAlpha, codeAlpha, sidebarOpaque, emphasisAlpha } = settings
 
   if (accent !== '') {
     const [light, dark] = modePair(accent)
@@ -218,7 +218,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // Resolution order: explicit role color → dark-flip derived value →
     // the stock palette for that mode (design-platform.css, kept in sync
     // manually).
-    const translucent = (token: string, explicit: string | undefined, flip: string | undefined): void => {
+    const translucent = (token: string, explicit: string | undefined, flip: string | undefined, alphaOverride?: number): void => {
       if (explicit === 'transparent') {
         emit(token, 'transparent', 'transparent')
         return
@@ -228,7 +228,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         : flip !== undefined
           ? { light: flip, dark: flip }
           : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
-      emit(token, withAlpha(base.light, alpha), withAlpha(base.dark, alpha))
+      const a = alphaOverride ?? alpha
+      emit(token, withAlpha(base.light, a), withAlpha(base.dark, a))
     }
     // An image keeps the base transparent even under surface translucency.
     translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : background, undefined)
@@ -243,7 +244,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // The sidebar can opt out of the surface translucency: navigation stays
     // solid even when everything else melts into the wallpaper.
     if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
-    translucent('--dsw-specific-input-major', input, undefined)
+    translucent('--dsw-specific-input-major', input, undefined, inputAlpha < 1 ? inputAlpha : alpha)
     // Bubbles follow the accent hue at the surface alpha (set above).
     translucent('--dsw-specific-bubble', accent, undefined)
     translucent('--dsw-specific-bubble-highlight', accent, undefined)
@@ -262,8 +263,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    translucent('--dsw-alias-markdown-code-block', undefined, undefined)
-    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined)
+    translucent('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha < 1 ? codeAlpha : alpha)
+    translucent('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha < 1 ? codeAlpha : alpha)
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)

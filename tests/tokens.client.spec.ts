@@ -130,6 +130,17 @@ describe('buildTokenOverrides', () => {
     expect(stock['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
   })
 
+  it('input and code-block opacity follow their own knobs (1 = panel alpha)', () => {
+    const tuned = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3, codeAlpha: 0.8 }))
+    expect(tuned['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.3)')
+    expect(tuned['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.8)')
+    expect(tuned['--dsw-alias-markdown-code-block-banner']!.light).toBe('rgba(249, 250, 251, 0.8)')
+    // Untouched knobs follow the panel opacity.
+    const follow = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
+    expect(follow['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.6)')
+    expect(follow['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.6)')
+  })
+
   it('the sidebar can opt out of the surface translucency', () => {
     const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
     expect(translucent['--dsw-specific-sidebar-fill']).toBeDefined()

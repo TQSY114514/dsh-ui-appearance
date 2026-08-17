@@ -143,7 +143,14 @@ export function AppearanceCustomizerRow({
     setReading(true)
     setReadError(false)
     try {
-      setImage(await readImageFile(file))
+      const result = await readImageFile(file)
+      setImage({ url: result.url, imageDark: result.imageDark })
+      // Auto-accent: the wallpaper's dominant hue becomes the accent color
+      // unless the sample found no usable hue.
+      if (result.accent !== null) {
+        set('accent', result.accent)
+        set('preset', 'custom')
+      }
     } catch {
       setReadError(true)
     } finally {
@@ -189,7 +196,13 @@ export function AppearanceCustomizerRow({
         const key = await saveVideo(file, file.name)
         setVideo(key)
       } else {
-        setImage(await loadImageFromUrl(url))
+        const result = await loadImageFromUrl(url)
+        setImage({ url: result.url, imageDark: result.imageDark })
+        // Auto-accent, same rule as uploads.
+        if (result.accent !== null) {
+          set('accent', result.accent)
+          set('preset', 'custom')
+        }
       }
       setUrlDraft('')
     } catch (error) {
@@ -414,6 +427,24 @@ export function AppearanceCustomizerRow({
               step={0.01}
               format={value => `${Math.round(value * 100)}%`}
               onChange={value => { set('surfaceAlpha', value) }}
+            />
+            <Slider
+              label={t('surface.inputOpacity')}
+              value={settings.inputAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('inputAlpha', value) }}
+            />
+            <Slider
+              label={t('surface.codeOpacity')}
+              value={settings.codeAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('codeAlpha', value) }}
             />
             <Slider
               label={t('surface.emphasis')}

@@ -57,6 +57,10 @@ export interface AppearanceSettings extends AppearanceColors {
   scrim: number
   /** UI surface opacity, 0..1 (1 = fully opaque surfaces). */
   surfaceAlpha: number
+  /** Composer input opacity, 0..1; 1 = follow surfaceAlpha. */
+  inputAlpha: number
+  /** Code block / inline code opacity, 0..1; 1 = follow surfaceAlpha. */
+  codeAlpha: number
   /** Keep the sidebar fill opaque even when surfaceAlpha is below 1. */
   sidebarOpaque: boolean
   /** Glass blur in px added to the wallpaper blur, 0..20 (0 = no extra blur). */
@@ -82,6 +86,8 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   backgroundBlur: 0,
   scrim: 0,
   surfaceAlpha: 1,
+  inputAlpha: 1,
+  codeAlpha: 1,
   sidebarOpaque: false,
   glassBlur: 0,
   emphasisAlpha: 0.22,
@@ -94,6 +100,8 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
   backgroundBlur: { min: 0, max: BACKGROUND_BLUR_MAX },
   scrim: { min: 0, max: 1 },
   surfaceAlpha: { min: 0, max: 1 },
+  inputAlpha: { min: 0, max: 1 },
+  codeAlpha: { min: 0, max: 1 },
   glassBlur: { min: 0, max: GLASS_BLUR_MAX },
   emphasisAlpha: { min: EMPHASIS_ALPHA_MIN, max: EMPHASIS_ALPHA_MAX },
 }
