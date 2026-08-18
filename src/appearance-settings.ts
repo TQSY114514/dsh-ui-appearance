@@ -72,10 +72,10 @@ export interface AppearanceSettings extends AppearanceColors {
 }
 
 /** The section with every color role left stock and every effect off.
- * The accent defaults to white per product decision: the stock theme keeps
- * its colors while the emphasis (buttons, links, chips) rides white. */
+ * The accent defaults to the harness brand blue so a fresh install reads
+ * as the stock theme — buttons, links and chips all ride that blue. */
 export const DEFAULT_SETTINGS: AppearanceSettings = {
-  accent: '#ffffff',
+  accent: '#4176e6',
   background: '',
   panel: '',
   input: '',

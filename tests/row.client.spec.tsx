@@ -121,6 +121,15 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('preset', 'custom')
   })
 
+  it('shows the stock blue for an empty accent in both the swatch and picker', () => {
+    const b = mount()
+    act(() => { b.store.actions.patch({ accent: '' }) })
+    openRow()
+    const accent = document.querySelector('input[type="color"]') as HTMLInputElement
+    expect(accent.value).toBe('#4176e6')
+    expect(accent.parentElement?.getAttribute('style')).toBe('background-color: rgb(65, 118, 230);')
+  })
+
   it('a hex text commit normalizes three-digit input', () => {
     const b = mount()
     openRow()

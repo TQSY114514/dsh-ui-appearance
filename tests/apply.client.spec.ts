@@ -87,7 +87,7 @@ describe('apply write path (localStorage)', () => {
     face.set('accent', '#4176e6')
     face.resetAll()
     expect(storedSettings()).toEqual({ ...DEFAULT_SETTINGS, preset: 'default' })
-    expect(store.getSnapshot().settings.accent).toBe('#ffffff')
+    expect(store.getSnapshot().settings.accent).toBe('#4176e6')
   })
 
   it('setImage persists url and darkness together', () => {

@@ -65,8 +65,8 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-alias-button-elevated-fill': { light: '#ffffff', dark: '#43454a' }, // bluish-00 / bluish-750
   '--dsw-alias-button-floating-fill': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
   '--dsw-alias-button-floating-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
-  '--dsw-alias-button-primary-fill': { light: '#0f1115', dark: '#f9fafb' }, // bluish-1000 / bluish-50
-  '--dsw-alias-button-info-fill': { light: '#4176e6', dark: '#679efe' }, // deepseek-500 / deepseek-400
+  '--dsw-alias-button-primary-fill': { light: '#4176e6', dark: '#679efe' }, // deepseek-500 / deepseek-400
+  '--dsw-alias-button-info-fill': { light: '#4176e6', dark: '#679efe' }, // send + stop ride the accent hue
 }
 
 /**
@@ -228,6 +228,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
     emit(token, withAlpha(base.light, a), withAlpha(base.dark, a))
   }
+  // For accent-based bakes we want the proper dark-mode derivation (the
+  // accent hue in dark mode shifts lighter for readability).
+  const bakeAccent = (token: string, a: number): void => {
+    if (accent === '') {
+      bakeAlpha(token, undefined, undefined, a)
+      return
+    }
+    const [light, dark] = modePair(accent)
+    emit(token, withAlpha(light, a), withAlpha(dark, a))
+  }
   // Input and code surfaces are absolute, independent of the panel opacity —
   // they bake at every panel value (even 100%), so their own knobs keep
   // working no matter where the panel slider sits.
@@ -259,27 +269,33 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
     translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
     translucent('--dsw-specific-menu', undefined, undefined)
-    translucent('--dsw-specific-selector', undefined, undefined)
     translucent('--dsw-alias-fill-l2', undefined, undefined)
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
     translucent('--dsw-specific-tip', undefined, undefined)
     // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
-    // user accent when set, else white — the default accent) instead of a
-    // translucent gray or a stray blue. The tint alpha is user-controlled
+    // user accent when set, else the stock blue so legacy empty-accent
+    // settings agree with the theme's actual default. The tint alpha is user-controlled
     // (emphasisAlpha, default 0.22 to match the harness's own
     // reference-chip alpha).
-    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#ffffff'
-    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#f9fafb'
+    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
+    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
     // Neutral buttons ride the same translucency so they do not stand out as
     // solid chips on a translucent interface.
     translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
     translucent('--dsw-alias-button-floating-fill', undefined, flipButtonFloating)
     translucent('--dsw-alias-button-floating-hover', undefined, flipButtonFloatingHover)
-    // Brand/accent action buttons (send, primary) follow too: a translucent
-    // brand color keeps the hue-based emphasis without a solid block.
-    translucent('--dsw-alias-button-primary-fill', accent, undefined)
-    translucent('--dsw-alias-button-info-fill', accent, undefined)
+    // Brand/accent action buttons (send, stop) track the input opacity
+    // rather than the panel opacity — they're action affordances, not
+    // surfaces, so they stay visually solid even when the rest of the UI
+    // goes translucent behind the wallpaper. The chip below uses
+    // emphasisAlpha for a similar reason.
+    bakeAccent('--dsw-alias-button-primary-fill', inputAlpha)
+    bakeAccent('--dsw-alias-button-info-fill', inputAlpha)
+    // The left-side command ("+") trigger tracks the input opacity too —
+    // it's an input affordance, not a surface, so it shouldn't follow the
+    // panel either.
+    bakeAlpha('--dsw-specific-selector', undefined, undefined, inputAlpha)
   }
 
   return tokens

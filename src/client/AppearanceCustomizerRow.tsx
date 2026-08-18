@@ -46,7 +46,7 @@ export type AppearanceCustomizerComponentProps =
 /** Stock (light-mode) display color per role, shown when the role is unset
  * so the swatch always mirrors what the theme actually uses. */
 const STOCK_ROLE_COLORS: Record<AppearanceRole, string> = {
-  accent: '#ffffff',
+  accent: '#4176e6',
   background: '#ffffff',
   panel: '#ffffff',
   input: '#ffffff',
@@ -73,7 +73,7 @@ function ColorField(props: { label: string; value: string; stock: string; onChan
           type="color"
           className={css.colorSwatchInput}
           aria-label={`${label} (color picker)`}
-          value={value === '' ? '#ffffff' : value}
+          value={value === '' ? stock : value}
           onChange={event => { onChange(event.target.value) }}
         />
       </span>
