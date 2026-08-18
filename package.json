@@ -122,7 +122,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.3.1",
     "tsdown": "^0.22.2",
-    "typescript": "^5.5.0",
+    "typescript": "^7.0.2",
     "unrun": "^0.3.1",
     "vitest": "^4.1.10"
   }
