@@ -2,6 +2,18 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.3] - 2026-08-17
+
+### Changed
+
+- **默认主色 = 品牌蓝**(`#4176e6`):按用户要求改回,发送按钮/链接/强调字全部跟蓝色;空 accent(旧设置)也自动显示蓝色而非白色
+- **发送键/停止键/命令键**(`button-primary-fill`/`button-info-fill`/`specific-selector`)全部改由**输入框不透明度**控制,面板透明度不再影响它们——不会"抽搐"
+- **设置面板色块**:空角色显示 stock 默认色(主色=蓝、文字=黑),取色器 value 也同步为 stock 色,不再显示白色
+
+### Fixed
+
+- 修复 `button-info-fill` 默认色与 `button-primary-fill` 不一致导致停止按钮视觉差异
+
 ## [0.1.2] - 2026-08-17
 
 ### Changed
