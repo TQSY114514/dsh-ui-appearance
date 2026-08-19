@@ -211,10 +211,35 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
   })
 
-  it('a light user background leaves the surface family alone', () => {
+  it('a light user background leaves the labels alone but tints the controls', () => {
     const tokens = buildTokenOverrides(full({ background: '#d0d0d0' }))
+    // A light background must not trigger the dark flip or flip the labels.
     expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
-    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+    // ...but the new-session button and floating actions follow the surface
+    // instead of staying stock-white. mix(#d0d0d0, #ffffff, 0.06).
+    expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
+    expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
+  })
+
+  it('neutral controls follow the panel color when a panel is set', () => {
+    const tokens = buildTokenOverrides(full({ panel: '#9a2323' }))
+    // Buttons lift toward white in both modes.
+    expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: '#a03030', dark: '#a03030' })
+    expect(tokens['--dsw-alias-button-floating-hover']).toEqual({ light: '#a63d3d', dark: '#a63d3d' })
+    // The settings nav highlight emphasizes: darker in light mode toward the
+    // dark base, lighter in dark mode toward white.
+    expect(tokens['--dsw-specific-sidebar-nav-item-active']).toEqual({ light: '#8d2222', dark: '#a43939' })
+    expect(tokens['--dsw-specific-sidebar-nav-item-hover']).toEqual({ light: '#932222', dark: '#9f2e2e' })
+    // A panel wins over the background as the control base (light bg avoids
+    // the dark flip, which would override the whole control family anyway).
+    const withBackground = buildTokenOverrides(full({ panel: '#9a2323', background: '#d0d0d0' }))
+    expect(withBackground['--dsw-alias-button-elevated-fill']).toEqual({ light: '#a03030', dark: '#a03030' })
+  })
+
+  it('translucent neutral controls bake the panel-derived fills', () => {
+    const tokens = buildTokenOverrides(full({ panel: '#9a2323', surfaceAlpha: 0.6 }))
+    expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(160, 48, 48, 0.6)')
+    expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(141, 34, 34, 0.6)')
   })
 
   it('a dark image (imageDark) flips the family from the dark base', () => {

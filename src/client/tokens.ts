@@ -165,6 +165,37 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-border-l3', l3l, l3d)
   }
 
+  // Neutral controls (the new-session button, floating actions) and the
+  // settings nav selected/hover states follow the panel color (or the
+  // background when no panel is set) so a custom surface never leaves them
+  // stock-white. Buttons lift toward white in both modes (same convention
+  // as the dark flip below); the nav highlight emphasizes by moving toward
+  // the opposite mode base — darker in light mode, lighter in dark mode —
+  // matching the stock bluish-100/750 direction. The dark flip below still
+  // overrides these when a dark wallpaper demands the whole family flip.
+  const controlBase = panel !== '' ? panel : background
+  let controlButtonFill: [string, string] | undefined
+  let controlButtonHover: [string, string] | undefined
+  let controlNavActive: [string, string] | undefined
+  let controlNavHover: [string, string] | undefined
+  if (controlBase !== '') {
+    const lift = (weight: number): [string, string] => {
+      const mixed = mixHex(controlBase, LIGHT_BASE, weight)
+      return [mixed, mixed]
+    }
+    const emphasize = (weight: number): [string, string] =>
+      [mixHex(controlBase, DARK_BASE, weight), mixHex(controlBase, LIGHT_BASE, weight)]
+    controlButtonFill = lift(0.06)
+    controlButtonHover = lift(0.12)
+    controlNavActive = emphasize(0.10)
+    controlNavHover = emphasize(0.05)
+    emit('--dsw-alias-button-elevated-fill', controlButtonFill[0], controlButtonFill[1])
+    emit('--dsw-alias-button-floating-fill', controlButtonFill[0], controlButtonFill[1])
+    emit('--dsw-alias-button-floating-hover', controlButtonHover[0], controlButtonHover[1])
+    emit('--dsw-specific-sidebar-nav-item-active', controlNavActive[0], controlNavActive[1])
+    emit('--dsw-specific-sidebar-nav-item-hover', controlNavHover[0], controlNavHover[1])
+  }
+
   // Background image makes the base canvas transparent so the wallpaper
   // layer shows through; surfaces stay opaque unless the image (or a dark
   // user background color) triggers the dark-family flip below.
@@ -206,6 +237,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-button-elevated-fill', flipButtonElevated, flipButtonElevated)
     emit('--dsw-alias-button-floating-fill', flipButtonFloating, flipButtonFloating)
     emit('--dsw-alias-button-floating-hover', flipButtonFloatingHover, flipButtonFloatingHover)
+    // The settings nav selected/hover states join the dark family too — the
+    // stock dark nav-active is bluish-750 (#43454a) and hover bluish-850
+    // (#2c2c2e), exactly the flipped button pair, so they share it.
+    emit('--dsw-specific-sidebar-nav-item-active', flipButtonElevated, flipButtonElevated)
+    emit('--dsw-specific-sidebar-nav-item-hover', flipButtonFloating, flipButtonFloating)
   }
 
   // Surface translucency bakes a plain rgba() per mode — NEVER a
@@ -266,8 +302,26 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // Bubbles follow the accent hue at the surface alpha (set above).
     translucent('--dsw-specific-bubble', accent, undefined)
     translucent('--dsw-specific-bubble-highlight', accent, undefined)
-    translucent('--dsw-specific-sidebar-nav-item-active', undefined, undefined)
-    translucent('--dsw-specific-sidebar-nav-item-hover', undefined, undefined)
+    // Neutral buttons ride the same translucency so they do not stand out as
+    // solid chips on a translucent interface; the settings nav selected/hover
+    // states ride it too. Resolution mirrors the opaque path: dark-flip value
+    // wins, then the panel-derived fill, then stock.
+    const bakeControl = (token: string, derived: [string, string] | undefined, flip: string | undefined): void => {
+      if (flip !== undefined) {
+        emit(token, withAlpha(flip, alpha), withAlpha(flip, alpha))
+        return
+      }
+      if (derived !== undefined) {
+        emit(token, withAlpha(derived[0], alpha), withAlpha(derived[1], alpha))
+        return
+      }
+      bakeAlpha(token, undefined, undefined, alpha)
+    }
+    bakeControl('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
+    bakeControl('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
+    bakeControl('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
+    bakeControl('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
+    bakeControl('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
     translucent('--dsw-specific-menu', undefined, undefined)
     translucent('--dsw-alias-fill-l2', undefined, undefined)
     translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
@@ -280,11 +334,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    // Neutral buttons ride the same translucency so they do not stand out as
-    // solid chips on a translucent interface.
-    translucent('--dsw-alias-button-elevated-fill', undefined, flipButtonElevated)
-    translucent('--dsw-alias-button-floating-fill', undefined, flipButtonFloating)
-    translucent('--dsw-alias-button-floating-hover', undefined, flipButtonFloatingHover)
     // Brand/accent action buttons (send, stop) track the input opacity
     // rather than the panel opacity — they're action affordances, not
     // surfaces, so they stay visually solid even when the rest of the UI
