@@ -5,6 +5,7 @@
 An appearance customization plugin for the DeepSeek Harness WebUI — a freely re-colorable theme palette, wallpaper/video backgrounds, glassmorphism and background ambience, all previewed live and persisted automatically.
 
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
 [![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
 [![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
 
