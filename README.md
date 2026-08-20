@@ -5,8 +5,7 @@
 DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁纸/视频背景、毛玻璃与背景氛围,全部实时预览、自动持久化。
 
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance?label=npm)](https://www.npmjs.com/package/dsh-ui-appearance)
-[![GitHub downloads](https://img.shields.io/github/downloads/TQSY114514/dsh-ui-appearance/total)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance?label=npm%20downloads)](https://www.npmjs.com/package/dsh-ui-appearance)
 [![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
 [![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
 
