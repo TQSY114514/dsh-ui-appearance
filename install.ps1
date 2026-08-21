@@ -63,7 +63,7 @@ $extractDir = Join-Path $pluginsDir "$packageName-extract"
 New-Item -ItemType Directory -Force -Path $pluginsDir | Out-Null
 
 try {
-    Invoke-WebRequest $tgzUrl -OutFile $tgzFile -UseBasicParsing
+    Invoke-WebRequest $tgzUrl -OutFile $tgzFile -UseBasicParsing -TimeoutSec 120
 } catch {
     throw "download failed ($tgzUrl): $($_.Exception.Message)"
 }
@@ -112,7 +112,7 @@ if (-not (Test-Path $patchFile)) {
     [System.IO.File]::WriteAllText($patchFile, $entryText + "`n", $utf8NoBom)
 } else {
     $content = Get-Content $patchFile -Raw
-    if ($content -match "(?m)^\s*-\s+id:\s*$pluginId\s*$") {
+    if ($content -match "(?m)^\s*-\s+id:\s*['`"]?$pluginId['`"]?\s*$") {
         Write-Host '  already registered, skip.' -ForegroundColor DarkGray
     } else {
         # Strip a trailing empty YAML list before appending.
