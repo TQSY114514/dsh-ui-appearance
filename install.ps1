@@ -132,7 +132,7 @@ if (-not (Test-Path $patchFile)) {
     [System.IO.File]::WriteAllText($patchFile, $entryText + "`n", $utf8NoBom)
 } else {
     $content = Get-Content $patchFile -Raw -Encoding UTF8
-    if ($content -match "(?m)^\s*-\s+id:\s*(?:$pluginId|'$pluginId'|`"$pluginId`")\s*(?:#.*)?$") {
+    if ($content -cmatch "(?m)^\s*-\s+id:\s*(?:$pluginId|'$pluginId'|`"$pluginId`")\s*(?:#.*)?$") {
         Write-Host '  already registered, skip.' -ForegroundColor DarkGray
     } else {
         # Strip a trailing empty YAML list before appending.
