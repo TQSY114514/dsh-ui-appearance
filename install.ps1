@@ -38,7 +38,7 @@ $patchFile   = Join-Path $DshHome "profiles\$Profile\cordis.patch.yml"
 $pluginsDir  = Join-Path $DshHome 'plugins'
 $pkgDir      = Join-Path $pluginsDir $packageName
 
-# ---------- 1. resolve version ----------
+# ---------- 1. resolve version + expected tarball digest ----------
 Write-Host '[1/4] Resolving version...' -ForegroundColor Cyan
 if ($Version -eq 'latest') {
     try {
@@ -50,6 +50,15 @@ if ($Version -eq 'latest') {
     }
 } else {
     $Version = $Version.TrimStart('v')
+    try {
+        $meta = Invoke-RestMethod -Uri "https://registry.npmjs.org/$packageName/$Version" -TimeoutSec 15
+    } catch {
+        throw "could not reach the npm registry to resolve v$Version`: $($_.Exception.Message)"
+    }
+}
+$expectedIntegrity = $meta.dist.integrity
+if (-not $expectedIntegrity -or -not $expectedIntegrity.StartsWith('sha512-')) {
+    throw "registry metadata for v$Version has no sha512 integrity digest - refusing to download unverified"
 }
 
 # ---------- 2. download + extract ----------
@@ -67,6 +76,17 @@ try {
 } catch {
     throw "download failed ($tgzUrl): $($_.Exception.Message)"
 }
+
+# Verify the tarball against the registry's published sha512 digest
+# (CWE-494: an unverified download is a code-integrity hole).
+$expectedB64 = $expectedIntegrity.Substring('sha512-'.Length)
+$hashHex = (Get-FileHash -LiteralPath $tgzFile -Algorithm SHA512).Hash
+$actualB64 = [Convert]::ToBase64String((1..($hashHex.Length / 2) | ForEach-Object { [Convert]::ToByte($hashHex.Substring(($_ - 1) * 2, 2), 16) }))
+if ($actualB64 -ne $expectedB64) {
+    Remove-Item -LiteralPath $tgzFile -Force
+    throw "tarball integrity check failed for v$Version - the download does not match the registry digest"
+}
+Write-Host '  sha512 verified' -ForegroundColor DarkGray
 
 if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $extractDir | Out-Null
@@ -111,7 +131,7 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 if (-not (Test-Path $patchFile)) {
     [System.IO.File]::WriteAllText($patchFile, $entryText + "`n", $utf8NoBom)
 } else {
-    $content = Get-Content $patchFile -Raw
+    $content = Get-Content $patchFile -Raw -Encoding UTF8
     if ($content -match "(?m)^\s*-\s+id:\s*['`"]?$pluginId['`"]?\s*$") {
         Write-Host '  already registered, skip.' -ForegroundColor DarkGray
     } else {
