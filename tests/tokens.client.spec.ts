@@ -75,6 +75,14 @@ describe('buildTokenOverrides', () => {
     const mid = buildTokenOverrides(full({ text: '#808080' }))
     expect(mid['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     expect(mid['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // Shorthand hex reaches the builder un-normalized within a session (the
+    // persistence sanitizer expands it only on reload), so ink selection and
+    // the dark-flip check must handle #rgb directly.
+    const shorthand = buildTokenOverrides(full({ text: '#888' }))
+    expect(shorthand['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // A light shorthand background must not trigger the dark-family flip.
+    const lightShorthand = buildTokenOverrides(full({ background: '#eee' }))
+    expect(lightShorthand['--dsw-alias-label-primary']).toBeUndefined()
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

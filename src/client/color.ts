@@ -92,10 +92,16 @@ const HEX6_RE = /^#[0-9a-fA-F]{6}$/
  * @returns the luminance, or 0 for malformed input.
  */
 export function relativeLuminance(value: string): number {
-  if (!HEX6_RE.test(value)) return 0
-  const r = parseInt(value.slice(1, 3), 16) / 255
-  const g = parseInt(value.slice(3, 5), 16) / 255
-  const b = parseInt(value.slice(5, 7), 16) / 255
+  // Accept the #rgb shorthand too: user input can reach here un-normalized
+  // within a session (the persistence sanitizer expands it only on reload),
+  // and returning 0 for it misclassifies mid-tones and light grays as dark.
+  const hex = value.length === 4
+    ? `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
+    : value
+  if (!HEX6_RE.test(hex)) return 0
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
   const linear = (c: number): number => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
   return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
 }
