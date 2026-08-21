@@ -7,36 +7,51 @@
 # ships the pre-built lib/ bundle (lib/ is not committed to this repository).
 # The script:
 #   1. resolves the version ('latest' -> newest publish via the registry API)
-#   2. downloads and extracts the tarball into %DSH_HOME%\plugins (persistent,
-#      not %TEMP% - temp can be wiped and would leave the junction dangling)
-#   3. creates a junction in the profile's node_modules
-#   4. registers ui-appearance in cordis.patch.yml (idempotent - safe to rerun)
+#   2. downloads, sha512-verifies and extracts the tarball into
+#      %DSH_HOME%\plugins (persistent, not %TEMP% - temp can be wiped and
+#      would leave the junction dangling)
+#   3. links it into the profile's own node_modules
+#   4. registers it in that profile's package.json ('dependencies' +
+#      'dsh.profile.bundles'), mirroring what `dsh plugin add` produces -
+#      idempotent, safe to rerun
 #
 # Pin a version with -Version '0.1.0'. DSH home defaults to %DSH_HOME% or
 # %USERPROFILE%\.dsh; override with -DshHome. Profile defaults to 'web'.
-# Reload the Web UI afterwards. Uninstall: delete the junction and the entry,
-# or `dsh plugin --profile <name> remove ui-appearance`.
+# Reload the Web UI afterwards. Uninstall with
+# `dsh plugin --profile <name> remove dsh-ui-appearance`, or by hand:
+# delete the junction under profiles\<name>\node_modules plus the entries
+# step 4 added to the profile's package.json.
 
 param(
     [string]$Version = 'latest',
     [string]$DshHome = $env:DSH_HOME,
-    [string]$Profile = 'web'
+    [string]$ProfileName = 'web'
 )
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 $packageName = 'dsh-ui-appearance'
-$pluginId    = 'ui-appearance'
 
 if (-not $DshHome) { $DshHome = Join-Path $env:USERPROFILE '.dsh' }
 if (-not (Test-Path $DshHome)) { throw "DSH home not found: $DshHome (override with -DshHome)" }
 
-$nodeModules = Join-Path $DshHome 'profiles\node_modules'
-$linkPath    = Join-Path $nodeModules $packageName
-$patchFile   = Join-Path $DshHome "profiles\$Profile\cordis.patch.yml"
-$pluginsDir  = Join-Path $DshHome 'plugins'
-$pkgDir      = Join-Path $pluginsDir $packageName
+$pluginsDir = Join-Path $DshHome 'plugins'
+$pkgDir     = Join-Path $pluginsDir $packageName
+
+function Remove-LinkSafely([string]$path) {
+    # Test-Path follows a link's target and misreports dangling links, so
+    # inspect the reparse point itself; delete the link, never its target.
+    $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return }
+    if ($item.LinkType) {
+        # Delete the junction itself (-Recurse would follow it).
+        [System.IO.Directory]::Delete($path)
+    } else {
+        Remove-Item -LiteralPath $path -Force -Recurse
+    }
+}
 
 # ---------- 1. resolve version + expected tarball digest ----------
 Write-Host '[1/4] Resolving version...' -ForegroundColor Cyan
@@ -98,53 +113,63 @@ if (-not (Test-Path (Join-Path $inner 'lib\client.js'))) {
     throw "lib\client.js missing from the tarball - the published package must ship the pre-built bundle"
 }
 
-# ---------- 3. place + junction ----------
-Write-Host "[3/4] Linking -> $linkPath" -ForegroundColor Cyan
+# ---------- 3. place the persistent copy ----------
+Write-Host "[3/4] Installing $packageName@$Version -> $pkgDir" -ForegroundColor Cyan
 if (Test-Path $pkgDir) { Remove-Item $pkgDir -Recurse -Force }
 Move-Item $inner $pkgDir
 Remove-Item $tgzFile -Force
 Remove-Item $extractDir -Recurse -Force
 
-New-Item -ItemType Directory -Force -Path $nodeModules | Out-Null
-# Test-Path follows the junction target and reports $false for a dangling
-# link, so inspect the reparse point itself before creating the replacement.
-$existing = Get-Item -LiteralPath $linkPath -Force -ErrorAction SilentlyContinue
-if ($existing) {
-    if ($existing.LinkType) {
-        # Delete the junction itself, never its target (-Recurse would follow it).
-        [System.IO.Directory]::Delete($linkPath)
-    } else {
-        Remove-Item -LiteralPath $linkPath -Force -Recurse
-    }
+# ---------- 4. register with the profile ----------
+# The dsh host loads plugins from each profile's own package.json
+# ('dependencies' entry + 'dsh.profile.bundles' array); the package's
+# bundled cordis.patch.yml supplies the settings-panel roster on its own.
+# This mirrors what `dsh plugin add` produces, and an uninitialized
+# profile fails fast instead of being invented silently.
+$profileDir = Join-Path $DshHome "profiles\$ProfileName"
+$profilePkg = Join-Path $profileDir 'package.json'
+$profileNM  = Join-Path $profileDir 'node_modules'
+$linkPath   = Join-Path $profileNM $packageName
+if (-not (Test-Path $profilePkg)) {
+    throw "profile '$ProfileName' has no package.json at $profilePkg - start dsh with this profile once so it initializes, then rerun"
 }
+
+Write-Host "[4/4] Registering with profile '$ProfileName'..." -ForegroundColor Cyan
+
+# Releases of this script before 0.1.5 linked into the shared
+# profiles\node_modules layer, which the host does not consult for
+# loading; drop that stale link when upgrading from one of those.
+Remove-LinkSafely (Join-Path (Join-Path $DshHome 'profiles\node_modules') $packageName)
+
+New-Item -ItemType Directory -Force -Path $profileNM | Out-Null
+Remove-LinkSafely $linkPath
 New-Item -ItemType Junction -Path $linkPath -Target $pkgDir | Out-Null
 if (-not (Test-Path (Join-Path $linkPath 'lib\client.js'))) { throw 'junction creation failed' }
 
-# ---------- 4. register ----------
-Write-Host "[4/4] Registering in $patchFile" -ForegroundColor Cyan
-$profileDir = Split-Path $patchFile -Parent
-if (-not (Test-Path $profileDir)) { New-Item -ItemType Directory -Force -Path $profileDir | Out-Null }
-$entryText = @'
-- insert:
-    - id: ui-appearance
-      name: 'dsh-ui-appearance'
-'@
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-if (-not (Test-Path $patchFile)) {
-    [System.IO.File]::WriteAllText($patchFile, $entryText + "`n", $utf8NoBom)
-} else {
-    $content = Get-Content $patchFile -Raw -Encoding UTF8
-    if ($content -cmatch "(?m)^\s*-\s+id:\s*(?:$pluginId|'$pluginId'|`"$pluginId`")\s*(?:#.*)?$") {
-        Write-Host '  already registered, skip.' -ForegroundColor DarkGray
-    } else {
-        # Strip a trailing empty YAML list (with or without a trailing
-        # comment, e.g. '[] # no plugins') before appending.
-        $base = ($content -replace '(?m)^\s*\[\s*\]\s*(?:#.*)?$', '').TrimEnd()
-        if ($base -eq '') { $new = $entryText + "`n" } else { $new = $base + "`n`n" + $entryText + "`n" }
-        [System.IO.File]::WriteAllText($patchFile, $new, $utf8NoBom)
-    }
+$pkgJson  = Get-Content $profilePkg -Raw -Encoding UTF8 | ConvertFrom-Json
+$fileSpec = 'file:' + ($pkgDir -replace '\\', '/')
+if (-not ($pkgJson.PSObject.Properties['dependencies'])) {
+    $pkgJson | Add-Member -NotePropertyName dependencies -NotePropertyValue ([pscustomobject]@{})
 }
+$pkgJson.dependencies | Add-Member -Force -NotePropertyName $packageName -NotePropertyValue $fileSpec
+
+if (-not ($pkgJson.PSObject.Properties['dsh'])) {
+    $pkgJson | Add-Member -NotePropertyName dsh -NotePropertyValue ([pscustomobject]@{})
+}
+if (-not ($pkgJson.dsh.PSObject.Properties['profile'])) {
+    $pkgJson.dsh | Add-Member -NotePropertyName profile -NotePropertyValue ([pscustomobject]@{})
+}
+if (-not ($pkgJson.dsh.profile.PSObject.Properties['bundles'])) {
+    $pkgJson.dsh.profile | Add-Member -NotePropertyName bundles -NotePropertyValue @()
+}
+$bundles = @($pkgJson.dsh.profile.bundles)
+if ($bundles -cnotcontains $packageName) {
+    $bundles += $packageName
+    # The cast keeps a single-entry list a JSON array instead of a scalar.
+    $pkgJson.dsh.profile | Add-Member -Force -NotePropertyName bundles -NotePropertyValue ([string[]]$bundles)
+}
+[System.IO.File]::WriteAllText($profilePkg, (ConvertTo-Json $pkgJson -Depth 32) + "`n", $utf8NoBom)
 
 Write-Host ''
-Write-Host "Done. Reload the Web UI - Settings -> General -> Appearance -> '$pluginId'." -ForegroundColor Green
-Write-Host 'If the row does not appear after reload, restart the dsh web process.' -ForegroundColor Yellow
+Write-Host "Done. Reload the Web UI - Settings -> General -> Appearance." -ForegroundColor Green
+Write-Host 'If the panel does not appear after reload, restart the dsh web process.' -ForegroundColor Yellow
