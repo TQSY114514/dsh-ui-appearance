@@ -95,7 +95,7 @@ export function relativeLuminance(value: string): number {
   // Accept the #rgb shorthand too: user input can reach here un-normalized
   // within a session (the persistence sanitizer expands it only on reload),
   // and returning 0 for it misclassifies mid-tones and light grays as dark.
-  const hex = value.length === 4
+  const hex = /^#[0-9a-fA-F]{3}$/.test(value)
     ? `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
     : value
   if (!HEX6_RE.test(hex)) return 0

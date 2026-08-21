@@ -83,6 +83,11 @@ describe('buildTokenOverrides', () => {
     // A light shorthand background must not trigger the dark-family flip.
     const lightShorthand = buildTokenOverrides(full({ background: '#eee' }))
     expect(lightShorthand['--dsw-alias-label-primary']).toBeUndefined()
+    // A four-character value without the # prefix is malformed, not a
+    // shorthand — it must classify as dark (luminance 0), not expand to a
+    // fake color.
+    const malformed = buildTokenOverrides(full({ text: 'abcd' }))
+    expect(malformed['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
