@@ -59,6 +59,19 @@ describe('buildTokenOverrides', () => {
     expect(none['--dsw-specific-bubble']).toEqual({ light: '#4176e6', dark: '#4176e6' })
   })
 
+  it('re-derives the on-ink pair when the text color is overridden', () => {
+    // The harness badge paints its chip with the label color and its letters
+    // with -inverted; ::selection pairs its background with -foreground. A
+    // light text color must flip both inks dark, or the badge disappears.
+    const light = buildTokenOverrides(full({ text: '#fafaf9' }))
+    expect(light['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(light['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // A dark text color flips both inks light again.
+    const dark = buildTokenOverrides(full({ text: '#111111' }))
+    expect(dark['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(dark['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+  })
+
   it('turns the surface tokens translucent below full opacity', () => {
     const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.6 }))
     const base = tokens['--dsw-alias-bg-base']!
@@ -132,6 +145,23 @@ describe('buildTokenOverrides', () => {
     expect(half['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
   })
 
+  it('button hovers ride the input opacity too (regression: hover snapped opaque)', () => {
+    // The send key and the full-access toggle bake their fills translucent,
+    // so their hover fills must follow — an opaque hover read as a different
+    // element snapping solid under the pointer.
+    const half = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
+    expect(half['--dsw-alias-button-info-hover']!.light).toBe('rgba(94, 139, 234, 0.3)')
+    expect(half['--dsw-alias-button-primary-hover']!.dark).toBe('rgba(55, 97, 184, 0.3)')
+    // Legacy empty-accent settings fall back to the stock hover palette.
+    const legacy = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3, accent: '' }))
+    expect(legacy['--dsw-alias-button-info-hover']!.light).toBe('rgba(103, 158, 254, 0.3)')
+    expect(legacy['--dsw-alias-button-primary-hover']!.dark).toBe('rgba(235, 238, 242, 0.3)')
+    // At full surface opacity the hovers stay opaque stepped hexes.
+    const solid = buildTokenOverrides(full())
+    expect(solid['--dsw-alias-button-info-hover']!.light).toBe('#5e8bea')
+    expect(solid['--dsw-alias-button-primary-hover']!.light).toBe('#6b94ec')
+  })
+
   it('inline code keeps a low-alpha brand tint so emphasized text stays visible', () => {
     // The default blue accent tints the chip blue (same value in both modes
     // when baked from the accent).
@@ -203,12 +233,17 @@ describe('buildTokenOverrides', () => {
     const layer1 = tokens['--dsw-alias-bg-layer-1']!
     expect(layer1.light).toBe(layer1.dark)
     expect(layer1.light).not.toBe('#101418')
-    // Labels flip light so text on the dark base stays readable.
+    // Labels flip light so text on the dark base stays readable, carrying
+    // their on-ink counterpart so the harness badge stays visible.
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(tokens['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#d6d3d1' })
+    expect(tokens['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // Buttons follow the darkened surface instead of staying white.
     expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: 'rgb(67, 69, 74)', dark: 'rgb(67, 69, 74)' })
     expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
+    // The "+" trigger and its hover join the flipped family.
+    expect(tokens['--dsw-specific-selector']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
+    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: 'rgb(53, 54, 56)', dark: 'rgb(53, 54, 56)' })
   })
 
   it('a light user background leaves the labels alone but tints the controls', () => {
@@ -219,6 +254,9 @@ describe('buildTokenOverrides', () => {
     // instead of staying stock-white. mix(#d0d0d0, #ffffff, 0.06).
     expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
     expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
+    // The composer "+" trigger follows the surface instead of staying white.
+    expect(tokens['--dsw-specific-selector']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
+    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: '#d6d6d6', dark: '#d6d6d6' })
   })
 
   it('neutral controls follow the panel color when a panel is set', () => {
@@ -226,6 +264,9 @@ describe('buildTokenOverrides', () => {
     // Buttons lift toward white in both modes.
     expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: '#a03030', dark: '#a03030' })
     expect(tokens['--dsw-alias-button-floating-hover']).toEqual({ light: '#a63d3d', dark: '#a63d3d' })
+    // The "+" trigger and its hover ride the same control family.
+    expect(tokens['--dsw-specific-selector']).toEqual({ light: '#a03030', dark: '#a03030' })
+    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: '#a63d3d', dark: '#a63d3d' })
     // The settings nav highlight emphasizes: darker in light mode toward the
     // dark base, lighter in dark mode toward white.
     expect(tokens['--dsw-specific-sidebar-nav-item-active']).toEqual({ light: '#8d2222', dark: '#a43939' })
@@ -240,6 +281,10 @@ describe('buildTokenOverrides', () => {
     const tokens = buildTokenOverrides(full({ panel: '#9a2323', surfaceAlpha: 0.6 }))
     expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(160, 48, 48, 0.6)')
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(141, 34, 34, 0.6)')
+    // The hover bakes at the surface alpha; the "+" trigger rides the input
+    // opacity instead (default 1 = solid).
+    expect(tokens['--dsw-alias-interactive-bg-hover-solid']!.light).toBe('rgba(166, 61, 61, 0.6)')
+    expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(160, 48, 48, 1)')
   })
 
   it('a dark image (imageDark) flips the family from the dark base', () => {
