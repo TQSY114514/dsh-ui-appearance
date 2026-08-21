@@ -2,6 +2,17 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.4] - 2026-08-21
+
+### Added
+
+- **左上角 logo 字标跟随主色**:"harness" 字样原本固定用文字色,现在设置了主色时与 logo 图形一同跟随;未设置时保持默认外观不变
+
+### Fixed
+
+- **悬浮跳回实心**:发送键(`button-info-hover`)与主操作按钮/full access 启用键(`button-primary-hover`)的 hover 填充此前不透明,半透明界面下鼠标一悬停按钮就"变实";现跟随输入框不透明度同步烘焙,悬浮与常态观感一致
+- 排查确认其余 hover token(`interactive-bg-hover` / `-danger` / `button-tool-bar-hover`)库存值本身即低透明度,无此问题,保持原样
+
 ## [0.1.3] - 2026-08-17
 
 ### Changed
