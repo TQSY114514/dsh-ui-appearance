@@ -25,7 +25,7 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 ## 功能
 
-**主题颜色** —— 6 个颜色角色:主色、背景色、面板色、输入框色、文字色、边框色。每个角色都支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色;消息气泡跟随主色(半透明时保留主色相)。
+**主题颜色** —— 6 个颜色角色:主色、背景色、面板色、输入框色、文字色、边框色。每个角色都支持取色器与 HEX 输入;文字选区与键盘焦点环自动跟随主色;消息气泡跟随主色(半透明时保留主色相);左上角 logo 字标("harness"字样)也跟随主色。
 
 **壁纸背景** —— 点击上传或拖拽图片(JPG / PNG / WebP),或**粘贴图片/视频 URL 一键加载**(按扩展名自动分流,支持 CORS 友好的图床/视频直链),自动压缩后作为全界面壁纸;上传时自动采样亮度(深色壁纸协调抬亮表面)并**自动提取主色作为强调色**(壁纸与界面色调自动和谐)。也支持**视频背景**(MP4 / WebM,静音循环,与图片互斥),视频存入 IndexedDB,不占用 localStorage 配额。
 
@@ -41,18 +41,36 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 ## 安装
 
-```sh
-# npm 发布版(推荐)
-dsh plugin --profile <name> add dsh-ui-appearance
+### 方式一：npm 一行命令（推荐）
 
-# 或从源码(已验证端到端)
+```sh
+dsh plugin --profile <name> add dsh-ui-appearance
+```
+
+### 方式二：一键脚本（Windows，无需 npm 账号与 git）
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/TQSY114514/dsh-ui-appearance/main/install.ps1' -OutFile install.ps1; .\install.ps1"
+```
+
+脚本直接从 npm registry 拉取已构建的发布包（`lib/` 预构建产物随包分发），链接进 profile 的 `node_modules` 并在 `cordis.patch.yml` 注册——幂等，可重复执行。可选参数：
+
+```powershell
+.\install.ps1 -Version '0.1.3'      # 固定版本（默认装最新发布版）
+.\install.ps1 -DshHome 'D:\.dsh'    # 自定义 DSH 主目录（默认 %DSH_HOME% 或 %USERPROFILE%\.dsh）
+.\install.ps1 -Profile 'web'        # 目标 profile（默认 web）
+```
+
+### 方式三：源码安装（已验证端到端）
+
+```sh
 git clone https://github.com/TQSY114514/dsh-ui-appearance.git
 dsh plugin --profile <name> add file:<克隆到的本地路径>
 ```
 
-卸载:`dsh plugin --profile <name> remove dsh-ui-appearance`
+卸载：`dsh plugin --profile <name> remove dsh-ui-appearance`（脚本安装则删除 junction 与 `cordis.patch.yml` 中的对应条目）。
 
-**更新**:新版本发布后,重新执行 `add` 命令即可升级到最新版。
+**更新**：新版本发布后，重新执行 `add` 命令或安装脚本即可升级到最新版。
 
 > 安装流程已验证端到端:npm registry 与 `file:` 源码直装两种方式均实测可用(host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载)。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
 > 版本演进见 [CHANGELOG.md](CHANGELOG.md)。
@@ -87,8 +105,8 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 | 颜色 | `ctx.theme.overrideTokens()` 覆写 `--dsw-alias-*` 语义 token,浅/深模式切换自动重套,派生色按模式推导 |
 | 背景图层 | 自有的固定定位图层,位于页面背景之上、内容之下,由 CSS 变量驱动 |
 | 毛玻璃 | 背景图层整体模糊(`filter: blur`,背景模糊 + 毛玻璃两滑块之和),不动 `#root`,不产生 `backdrop-filter` 的包含块副作用 |
-| 半透明 | 表面 token 按模式烘焙为 `rgba()`(角色色 → 深色翻转色 → 默认面色表),不依赖 `color-mix`,全浏览器可用;覆盖面含设置面板(`bg-layer-2`)、对话区任务面板/排队坞/目标栏(`specific-tip`)、行内代码与代码块(`markdown-*`)、命令/加号按钮及其 hover(`selector` / `interactive-bg-hover-solid`) |
-| 强调与半透明 | 主操作按钮与强调字(`markdown-inline-code`)半透明化但保留品牌色相:按钮用主色 `α=面板不透明度`,强调字用主色低透明度(0~45%,默认 22%,与 harness 原生引用 chip 一致)——强调靠色相而非实心色块 |
+| 半透明 | 表面 token 按模式烘焙为 `rgba()`(角色色 → 深色翻转色 → 默认面色表),不依赖 `color-mix`,全浏览器可用;覆盖面含设置面板(`bg-layer-2`)、对话区任务面板/排队坞/目标栏(`specific-tip`)、行内代码与代码块(`markdown-*`)、命令/加号按钮及其 hover(`selector` / `interactive-bg-hover-solid`)、主操作按钮的 hover(`button-info-hover` / `button-primary-hover` 跟随输入框不透明度,悬浮不再跳回实心) |
+| 强调与半透明 | 主操作按钮与强调字(`markdown-inline-code`)半透明化但保留品牌色相:按钮用主色 `α=输入框不透明度`(hover 同步),强调字用主色低透明度(0~45%,默认 22%,与 harness 原生引用 chip 一致)——强调靠色相而非实心色块 |
 | 气泡角色 | 气泡设置已移除:harness 将唯一的气泡背景渲染在用户消息上(AI 消息无气泡),气泡直接跟随主色(浓度 = 面板不透明度);主色未设置时保持默认浅蓝白 |
 | 持久化 | 浏览器 localStorage(harness 的 settings 网关仅对产品命名空间开放浏览器写入),加载时按 schema 校验钳制 |
 

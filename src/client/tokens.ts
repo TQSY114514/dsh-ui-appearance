@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { isDarkColor, mixHex, withAlpha } from './color.ts'
+import { isDarkColor, mixHex, relativeLuminance, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
 export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from '../appearance-settings.ts'
@@ -19,6 +19,31 @@ export const OVERRIDE_SOURCE = '@deepseek-ai/dsh-client-ui-appearance'
 const LIGHT_BASE = '#ffffff'
 /** Mode base a derived step mixes toward: dark mixes toward near-black. */
 const DARK_BASE = '#151517'
+/** Ink painted ON a light label fill (badge letters, selection text). */
+const LIGHT_INK = '#fafaf9'
+/** Ink painted ON a dark label fill (host stock light-mode label). */
+const DARK_INK = '#0f1115'
+
+/**
+ * The on-ink counterpart of a label color. The sidebar wordmark's "harness"
+ * badge paints its chip with `currentColor` (the label color) and its letters
+ * with `--dsw-alias-label-primary-inverted`; `::selection` pairs its
+ * background with `-foreground` the same way. Overriding the label color
+ * without re-deriving these two breaks both pairings — a white chip keeps
+ * the stock light-mode white letters and the badge disappears.
+ */
+const onInk = (label: string): string => {
+  // WCAG contrast between the label and each candidate ink; the winner is
+  // whichever ink the label contrasts more with. A fixed luminance threshold
+  // misclassifies mid-tones (a #808080 chip reads 3.8:1 against the light
+  // ink but 4.7:1 against the dark one).
+  const contrast = (ink: string): number => {
+    const a = relativeLuminance(label)
+    const b = relativeLuminance(ink)
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+  }
+  return contrast(LIGHT_INK) >= contrast(DARK_INK) ? LIGHT_INK : DARK_INK
+}
 
 /**
  * Stock surface colors per mode (design-platform.css alias tokens, resolved
@@ -67,6 +92,11 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-alias-button-floating-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
   '--dsw-alias-button-primary-fill': { light: '#4176e6', dark: '#679efe' }, // deepseek-500 / deepseek-400
   '--dsw-alias-button-info-fill': { light: '#4176e6', dark: '#679efe' }, // send + stop ride the accent hue
+  // Hover states of those buttons (stock design-platform.css values). The
+  // translucent pass bakes them with the input alpha so hovering never
+  // snaps a translucent button back to solid.
+  '--dsw-alias-button-info-hover': { light: '#679efe', dark: '#4176e6' }, // deepseek-400 / deepseek-500
+  '--dsw-alias-button-primary-hover': { light: '#43454a', dark: '#ebeef2' }, // bluish-750 / bluish-100
 }
 
 /**
@@ -88,6 +118,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   const { accent, background, panel, input, text, border, backgroundImage, imageDark, surfaceAlpha, inputAlpha, codeAlpha, sidebarOpaque, emphasisAlpha } = settings
 
+  // Derived hover steps feed the translucent pass below, so hoist them.
+  let infoHover: [string, string] | undefined
+  let primaryHover: [string, string] | undefined
   if (accent !== '') {
     const [light, dark] = modePair(accent)
     emit('--dsw-alias-brand-primary', light, dark)
@@ -96,10 +129,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // it the accent color makes on-brand text unreadable.
     emit('--dsw-alias-state-business-primary', light, dark)
     emit('--dsw-alias-button-info-fill', light, dark)
-    const [hoverLight, hoverDark] = step(accent, 0.15)
-    emit('--dsw-alias-button-info-hover', hoverLight, hoverDark)
-    const [primaryHoverLight, primaryHoverDark] = step(accent, 0.22)
-    emit('--dsw-alias-button-primary-hover', primaryHoverLight, primaryHoverDark)
+    infoHover = step(accent, 0.15)
+    emit('--dsw-alias-button-info-hover', infoHover[0], infoHover[1])
+    primaryHover = step(accent, 0.22)
+    emit('--dsw-alias-button-primary-hover', primaryHover[0], primaryHover[1])
     // Message bubbles (the harness renders its only bubble background on
     // user messages; assistant turns have none) follow the accent color.
     // Both bubble tokens get the hue; the translucent pass adds the alpha.
@@ -155,6 +188,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-label-secondary', secL, secD)
     const [terL, terD] = step(text, 0.58)
     emit('--dsw-alias-label-tertiary', terL, terD)
+    // Re-derive the on-ink pairings so the harness badge letters and the
+    // ::selection text stay readable over the overridden label color.
+    const ink = onInk(light)
+    emit('--dsw-alias-label-primary-inverted', ink, ink)
+    emit('--dsw-alias-label-primary-foreground', ink, ink)
   }
 
   if (border !== '') {
@@ -194,6 +232,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-button-floating-hover', controlButtonHover[0], controlButtonHover[1])
     emit('--dsw-specific-sidebar-nav-item-active', controlNavActive[0], controlNavActive[1])
     emit('--dsw-specific-sidebar-nav-item-hover', controlNavHover[0], controlNavHover[1])
+    // The composer "+" trigger and its hover join the neutral-control family:
+    // stock light values are near-white (bluish-60/75), so a tinted surface
+    // otherwise leaves the button white while everything around it follows.
+    emit('--dsw-specific-selector', controlButtonFill[0], controlButtonFill[1])
+    emit('--dsw-alias-interactive-bg-hover-solid', controlButtonHover[0], controlButtonHover[1])
   }
 
   // Background image makes the base canvas transparent so the wallpaper
@@ -233,6 +276,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     if (text === '') {
       emit('--dsw-alias-label-primary', '#fafaf9', '#fafaf9')
       emit('--dsw-alias-label-secondary', '#d6d3d1', '#d6d3d1')
+      // The flipped near-white labels need their on-ink counterpart too,
+      // or the harness badge turns white-on-white over a dark wallpaper.
+      emit('--dsw-alias-label-primary-inverted', DARK_INK, DARK_INK)
+      emit('--dsw-alias-label-primary-foreground', DARK_INK, DARK_INK)
     }
     emit('--dsw-alias-button-elevated-fill', flipButtonElevated, flipButtonElevated)
     emit('--dsw-alias-button-floating-fill', flipButtonFloating, flipButtonFloating)
@@ -242,6 +289,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     // (#2c2c2e), exactly the flipped button pair, so they share it.
     emit('--dsw-specific-sidebar-nav-item-active', flipButtonElevated, flipButtonElevated)
     emit('--dsw-specific-sidebar-nav-item-hover', flipButtonFloating, flipButtonFloating)
+    // The "+" trigger and its hover join the dark family too — stock dark
+    // selector is bluish-800 (#353638), matching the flipped floating pair.
+    emit('--dsw-specific-selector', flipButtonFloating, flipButtonFloating)
+    emit('--dsw-alias-interactive-bg-hover-solid', flipButtonFloatingHover, flipButtonFloatingHover)
   }
 
   // Surface translucency bakes a plain rgba() per mode — NEVER a
@@ -324,7 +375,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControl('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
     translucent('--dsw-specific-menu', undefined, undefined)
     translucent('--dsw-alias-fill-l2', undefined, undefined)
-    translucent('--dsw-alias-interactive-bg-hover-solid', undefined, undefined)
+    bakeControl('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
     translucent('--dsw-specific-tip', undefined, undefined)
     // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
     // user accent when set, else the stock blue so legacy empty-accent
@@ -334,17 +385,41 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    // Brand/accent action buttons (send, stop) track the input opacity
-    // rather than the panel opacity — they're action affordances, not
-    // surfaces, so they stay visually solid even when the rest of the UI
-    // goes translucent behind the wallpaper. The chip below uses
-    // emphasisAlpha for a similar reason.
+  }
+
+  // Action affordances (send/stop fills and hovers, the "+" trigger) track
+  // the INPUT opacity at every panel value — same contract as the input
+  // surface above: the knob keeps working even when the panel sits at 100%.
+  // Under a translucent panel they bake at full input opacity too, so an
+  // opaque control does not sit on a translucent surface.
+  if (surfaceAlpha < 1 || inputAlpha < 1) {
+    // Brand/accent action buttons (send, stop) are affordances, not
+    // surfaces — they follow the input knob rather than the panel's.
     bakeAccent('--dsw-alias-button-primary-fill', inputAlpha)
     bakeAccent('--dsw-alias-button-info-fill', inputAlpha)
-    // The left-side command ("+") trigger tracks the input opacity too —
-    // it's an input affordance, not a surface, so it shouldn't follow the
-    // panel either.
-    bakeAlpha('--dsw-specific-selector', undefined, undefined, inputAlpha)
+    // The hovers of those same buttons ride the input opacity too — an
+    // opaque hover fill on a translucent button reads as a different
+    // element snapping solid under the pointer (send key, full-access
+    // toggle). Resolution mirrors the fills: accent-derived step, else the
+    // stock hover palette.
+    const bakeInputHover = (token: string, derived: [string, string] | undefined): void => {
+      if (derived !== undefined) {
+        emit(token, withAlpha(derived[0], inputAlpha), withAlpha(derived[1], inputAlpha))
+        return
+      }
+      bakeAlpha(token, undefined, undefined, inputAlpha)
+    }
+    bakeInputHover('--dsw-alias-button-info-hover', infoHover)
+    bakeInputHover('--dsw-alias-button-primary-hover', primaryHover)
+    // The left-side command ("+") trigger is an input affordance as well;
+    // its base follows the derived/flip control family when one is active
+    // instead of staying stock near-white.
+    const plusBase = flipButtonFloating ?? controlButtonFill?.[0]
+    if (plusBase !== undefined) {
+      emit('--dsw-specific-selector', withAlpha(plusBase, inputAlpha), withAlpha(plusBase, inputAlpha))
+    } else {
+      bakeAlpha('--dsw-specific-selector', undefined, undefined, inputAlpha)
+    }
   }
 
   return tokens

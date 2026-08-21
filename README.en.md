@@ -25,7 +25,7 @@ An appearance customization plugin for the DeepSeek Harness WebUI — a freely r
 
 ## Features
 
-**Theme colors** — 6 color roles: accent, background, panel, input, text, border. Each role has a color picker and HEX input; text selection and the keyboard focus ring follow the accent automatically; message bubbles follow the accent too (keeping its hue when translucent).
+**Theme colors** — 6 color roles: accent, background, panel, input, text, border. Each role has a color picker and HEX input; text selection and the keyboard focus ring follow the accent automatically; message bubbles follow the accent too (keeping its hue when translucent); the top-left logo wordmark ("harness") follows the accent as well.
 
 **Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); it is compressed automatically and used as a full-UI wallpaper. Brightness is sampled on upload (dark wallpapers lift the surface family) and the **dominant hue is auto-derived as the accent color**, so wallpaper and UI tones stay in harmony. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported and stored in IndexedDB, keeping localStorage quota free.
 
@@ -41,18 +41,36 @@ Every change applies live — no refresh, no save button.
 
 ## Installation
 
-```sh
-# npm release (recommended)
-dsh plugin --profile <name> add dsh-ui-appearance
+### Option 1: npm one-liner (recommended)
 
-# or from source (verified end to end)
+```sh
+dsh plugin --profile <name> add dsh-ui-appearance
+```
+
+### Option 2: one-command script (Windows, no npm account and no git needed)
+
+```powershell
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/TQSY114514/dsh-ui-appearance/main/install.ps1' -OutFile install.ps1; .\install.ps1"
+```
+
+The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's `node_modules` and registers `ui-appearance` in `cordis.patch.yml` — idempotent, safe to re-run. Optional parameters:
+
+```powershell
+.\install.ps1 -Version '0.1.3'      # pin a version (default: latest release)
+.\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
+.\install.ps1 -Profile 'web'        # target profile (default web)
+```
+
+### Option 3: from source (verified end to end)
+
+```sh
 git clone https://github.com/TQSY114514/dsh-ui-appearance.git
 dsh plugin --profile <name> add file:<path-to-clone>
 ```
 
-Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance`
+Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance` (for the script install, delete the junction and the entry in `cordis.patch.yml`).
 
-**Updating**: after a new release, simply re-run `add` to upgrade to the latest version.
+**Updating**: after a new release, simply re-run `add` or the install script to upgrade to the latest version.
 
 > Both installation paths (npm registry and `file:` source install) are verified end to end: the host half has zero `@deepseek-ai` runtime dependencies, and both the browser and the Host load correctly. After cloning, `pnpm install` builds automatically; after code changes, re-run `pnpm install && pnpm prepare` and restart `dsh web`.
 > Release history: [CHANGELOG.md](CHANGELOG.md).
@@ -87,8 +105,8 @@ Settings panel at a glance:
 | Colors | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens; light/dark switches re-apply automatically, derived colors are computed per mode |
 | Background layer | A dedicated fixed-position layer above the page background and below the content, driven by CSS variables |
 | Glassmorphism | The background layer is blurred as a whole (`filter: blur`, background blur + glass sliders summed); `#root` is untouched, so no `backdrop-filter` containing-block side effects |
-| Translucency | Surface tokens are baked to `rgba()` per mode (role color → dark-flip derived → stock surface table), no `color-mix` dependency, works in every browser; coverage includes the settings panel (`bg-layer-2`), task panels/queue dock/goal bar (`specific-tip`), inline code and code blocks (`markdown-*`), and the command (plus) button hovers (`selector` / `interactive-bg-hover-solid`) |
-| Emphasis & translucency | Primary buttons and emphasized text (`markdown-inline-code`) go translucent but keep the brand hue: buttons at accent × panel opacity, text chips at accent × 0–45% (default 22%, matching the harness's own reference-chip alpha) — emphasis via hue, not solid fill |
+| Translucency | Surface tokens are baked to `rgba()` per mode (role color → dark-flip derived → stock surface table), no `color-mix` dependency, works in every browser; coverage includes the settings panel (`bg-layer-2`), task panels/queue dock/goal bar (`specific-tip`), inline code and code blocks (`markdown-*`), the command (plus) button hovers (`selector` / `interactive-bg-hover-solid`), and the primary action button hovers (`button-info-hover` / `button-primary-hover` follow the input opacity, so hovers never snap back to solid) |
+| Emphasis & translucency | Primary buttons and emphasized text (`markdown-inline-code`) go translucent but keep the brand hue: buttons at accent × input opacity (hovers included), text chips at accent × 0–45% (default 22%, matching the harness's own reference-chip alpha) — emphasis via hue, not solid fill |
 | Bubble color | Dedicated bubble settings were removed: the harness renders its only bubble background on user messages (assistant turns have none), so bubbles follow the accent (at panel opacity); stock pale blue when no accent is set |
 | Persistence | Browser localStorage (the harness settings gateway only allows browser writes for product namespaces), schema-validated and clamped on load |
 
