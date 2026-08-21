@@ -70,6 +70,11 @@ describe('buildTokenOverrides', () => {
     const dark = buildTokenOverrides(full({ text: '#111111' }))
     expect(dark['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(dark['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // A mid-tone chip contrasts more with the dark ink (4.7:1 vs 3.8:1), so
+    // the winner is picked by WCAG contrast, not a luminance threshold.
+    const mid = buildTokenOverrides(full({ text: '#808080' }))
+    expect(mid['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(mid['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

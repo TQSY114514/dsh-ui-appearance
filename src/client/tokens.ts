@@ -32,7 +32,18 @@ const DARK_INK = '#0f1115'
  * without re-deriving these two breaks both pairings — a white chip keeps
  * the stock light-mode white letters and the badge disappears.
  */
-const onInk = (label: string): string => (relativeLuminance(label) > 0.5 ? DARK_INK : LIGHT_INK)
+const onInk = (label: string): string => {
+  // WCAG contrast between the label and each candidate ink; the winner is
+  // whichever ink the label contrasts more with. A fixed luminance threshold
+  // misclassifies mid-tones (a #808080 chip reads 3.8:1 against the light
+  // ink but 4.7:1 against the dark one).
+  const contrast = (ink: string): number => {
+    const a = relativeLuminance(label)
+    const b = relativeLuminance(ink)
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+  }
+  return contrast(LIGHT_INK) >= contrast(DARK_INK) ? LIGHT_INK : DARK_INK
+}
 
 /**
  * Stock surface colors per mode (design-platform.css alias tokens, resolved
