@@ -11,10 +11,6 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 
 > 零核心代码改动:完全通过官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点与 `settings.general.item` 插槽)实现;卸载后界面完整恢复默认。
 
-<!-- 演示:将录屏放入 docs/demo.gif 并替换此行
-![demo](docs/demo.gif)
--->
-
 ## 界面
 
 | 设置面板 | 壁纸 + 毛玻璃效果 |
@@ -53,12 +49,12 @@ dsh plugin --profile <name> add dsh-ui-appearance
 powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/TQSY114514/dsh-ui-appearance/main/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
-脚本直接从 npm registry 拉取已构建的发布包（`lib/` 预构建产物随包分发），链接进 profile 的 `node_modules` 并在 `cordis.patch.yml` 注册——幂等，可重复执行。可选参数：
+脚本直接从 npm registry 拉取已构建的发布包（`lib/` 预构建产物随包分发），链接进 profile 自己的 `node_modules` 并在该 profile 的 `package.json` 中注册（`dependencies` 条目 + `dsh.profile.bundles`，与 `dsh plugin add` 的产物一致）——幂等，可重复执行。可选参数：
 
 ```powershell
-.\install.ps1 -Version '0.1.3'      # 固定版本（默认装最新发布版）
+.\install.ps1 -Version '0.1.4'      # 固定版本（默认装最新发布版）
 .\install.ps1 -DshHome 'D:\.dsh'    # 自定义 DSH 主目录（默认 %DSH_HOME% 或 %USERPROFILE%\.dsh）
-.\install.ps1 -Profile 'web'        # 目标 profile（默认 web）
+.\install.ps1 -ProfileName 'web'    # 目标 profile（默认 web；profile 需已初始化）
 ```
 
 ### 方式三：源码安装（已验证端到端）
@@ -68,7 +64,7 @@ git clone https://github.com/TQSY114514/dsh-ui-appearance.git
 dsh plugin --profile <name> add file:<克隆到的本地路径>
 ```
 
-卸载：`dsh plugin --profile <name> remove dsh-ui-appearance`（脚本安装则删除 junction 与 `cordis.patch.yml` 中的对应条目）。
+卸载：`dsh plugin --profile <name> remove dsh-ui-appearance`（脚本安装则删除 profile `node_modules` 下的 junction 与 `package.json` 中对应的 `dependencies`/`bundles` 条目）。
 
 **更新**：新版本发布后，重新执行 `add` 命令或安装脚本即可升级到最新版。
 

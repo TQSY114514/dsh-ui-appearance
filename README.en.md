@@ -11,10 +11,6 @@ An appearance customization plugin for the DeepSeek Harness WebUI — a freely r
 
 > Zero core-code changes: everything goes through the official plugin mechanism (`ctx.theme.overrideTokens()` theme extension point and the `settings.general.item` slot). Uninstalling restores the stock UI completely.
 
-<!-- Demo: drop a recording into docs/demo.gif and replace this line
-![demo](docs/demo.gif)
--->
-
 ## Screenshots
 
 | Settings panel | Wallpaper + glassmorphism |
@@ -53,12 +49,12 @@ dsh plugin --profile <name> add dsh-ui-appearance
 powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.githubusercontent.com/TQSY114514/dsh-ui-appearance/main/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
-The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's `node_modules` and registers `ui-appearance` in `cordis.patch.yml` — idempotent, safe to re-run. Optional parameters:
+The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's own `node_modules` and registers it in that profile's `package.json` (a `dependencies` entry plus `dsh.profile.bundles`, matching what `dsh plugin add` produces) — idempotent, safe to re-run. Optional parameters:
 
 ```powershell
-.\install.ps1 -Version '0.1.3'      # pin a version (default: latest release)
+.\install.ps1 -Version '0.1.4'      # pin a version (default: latest release)
 .\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
-.\install.ps1 -Profile 'web'        # target profile (default web)
+.\install.ps1 -ProfileName 'web'    # target profile (default web; must be initialized)
 ```
 
 ### Option 3: from source (verified end to end)
@@ -68,7 +64,7 @@ git clone https://github.com/TQSY114514/dsh-ui-appearance.git
 dsh plugin --profile <name> add file:<path-to-clone>
 ```
 
-Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance` (for the script install, delete the junction and the entry in `cordis.patch.yml`).
+Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance` (for the script install, delete the junction under the profile's `node_modules` plus the `dependencies`/`bundles` entries it added to the profile's `package.json`).
 
 **Updating**: after a new release, simply re-run `add` or the install script to upgrade to the latest version.
 
