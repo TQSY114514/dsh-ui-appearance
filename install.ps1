@@ -82,7 +82,7 @@ try {
 $expectedB64 = $expectedIntegrity.Substring('sha512-'.Length)
 $hashHex = (Get-FileHash -LiteralPath $tgzFile -Algorithm SHA512).Hash
 $actualB64 = [Convert]::ToBase64String((1..($hashHex.Length / 2) | ForEach-Object { [Convert]::ToByte($hashHex.Substring(($_ - 1) * 2, 2), 16) }))
-if ($actualB64 -ne $expectedB64) {
+if ($actualB64 -cne $expectedB64) {
     Remove-Item -LiteralPath $tgzFile -Force
     throw "tarball integrity check failed for v$Version - the download does not match the registry digest"
 }
@@ -106,13 +106,15 @@ Remove-Item $tgzFile -Force
 Remove-Item $extractDir -Recurse -Force
 
 New-Item -ItemType Directory -Force -Path $nodeModules | Out-Null
-if (Test-Path $linkPath) {
-    $item = Get-Item $linkPath -Force
-    if ($item.LinkType) {
+# Test-Path follows the junction target and reports $false for a dangling
+# link, so inspect the reparse point itself before creating the replacement.
+$existing = Get-Item -LiteralPath $linkPath -Force -ErrorAction SilentlyContinue
+if ($existing) {
+    if ($existing.LinkType) {
         # Delete the junction itself, never its target (-Recurse would follow it).
         [System.IO.Directory]::Delete($linkPath)
     } else {
-        Remove-Item $linkPath -Force -Recurse
+        Remove-Item -LiteralPath $linkPath -Force -Recurse
     }
 }
 New-Item -ItemType Junction -Path $linkPath -Target $pkgDir | Out-Null
@@ -135,8 +137,9 @@ if (-not (Test-Path $patchFile)) {
     if ($content -cmatch "(?m)^\s*-\s+id:\s*(?:$pluginId|'$pluginId'|`"$pluginId`")\s*(?:#.*)?$") {
         Write-Host '  already registered, skip.' -ForegroundColor DarkGray
     } else {
-        # Strip a trailing empty YAML list before appending.
-        $base = ($content -replace '(?s)\[\s*\]\s*$', '').TrimEnd()
+        # Strip a trailing empty YAML list (with or without a trailing
+        # comment, e.g. '[] # no plugins') before appending.
+        $base = ($content -replace '(?m)^\s*\[\s*\]\s*(?:#.*)?$', '').TrimEnd()
         if ($base -eq '') { $new = $entryText + "`n" } else { $new = $base + "`n`n" + $entryText + "`n" }
         [System.IO.File]::WriteAllText($patchFile, $new, $utf8NoBom)
     }
