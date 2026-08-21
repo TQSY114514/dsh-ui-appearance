@@ -374,18 +374,23 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
     const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
     emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
-    // Brand/accent action buttons (send, stop) track the input opacity
-    // rather than the panel opacity — they're action affordances, not
-    // surfaces, so they stay visually solid even when the rest of the UI
-    // goes translucent behind the wallpaper. The chip below uses
-    // emphasisAlpha for a similar reason.
+  }
+
+  // Action affordances (send/stop fills and hovers, the "+" trigger) track
+  // the INPUT opacity at every panel value — same contract as the input
+  // surface above: the knob keeps working even when the panel sits at 100%.
+  // Under a translucent panel they bake at full input opacity too, so an
+  // opaque control does not sit on a translucent surface.
+  if (surfaceAlpha < 1 || inputAlpha < 1) {
+    // Brand/accent action buttons (send, stop) are affordances, not
+    // surfaces — they follow the input knob rather than the panel's.
     bakeAccent('--dsw-alias-button-primary-fill', inputAlpha)
     bakeAccent('--dsw-alias-button-info-fill', inputAlpha)
     // The hovers of those same buttons ride the input opacity too — an
     // opaque hover fill on a translucent button reads as a different
     // element snapping solid under the pointer (send key, full-access
     // toggle). Resolution mirrors the fills: accent-derived step, else the
-    // stock hover palette, both baked at the INPUT alpha (not the panel's).
+    // stock hover palette.
     const bakeInputHover = (token: string, derived: [string, string] | undefined): void => {
       if (derived !== undefined) {
         emit(token, withAlpha(derived[0], inputAlpha), withAlpha(derived[1], inputAlpha))
@@ -395,10 +400,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     }
     bakeInputHover('--dsw-alias-button-info-hover', infoHover)
     bakeInputHover('--dsw-alias-button-primary-hover', primaryHover)
-    // The left-side command ("+") trigger tracks the input opacity too —
-    // it's an input affordance, not a surface, so it shouldn't follow the
-    // panel either. Its base follows the derived/flip control family when
-    // one is active instead of staying stock near-white.
+    // The left-side command ("+") trigger is an input affordance as well;
+    // its base follows the derived/flip control family when one is active
+    // instead of staying stock near-white.
     const plusBase = flipButtonFloating ?? controlButtonFill?.[0]
     if (plusBase !== undefined) {
       emit('--dsw-specific-selector', withAlpha(plusBase, inputAlpha), withAlpha(plusBase, inputAlpha))

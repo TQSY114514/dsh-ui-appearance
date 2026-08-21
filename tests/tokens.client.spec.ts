@@ -287,6 +287,15 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(160, 48, 48, 1)')
   })
 
+  it('the input knob works at a fully opaque panel (action affordances)', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 0.3 }))
+    // Send/stop and the "+" trigger follow the input opacity even when the
+    // panel sits at 100% — otherwise the stock solid fill swallows the knob.
+    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
+    expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(65, 118, 230, 0.3)')
+    expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(245, 246, 247, 0.3)')
+  })
+
   it('a dark image (imageDark) flips the family from the dark base', () => {
     const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true }))
     expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
