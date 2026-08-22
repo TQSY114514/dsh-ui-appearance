@@ -8,6 +8,7 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 [![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance?label=npm%20downloads)](https://www.npmjs.com/package/dsh-ui-appearance)
 [![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
 [![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
+[![clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/TQSY114514/dsh-ui-appearance/badges/traffic.json&label=clones%20(14d)&cacheSeconds=86400)](https://github.com/TQSY114514/dsh-ui-appearance/graphs/traffic-data)
 
 > 零核心代码改动:完全通过官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点与 `settings.general.item` 插槽)实现;卸载后界面完整恢复默认。
 
