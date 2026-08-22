@@ -1,7 +1,5 @@
 name: traffic-badges
 
-# 每天抓一次本仓库的 GitHub Traffic 数据(clones/views),
-# 写成 JSON 推到 badges 分支,供 shields.io dynamic JSON 徽章读取。
 on:
   schedule:
     - cron: "0 1 * * *" # 每天 UTC 1:00(北京 9:00)
@@ -20,35 +18,49 @@ jobs:
     steps:
       - name: Collect traffic
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -e
-          clones=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/traffic/clones")
-          views=$(curl -sf -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/traffic/views")
-          CLONES=$(echo "$clones" | jq -r '.count')
-          CLONES_U=$(echo "$clones" | jq -r '.uniques')
-          VIEWS=$(echo "$views" | jq -r '.count')
-          VIEWS_U=$(echo "$views" | jq -r '.uniques')
+          fetch() {
+            local endpoint=$1 out=$2 code
+            for i in 1 2 3; do
+              code=$(curl -s -o "$out" -w "%{http_code}" \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/$endpoint") || code=000
+              echo "$endpoint -> HTTP $code"
+              [ "$code" = "200" ] && return 0
+              sleep 5
+            done
+            echo "::error::traffic API $endpoint failed (HTTP $code)"
+            exit 1
+          }
+          fetch traffic/clones clones.json
+          fetch traffic/views views.json
+          CLONES=$(jq -r '.count' clones.json)
+          CLONES_U=$(jq -r '.uniques' clones.json)
+          VIEWS=$(jq -r '.count' views.json)
+          VIEWS_U=$(jq -r '.uniques' views.json)
           DATE=$(date -u +%F)
-          mkdir -p out
-          # 累计值 = 上次累计 + 本次窗口增量(unique 口径,避免同一克隆重复计数)
-          git clone --depth 1 --branch badges "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" badges-branch 2>/dev/null || (
-            git init -b badges badges-branch && cd badges-branch \
-              && git remote add origin "https://x-access-token:$GH_TOKEN@github.com/$REPO.git"
-          )
-          cd badges-branch
+
+          rm -rf badges-branch
+          if git ls-remote --exit-code --heads "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" badges >/dev/null 2>&1; then
+            git clone --depth 1 --branch badges "https://x-access-token:$GH_TOKEN@github.com/$REPO.git" badges-branch
+            cd badges-branch
+          else
+            git init -b badges badges-branch
+            cd badges-branch
+            git remote add origin "https://x-access-token:$GH_TOKEN@github.com/$REPO.git"
+          fi
+
           if [ -f history.jsonl ]; then
             LAST_TOTAL=$(tail -1 history.jsonl | jq -r '.clones_total // 0')
           else
             LAST_TOTAL=0
           fi
-          # 若上次记录日期与本次窗口起点衔接不上(漏跑),增量按全窗口计,宁多勿少
           TOTAL=$((LAST_TOTAL + CLONES_U))
+
           jq -n --arg d "$DATE" --argjson c "$CLONES" --argjson cu "$CLONES_U" \
              --argjson v "$VIEWS" --argjson vu "$VIEWS_U" --argjson t "$TOTAL" \
              '{schemaVersion: 1, label: "clones (14d)", message: "\($cu) unique / \($c)",
@@ -56,6 +68,7 @@ jobs:
                views_14d: $v, views_uniques_14d: $vu,
                updated: $d}' > traffic.json
           echo "{\"date\": \"$DATE\", \"clones_14d\": $CLONES, \"clones_uniques_14d\": $CLONES_U, \"views_14d\": $VIEWS, \"views_uniques_14d\": $VIEWS_U, \"clones_total\": $TOTAL}" >> history.jsonl
+
           git config user.name "traffic-bot"
           git config user.email "actions@users.noreply.github.com"
           git add traffic.json history.jsonl
@@ -64,6 +77,9 @@ jobs:
 
       - name: Keep history bounded
         run: |
-          cd badges-branch 2>/dev/null || exit 0
-          # history.jsonl 只保留最近 400 行,防止无限膨胀
+          [ -d badges-branch ] || exit 0
+          cd badges-branch
           [ -f history.jsonl ] && tail -400 history.jsonl > h.tmp && mv h.tmp history.jsonl || true
+          if ! git diff --quiet; then
+            git add history.jsonl && git commit -m "chore: trim history" && git push origin badges || true
+          fi
