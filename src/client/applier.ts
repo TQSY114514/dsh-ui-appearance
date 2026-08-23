@@ -1,7 +1,7 @@
 /**
  * DOM applier for appearance settings: owns one stylesheet and one fixed
- * background layer element, forwards the active token overrides into
- * ctx.theme, and exposes live CSS variables the stylesheet consumes. Every
+ * background layer element. Forwards the active token overrides into
+ * ctx.theme and exposes live CSS variables the stylesheet consumes. Every
  * write is retracted on dispose, so disabling the plugin restores the stock
  * UI exactly.
  */
@@ -27,16 +27,22 @@ const BODY_VARIABLES = [
 ] as const
 
 /**
- * Static sheet: the background layer sits above the body background but below
- * #root (lifted with a minimal stacking context), so surfaces painted with
- * translucent tokens show the image through. `inset: -48px` gives the blur
- * filter room so edges never show transparent bleed.
+ * Static sheet: the background layer is pushed to `z-index: -1` so it paints
+ * below all content but above the body background — surfaces painted with
+ * translucent tokens still show the image through, and no stacking context is
+ * created on #root. `inset: -48px` gives the blur filter room so edges never
+ * show transparent bleed.
  *
- * The blur is applied to the LAYER itself (`--dsw-appearance-blur`, the sum
- * of the wallpaper blur and glass sliders), never `backdrop-filter` on
- * #root: a non-none backdrop-filter turns #root into the containing block of
- * every fixed-position descendant (menus, tooltips, toasts), which re-anchors
- * them to #root instead of the viewport. Blurring the wallpaper directly is
+ * #root is deliberately left untouched: no `position`/`z-index`, no
+ * `backdrop-filter`. A non-none backdrop-filter turns #root into the
+ * containing block of every fixed-position descendant (menus, tooltips,
+ * toasts), and any `z-index` traps those descendants in a stacking context
+ * scoped to #root — whose own effective z then sits at the page level. Either
+ * would let top-level third-party panels (e.g. dsh-better-sidebar's
+ * `position: fixed; z-index: 40` panel) paint over the DSH settings dialog
+ * (`position: fixed; z-index: 1000`, a descendant of #root). Pushing the
+ * wallpaper layer to -1 instead of lifting #root keeps fixed overlays at the
+ * top level, so the dialog always wins. Blurring the wallpaper directly is
  * visually equivalent here — the only thing behind #root is this layer — and
  * leaves fixed positioning alone.
  *
@@ -51,7 +57,7 @@ const SHEET = `
 #${BG_LAYER_ID} {
   position: fixed;
   inset: -48px;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background-repeat: no-repeat;
   background-position: center;
@@ -80,10 +86,6 @@ body[data-ds-dark-theme] #${BG_LAYER_ID} {
   background-image:
     linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
     var(--dsw-appearance-bg-image, none);
-}
-#root {
-  position: relative;
-  z-index: 1;
 }
 #root ::selection {
   background: var(--dsw-alias-brand-primary);
@@ -140,9 +142,21 @@ export class AppearanceApplier {
       value.backgroundImage === '' ? 'none' : `url("${value.backgroundImage}")`,
     )
     body.style.setProperty('--dsw-appearance-bg-opacity', String(value.backgroundOpacity))
-    // Wallpaper blur and glass share one filter on the layer: `backdrop-filter`
-    // on #root would re-anchor fixed-position descendants (see the sheet note).
-    body.style.setProperty('--dsw-appearance-blur', `${value.backgroundBlur + value.glassBlur}px`)
+    // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
+    // slider deepens the blur of the wallpaper that the translucent surfaces
+    // reveal. The panels themselves are never touched.
+    body.style.setProperty(
+      '--dsw-appearance-blur',
+      `${value.backgroundBlur + value.glassBlur}px`,
+    )
+    // 毛玻璃 also drives the host's modal masks: dialogs/dropdowns dim the page
+    // through `.mask` elements whose backdrop-filter is `var(--dsw-mask-blur)`
+    // (stock: blur(2px)). Writing the token on body wins over the host's
+    // stylesheet definitions (body is the closer ancestor), so whatever a mask
+    // covers — text included — frosts with the slider. The slider owns the
+    // token across its whole range: 0 means blur(0px) (fully clear), NOT the
+    // stock 2px. dispose() removes the write so uninstall restores stock.
+    body.style.setProperty('--dsw-mask-blur', `blur(${value.glassBlur}px)`)
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
     // A background video (IndexedDB record key) replaces the image layer;
     // loading is async and only re-runs when the key changes.
@@ -223,5 +237,6 @@ export class AppearanceApplier {
     this.layer.remove()
     const body = document.body
     for (const name of BODY_VARIABLES) body.style.removeProperty(name)
+    body.style.removeProperty('--dsw-mask-blur')
   }
 }

@@ -64,8 +64,10 @@ describe('AppearanceApplier', () => {
     const body = document.body
     expect(body.style.getPropertyValue('--dsw-appearance-bg-image')).toBe('url("data:image/png;base64,AAAA")')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-opacity')).toBe('0.5')
-    // Wallpaper blur and glass merge into one layer blur.
+    // 毛玻璃 rides the same wallpaper-layer filter as 背景模糊 (summed).
     expect(body.style.getPropertyValue('--dsw-appearance-blur')).toBe('20px')
+    // …and amplifies the host modal masks so covered content frosts too.
+    expect(body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(8px)')
     expect(body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('0.4')
     applier.dispose()
     expect(remove).toHaveBeenCalled()
@@ -92,10 +94,23 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
+  it('glass 0 writes blur(0px) (no stock fallback); dispose removes the token', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    applier.apply(full({ glassBlur: 20, backgroundBlur: 0 }))
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(20px)')
+    applier.apply(full({ glassBlur: 0, backgroundBlur: 0 }))
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
+    applier.apply(full({ glassBlur: 6, backgroundBlur: 0 }))
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(6px)')
+    applier.dispose()
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('')
+  })
+
   it('dispose removes the elements, body variables, and the blur', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
-    applier.apply(full({ glassBlur: 10, scrim: 0.5 }))
+    applier.apply(full({ backgroundBlur: 10, scrim: 0.5 }))
     expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('10px')
     applier.dispose()
     expect(document.getElementById(STYLE_ID)).toBeNull()
