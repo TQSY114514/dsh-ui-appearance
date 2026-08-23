@@ -2,6 +2,13 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.5] - 2026-08-23
+
+### Fixed
+
+- **设置界面被第三方顶层面板盖住**([#10](https://github.com/TQSY114514/dsh-ui-appearance/issues/10)):样式表里 `#root { position: relative; z-index: 1 }` 让 #root 成为 stacking context,设置对话框(`z-index: 1000`)被困在其内部、对外等效 z=1——启用 dsh-better-sidebar 等在 #root 之外放置顶层面板(z=40)的插件后,设置界面被盖住;现改为壁纸图层压到 `z-index: -1`(内容之下、body 背景之上,视觉不变),#root 不再创建 stacking context,对话框回到顶层
+- **毛玻璃滑杆接管对话框遮罩模糊**:宿主对话框遮罩的 `--dsw-mask-blur` 原生恒为 `blur(2px)` 且从不变化;现跟随毛玻璃滑杆——调大时被面板/弹窗盖住的界面内容(含文字)随之模糊,调到 0 完全清晰(`blur(0px)`,不回落宿主默认 2px);卸载或禁用插件即恢复宿主原生状态
+
 ## [0.1.4] - 2026-08-21
 
 ### Added
