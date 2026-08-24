@@ -18,6 +18,12 @@ An appearance customization plugin for the DeepSeek Harness WebUI — a freely r
 |---|---|
 | ![Settings panel](docs/screenshot-settings.png) | ![Wallpaper glass](docs/screenshot-wallpaper.png) |
 
+**Verified on DSH Desktop**:
+
+| Advanced mode (desktop layout + native materials) | Compatible mode (stock upstream Web client) |
+|---|---|
+| ![Advanced mode](docs/screenshot-desktop-fancy.webp) | ![Compatible mode](docs/screenshot-desktop-compat.webp) |
+
 > The wallpaper in the screenshots is © MadYY ([source](docs/wallpaper-madYY.png)), shown for demonstration only — users upload their own images.
 
 ## Features
@@ -109,6 +115,7 @@ Settings panel at a glance:
 
 ## Compatibility & limitations
 
+- Verified working on [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) (both advanced and compatible modes; Desktop profiles are separate — install into the active Desktop profile)
 - Translucency is baked as plain `rgba()`; the sliders stay smooth at all values. Glass and background blur merge into one blur of the background layer (the sum of both sliders) — no `backdrop-filter`, so fixed-position elements never change their containing block; low-end devices can set the blur back to 0.
 - Dark wallpapers or dark background colors trigger a coordinated surface-family flip; an explicitly set text color still wins.
 - Each color role is a single value shared by both modes; derived colors are computed per mode automatically.
