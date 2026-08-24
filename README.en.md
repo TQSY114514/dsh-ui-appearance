@@ -2,7 +2,7 @@
 
 [中文](README.md) · English
 
-An appearance customization plugin for the DeepSeek Harness WebUI — a freely re-colorable theme palette, wallpaper/video backgrounds, glassmorphism and background ambience, all previewed live and persisted automatically.
+An appearance customization plugin for the DeepSeek Harness WebUI — a freely re-colorable theme palette, wallpaper/video backgrounds, glassmorphism and background ambience, all previewed live and persisted automatically. Works in both the WebUI and DSH Desktop.
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
@@ -18,9 +18,9 @@ An appearance customization plugin for the DeepSeek Harness WebUI — a freely r
 |---|---|
 | ![Settings panel](docs/screenshot-settings.png) | ![Wallpaper glass](docs/screenshot-wallpaper.png) |
 
-**Verified on DSH Desktop**:
+It also works out of the box on **[DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)**, the desktop client — real screenshots:
 
-| Advanced mode (desktop layout + native materials) | Compatible mode (stock upstream Web client) |
+| Advanced mode (native desktop layout & materials) | Compatible mode (stock upstream Web client) |
 |---|---|
 | ![Advanced mode](docs/screenshot-desktop-fancy.webp) | ![Compatible mode](docs/screenshot-desktop-compat.webp) |
 
@@ -59,7 +59,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's own `node_modules` and registers it in that profile's `package.json` (a `dependencies` entry plus `dsh.profile.bundles`, matching what `dsh plugin add` produces) — idempotent, safe to re-run. Optional parameters:
 
 ```powershell
-.\install.ps1 -Version '0.1.4'      # pin a version (default: latest release)
+.\install.ps1 -Version '0.1.5'      # pin a version (default: latest release)
 .\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
 .\install.ps1 -ProfileName 'web'    # target profile (default web; must be initialized)
 ```
@@ -74,6 +74,8 @@ dsh plugin --profile <name> add file:<path-to-clone>
 Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance` (for the script install, delete the junction under the profile's `node_modules` plus the `dependencies`/`bundles` entries it added to the profile's `package.json`).
 
 **Updating**: after a new release, simply re-run `add` or the install script to upgrade to the latest version.
+
+> **DSH Desktop users**: Desktop keeps its own profiles, independent from the WebUI. All three methods above work — just install into the profile Desktop actually activates (`--profile <name>`, or `-ProfileName` for the script).
 
 > Both installation paths (npm registry and `file:` source install) are verified end to end: the host half has zero `@deepseek-ai` runtime dependencies, and both the browser and the Host load correctly. After cloning, `pnpm install` builds automatically; after code changes, re-run `pnpm install && pnpm prepare` and restart `dsh web`.
 > Release history: [CHANGELOG.md](CHANGELOG.md).
@@ -115,7 +117,7 @@ Settings panel at a glance:
 
 ## Compatibility & limitations
 
-- Verified working on [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) (both advanced and compatible modes; Desktop profiles are separate — install into the active Desktop profile)
+- Compatible with [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop): both advanced mode (native desktop layout) and compatible mode (stock upstream Web client) verified working on a real machine (screenshots under Screenshots); Desktop profiles are separate from the WebUI — install into the profile Desktop activates (see Installation)
 - Translucency is baked as plain `rgba()`; the sliders stay smooth at all values. Glass and background blur merge into one blur of the background layer (the sum of both sliders) — no `backdrop-filter`, so fixed-position elements never change their containing block; low-end devices can set the blur back to 0.
 - Dark wallpapers or dark background colors trigger a coordinated surface-family flip; an explicitly set text color still wins.
 - Each color role is a single value shared by both modes; derived colors are computed per mode automatically.
@@ -149,7 +151,7 @@ vitest.config.ts              # Standalone test config (aliases to tests/stubs)
 lib/                          # Build output
 ```
 
-All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. 97 vitest tests green (runnable standalone in this repo); CI build and artifact assertions green.
+All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. 120 vitest tests green (runnable standalone in this repo); CI build and artifact assertions green.
 
 ## License
 
