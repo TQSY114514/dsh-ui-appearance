@@ -75,7 +75,7 @@ Uninstall: `dsh plugin --profile <name> remove dsh-ui-appearance` (for the scrip
 
 **Updating**: after a new release, simply re-run `add` or the install script to upgrade to the latest version.
 
-> **DSH Desktop users**: Desktop keeps its own profiles, independent from the WebUI. All three methods above work — just install into the profile Desktop actually activates (`--profile <name>`, or `-ProfileName` for the script).
+> **DSH Desktop users**: Desktop keeps its own profiles, independent from the WebUI. All three methods above work — just install into the profile Desktop actually activates (named `desktop` by default; inside the built-in Desktop terminal, a plain `dsh plugin` already targets the active profile).
 
 > Both installation paths (npm registry and `file:` source install) are verified end to end: the host half has zero `@deepseek-ai` runtime dependencies, and both the browser and the Host load correctly. After cloning, `pnpm install` builds automatically; after code changes, re-run `pnpm install && pnpm prepare` and restart `dsh web`.
 > Release history: [CHANGELOG.md](CHANGELOG.md).

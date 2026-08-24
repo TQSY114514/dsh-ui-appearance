@@ -75,7 +75,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 
 **更新**：新版本发布后，重新执行 `add` 命令或安装脚本即可升级到最新版。
 
-> **DSH Desktop 用户**：Desktop 的 profile 与 Web 版相互独立——三种方式都可用，但要把插件装进 Desktop 实际激活的 profile（`--profile <名称>`，脚本则用 `-ProfileName`）。
+> **DSH Desktop 用户**：Desktop 的 profile 与 Web 版相互独立——三种方式都可用，但要把插件装进 Desktop 实际激活的 profile（默认名为 `desktop`；Desktop 内置终端里直接跑 `dsh plugin` 即可，默认作用于当前激活的 profile）。
 
 > 安装流程已验证端到端:npm registry 与 `file:` 源码直装两种方式均实测可用(host 半部零 `@deepseek-ai` 运行时依赖,浏览器与 Host 均能正确加载)。克隆后 `pnpm install` 会自动构建;修改代码后重新执行 `pnpm install && pnpm prepare` 并重启 dsh web。
 > 版本演进见 [CHANGELOG.md](CHANGELOG.md)。
