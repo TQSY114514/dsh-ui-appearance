@@ -18,7 +18,7 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 |---|---|
 | ![设置面板](docs/screenshot-settings.png) | ![壁纸毛玻璃](docs/screenshot-wallpaper.png) |
 
-**DSH Desktop 实拍**(已验证兼容):
+**DSH Desktop 实拍**:
 
 | 高级模式(桌面布局 + 原生材质) | 兼容模式(上游默认 Web client) |
 |---|---|
@@ -117,7 +117,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 
 ## 兼容性与限制
 
-- 兼容 [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop):高级模式(桌面原生布局)与兼容模式(上游默认 Web client)均已实机验证生效(实拍见上方「界面」一节);Desktop 的 profile 与 Web 版独立,插件需安装到 Desktop 激活的 profile 中(见「安装」)
+- 支持 [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop):高级模式(桌面原生布局)与兼容模式(上游默认 Web client)下均可正常使用(截图见上方「界面」一节);Desktop 的 profile 与 Web 版独立,插件需安装到 Desktop 激活的 profile 中(见「安装」)
 - 半透明直接烘焙为 `rgba()`,滑块全程平滑;毛玻璃与背景模糊合并为背景图层的一次模糊(两滑块之和),不依赖 `backdrop-filter`,开启时不会改变页面内固定定位元素的包含块,低端设备可把模糊调回 0
 - 深色壁纸或深色背景色自动触发表面家族协调翻转;显式设置的文字色仍然优先
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导

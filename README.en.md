@@ -117,7 +117,7 @@ Settings panel at a glance:
 
 ## Compatibility & limitations
 
-- Compatible with [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop): both advanced mode (native desktop layout) and compatible mode (stock upstream Web client) verified working on a real machine (screenshots under Screenshots); Desktop profiles are separate from the WebUI — install into the profile Desktop activates (see Installation)
+- Works with [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop): usable in both advanced mode (native desktop layout) and compatible mode (stock upstream Web client) (screenshots under Screenshots); Desktop profiles are separate from the WebUI — install into the profile Desktop activates (see Installation)
 - Translucency is baked as plain `rgba()`; the sliders stay smooth at all values. Glass and background blur merge into one blur of the background layer (the sum of both sliders) — no `backdrop-filter`, so fixed-position elements never change their containing block; low-end devices can set the blur back to 0.
 - Dark wallpapers or dark background colors trigger a coordinated surface-family flip; an explicitly set text color still wins.
 - Each color role is a single value shared by both modes; derived colors are computed per mode automatically.
