@@ -1,5 +1,9 @@
-// @vitest-environment jsdom
-/** IndexedDB video store: save/get/delete with the size cap. */
+// @vitest-environment node
+/** IndexedDB video store: save/get/delete with the size cap.
+ * Node environment on purpose: records store Blobs by reference, and only
+ * the global (undici) Blob survives fake-indexeddb's structured clone —
+ * a jsdom Blob gets degraded to "[object Object]". Real Chromium handles
+ * window Blobs natively, which this suite approximates via undici. */
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deleteVideo, getVideo, MAX_VIDEO_BYTES, saveVideo } from '../src/client/video-store.ts'

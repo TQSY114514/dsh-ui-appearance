@@ -17,12 +17,15 @@ export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 /** MIME types accepted by the video upload control. */
 export const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg']
 
-/** One stored video record; payload kept as bytes for environment-safe cloning. */
+/** One stored video record. New records keep the payload as a Blob —
+ * IDB structured cloning holds it by reference, so the bytes never have to
+ * fit in memory all at once. Legacy records (pre-Blob) hold raw bytes plus
+ * their MIME type. */
 interface VideoRecord {
-  /** Video bytes (ArrayBuffer clones reliably across IDB implementations). */
-  data: ArrayBuffer
-  /** Video MIME type. */
-  type: string
+  /** Video payload (Blob for new records, ArrayBuffer for legacy ones). */
+  data: Blob | ArrayBuffer
+  /** Video MIME type (only set on legacy ArrayBuffer records). */
+  type?: string
   /** Original file name (informational). */
   name: string
 }
@@ -69,7 +72,9 @@ export async function saveVideo(blob: Blob, name: string): Promise<string> {
     throw new Error(`video exceeds the ${MAX_VIDEO_BYTES / 1024 / 1024}MB limit`)
   }
   const key = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-  const record: VideoRecord = { data: await blob.arrayBuffer(), type: blob.type, name }
+  // Store the Blob itself: structured cloning keeps it by reference, so a
+  // large video is never fully read into memory on the save path.
+  const record: VideoRecord = { data: blob, name }
   await run('readwrite', store => store.put(record, key))
   return key
 }
@@ -82,7 +87,10 @@ export async function saveVideo(blob: Blob, name: string): Promise<string> {
 export async function getVideo(key: string): Promise<Blob | undefined> {
   const record = await run('readonly', store => store.get(key) as IDBRequest<VideoRecord | undefined>)
   if (record === undefined) return undefined
-  return new Blob([record.data], { type: record.type })
+  // New records come back as Blobs with their MIME type intact; legacy
+  // records carry raw bytes and get rewrapped here.
+  if (record.data instanceof Blob) return record.data
+  return new Blob([record.data], { type: record.type ?? '' })
 }
 
 /**
