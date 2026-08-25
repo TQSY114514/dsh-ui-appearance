@@ -11,6 +11,7 @@ const realFetch = globalThis.fetch
 
 afterEach(() => {
   globalThis.fetch = realFetch
+  vi.unstubAllGlobals()
 })
 
 function stubFetch(init: () => Response | Promise<Response>): void {
@@ -99,10 +100,14 @@ describe('loadImageFromUrl', () => {
     await expect(loadImageFromUrl('https://example.com/x.png')).rejects.toMatchObject({ code: 'size' })
   })
 
-  it('passes an image-sized blob into the compression pipeline', async () => {
-    stubFetchBlob(new Blob([new Uint8Array(64)], { type: 'image/png' }))
+  it('prepares an in-bounds image for the store without re-encoding', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 100, height: 50, close: vi.fn() })))
+    const body = new Blob([new Uint8Array(64)], { type: 'image/png' })
+    stubFetchBlob(body)
     const result = await loadImageFromUrl('https://example.com/x.png')
-    expect(result.url.startsWith('data:')).toBe(true)
+    // Within the edge bound the payload passes through untouched.
+    expect(result.blob.type).toBe('image/png')
+    expect(result.imageDark).toBe(false)
   })
 })
 

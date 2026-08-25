@@ -1,11 +1,11 @@
 /**
  * Loading background media from a remote URL: fetch the resource, then feed
- * it through the same image/video pipelines as local uploads (compression,
+ * it through the same image/video pipelines as local uploads (preparation,
  * darkness sampling, IndexedDB storage). CORS-unfriendly hosts are reported
  * as a distinct user-facing error instead of a silent failure.
  */
 
-import { MAX_INPUT_BYTES, readImageFile, type CompressedImage } from './image.ts'
+import { MAX_INPUT_BYTES, prepareImage, type PreparedImage } from './image.ts'
 import { MAX_VIDEO_BYTES } from './video-store.ts'
 
 /** Media kinds the URL input can produce. */
@@ -62,8 +62,12 @@ export async function fetchBlob(url: string): Promise<Blob> {
   return blob
 }
 
-/** Derive a display name from the URL path. */
-function urlToName(url: string): string {
+/**
+ * Derive a display name from the URL path (the stored record's name).
+ * @param url - the remote URL.
+ * @returns the file-name part of the path, or 'background'.
+ */
+export function urlToName(url: string): string {
   try {
     const name = new URL(url).pathname.split('/').pop()
     return name !== undefined && name !== '' ? name : 'background'
@@ -78,18 +82,18 @@ function mimeFor(kind: UrlMediaKind): string {
 }
 
 /**
- * Load an image from a URL through the compression pipeline.
+ * Load an image from a URL through the preparation pipeline.
  * @param url - the remote image URL.
- * @returns the compressed result (data URL + darkness flag).
+ * @returns the prepared result (blob + darkness flag).
  * @throws UrlLoadFailure with a 'type' or 'size' code past the fetch stage.
  */
-export async function loadImageFromUrl(url: string): Promise<CompressedImage> {
+export async function loadImageFromUrl(url: string): Promise<PreparedImage> {
   const kind = classifyUrl(url)
   const blob = await fetchBlob(url)
   const type = blob.type === '' ? mimeFor(kind) : blob.type
   if (!type.startsWith('image/')) throw new UrlLoadFailure('type')
   if (blob.size > MAX_INPUT_BYTES) throw new UrlLoadFailure('size')
-  return readImageFile(new File([blob], urlToName(url), { type }))
+  return prepareImage(new File([blob], urlToName(url), { type }))
 }
 
 /**
