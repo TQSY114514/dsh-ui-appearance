@@ -18,9 +18,9 @@ DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁�
 |---|---|
 | ![设置面板](docs/screenshot-settings.png) | ![壁纸毛玻璃](docs/screenshot-wallpaper.png) |
 
-**DSH Desktop 实拍**:
+在 **[DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop)**(桌面客户端)中同样开箱即用,以下为实拍:
 
-| 高级模式(桌面布局 + 原生材质) | 兼容模式(上游默认 Web client) |
+| 高级模式(桌面原生布局与材质) | 兼容模式(上游默认 Web client) |
 |---|---|
 | ![高级模式](docs/screenshot-desktop-fancy.webp) | ![兼容模式](docs/screenshot-desktop-compat.webp) |
 
