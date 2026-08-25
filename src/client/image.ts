@@ -1,22 +1,22 @@
 /**
- * Browser-side image reading for the background upload: samples the source
- * brightness, then walks a (max-edge × quality) ladder — shrinking by edge
- * first, then lowering JPEG/WebP quality — until the encoded data URL fits the
- * storage budget. Falls back to the raw file data URL when the browser cannot
- * decode the format.
+ * Browser-side image preparation for the background upload: samples the
+ * source brightness and accent color, and resamples only when the longest
+ * edge exceeds the decode-safe bound (quality-first WebP). The payload is
+ * otherwise stored as the original bytes — no recompression, no quality loss.
  */
 
-/** Input file size cap (bytes); larger files are refused up front. */
-export const MAX_INPUT_BYTES = 25 * 1024 * 1024
+/** Input file size cap (bytes). Deliberately generous: images persist in
+ * IndexedDB, not localStorage, so this is a sanity guard against absurd
+ * files (multi-hundred-MB scans), not a real constraint. */
+export const MAX_INPUT_BYTES = 200 * 1024 * 1024
 
-/** Storage budget for the persisted data URL (bytes of encoded payload). */
-export const MAX_STORED_BYTES = 2 * 1024 * 1024
+/** Longest-edge bound above which an image is resampled. Beyond this, decode
+ * and GPU texture costs get pathological; a quality-0.95 WebP keeps it
+ * visually indistinguishable. */
+export const RESAMPLE_EDGE = 4096
 
-/** Max-edge ladder: shrink by dimension first. */
-export const EDGE_LADDER = [1920, 1280, 960] as const
-
-/** Quality ladder walked after each edge step. */
-export const QUALITY_LADDER = [0.82, 0.74, 0.66, 0.58, 0.5] as const
+/** Quality used when resampling oversized images. */
+const RESAMPLE_QUALITY = 0.95
 
 /** Average-brightness threshold below which an image counts as dark. */
 const IMAGE_DARK_THRESHOLD = 0.35
@@ -36,10 +36,10 @@ const ACCENT_TARGET_SATURATION = 0.5
 /** MIME types accepted by the upload controls. */
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
 
-/** Result of reading and compressing one image file. */
-export interface CompressedImage {
-  /** Compressed data URL ready to persist. */
-  url: string
+/** Result of preparing one image file for storage. */
+export interface PreparedImage {
+  /** Payload blob to persist in IndexedDB (original bytes when possible). */
+  blob: Blob
   /** Whether the source sampled as dark (< 35% average brightness). */
   imageDark: boolean
   /** Dominant accent color sampled from the source, or null when absent. */
@@ -69,17 +69,6 @@ export function fitWithin(width: number, height: number, maxEdge: number): Size 
   if (width <= 0 || height <= 0) return { width: safe(width), height: safe(height) }
   const scale = Math.min(1, maxEdge / Math.max(width, height))
   return { width: Math.round(width * scale), height: Math.round(height * scale) }
-}
-
-/**
- * Estimate the encoded payload bytes of a data URL from its length (base64).
- * @param dataUrl - the data URL.
- * @returns estimated bytes.
- */
-export function estimateDataUrlBytes(dataUrl: string): number {
-  const comma = dataUrl.indexOf(',')
-  if (comma === -1) return 0
-  return Math.floor(((dataUrl.length - comma - 1) * 3) / 4)
 }
 
 /**
@@ -255,96 +244,91 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 /**
- * Read, sample, and compress an image file into a data URL.
- * @param file - the selected image file.
- * @returns the compressed result, or falls back to the raw bytes.
+ * Prepare an image blob for the background: enforce the sanity size cap,
+ * sample darkness/accent, and resample only when the longest edge exceeds
+ * `RESAMPLE_EDGE` (quality-first encode, alpha preserved for PNG). Undecodable
+ * formats (and animated GIFs within the edge bound) pass through as-is.
+ * @param source - the image payload to prepare.
+ * @returns the prepared payload with its sampled metadata.
  */
-export async function readImageFile(file: File): Promise<CompressedImage> {
-  if (!file.type.startsWith('image/')) throw new Error(`unsupported file type "${file.type}"`)
-  if (file.size > MAX_INPUT_BYTES) throw new Error(`image exceeds the ${MAX_INPUT_BYTES / 1024 / 1024}MB input limit`)
-  const bitmap = await tryDecode(file)
+export async function prepareImage(source: Blob): Promise<PreparedImage> {
+  if (!source.type.startsWith('image/')) throw new Error(`unsupported file type "${source.type}"`)
+  if (source.size > MAX_INPUT_BYTES) {
+    throw new Error(`image exceeds the ${MAX_INPUT_BYTES / 1024 / 1024}MB input limit`)
+  }
+  const bitmap = await tryDecode(source)
   if (bitmap === undefined) {
-    const raw = await readRawDataUrl(file)
-    // The raw fallback bypasses the compression ladder, so it must still
-    // respect the storage budget — an oversized original would bloat the
-    // user-settings document.
-    if (estimateDataUrlBytes(raw) > MAX_STORED_BYTES) {
-      throw new Error(`image exceeds the ${MAX_STORED_BYTES / 1024 / 1024}MB storage budget`)
-    }
-    return { url: raw, imageDark: false, accent: null }
+    // Undecodable here (or animated formats decode to a single frame — but
+    // since we keep the original bytes, animation survives below the bound).
+    return { blob: source, imageDark: false, accent: null }
   }
   try {
     const imageDark = sampleImageDarkness(bitmap)
     const accent = sampleAccentColor(bitmap)
-    const url = await encodeWithinBudget(bitmap, file.type === 'image/png')
-    if (url === undefined) throw new Error(`compressed image still exceeds the ${MAX_STORED_BYTES / 1024 / 1024}MB storage budget`)
-    return { url, imageDark, accent }
-  } catch (_encodeUnavailable) {
-    // Canvas unavailable (e.g. a restricted environment) or encoding failed:
-    // hand back the original bytes rather than failing the upload.
-    return { url: await readRawDataUrl(file), imageDark: false, accent: null }
+    if (Math.max(bitmap.width, bitmap.height) <= RESAMPLE_EDGE) {
+      return { blob: source, imageDark, accent }
+    }
+    const blob = await resampleWithinEdge(bitmap, source.type === 'image/png')
+    return { blob, imageDark, accent }
   } finally {
     bitmap.close()
   }
 }
 
-/** Decode the file to a bitmap, or undefined when the format is unsupported. */
-async function tryDecode(file: File): Promise<ImageBitmap | undefined> {
+/** Decode the blob to a bitmap, or undefined when the format is unsupported. */
+async function tryDecode(source: Blob): Promise<ImageBitmap | undefined> {
   try {
-    return await createImageBitmap(file)
+    return await createImageBitmap(source)
   } catch (_unsupportedImageFormat) {
     return undefined
   }
 }
 
 /**
- * Walk the edge ladder, then the quality ladder, until an encode fits the
- * storage budget. WebP is preferred (smaller); browsers without WebP encode
- * fall back to JPEG at the same size and quality.
- * @param bitmap - decoded source.
- * @param keepAlpha - whether to keep a transparent channel (PNG).
- * @returns the first data URL within budget, or undefined when none fits.
+ * Resample an oversized bitmap down to the `RESAMPLE_EDGE` bound. Encodes
+ * WebP at near-lossless quality; browsers without WebP encoding fall back to
+ * PNG (lossless, larger). Animated sources lose animation here — accepted,
+ * since only >4096px files take this path.
+ * @param bitmap - decoded oversized source.
+ * @param keepAlpha - whether to preserve a transparent channel (PNG).
+ * @returns the resampled blob.
  */
-async function encodeWithinBudget(bitmap: ImageBitmap, keepAlpha: boolean): Promise<string | undefined> {
-  for (const edge of EDGE_LADDER) {
-    const size = fitWithin(bitmap.width, bitmap.height, edge)
-    const canvas = document.createElement('canvas')
-    canvas.width = size.width
-    canvas.height = size.height
-    const ctx = canvas.getContext('2d')
-    if (ctx === null) continue
-    ctx.drawImage(bitmap, 0, 0, size.width, size.height)
-    for (const quality of QUALITY_LADDER) {
-      const url = encodeDataUrl(canvas, keepAlpha, quality)
-      if (estimateDataUrlBytes(url) <= MAX_STORED_BYTES) return url
-    }
-  }
-  return undefined
+async function resampleWithinEdge(bitmap: ImageBitmap, keepAlpha: boolean): Promise<Blob> {
+  const size = fitWithin(bitmap.width, bitmap.height, RESAMPLE_EDGE)
+  const canvas = document.createElement('canvas')
+  canvas.width = size.width
+  canvas.height = size.height
+  const ctx = canvas.getContext('2d')
+  if (ctx === null) throw new Error('canvas unavailable for resampling')
+  ctx.drawImage(bitmap, 0, 0, size.width, size.height)
+  return canvasToBlob(canvas, keepAlpha, RESAMPLE_QUALITY)
 }
 
 /**
- * Encode a canvas to a data URL: PNG keeps alpha; everything else tries WebP
- * first and falls back to JPEG. Both encode synchronously, so the byte budget
- * check can walk the ladder without waiting.
+ * Encode a canvas to a blob: PNG keeps alpha; everything else prefers WebP
+ * at the given quality and falls back through PNG when WebP is unsupported.
+ * @param canvas - the drawn canvas.
+ * @param keepAlpha - whether transparency must survive.
+ * @param quality - encoder quality for lossy formats.
+ * @returns the encoded blob, rejecting when encoding fails entirely.
  */
-function encodeDataUrl(canvas: HTMLCanvasElement, keepAlpha: boolean, quality: number): string {
-  if (keepAlpha) return canvas.toDataURL('image/png')
-  const webp = canvas.toDataURL('image/webp', quality)
-  if (webp.startsWith('data:image/webp')) return webp
-  return canvas.toDataURL('image/jpeg', quality)
-}
-
-/** Fallback: hand back the original file bytes when decoding is impossible. */
-function readRawDataUrl(file: File): Promise<string> {
-  // A data URL is ~4/3 the file size plus its prefix, so a file at or above
-  // the storage budget can never fit — reject before reading.
-  if (file.size > MAX_STORED_BYTES) {
-    return Promise.reject(new Error(`image too large (${file.size} bytes) to persist without re-encoding`))
-  }
+function canvasToBlob(canvas: HTMLCanvasElement, keepAlpha: boolean, quality: number): Promise<Blob> {
+  const type = keepAlpha ? 'image/png' : 'image/webp'
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => { resolve(reader.result as string) }
-    reader.onerror = () => { reject(new Error('image read failed')) }
-    reader.readAsDataURL(file)
+    canvas.toBlob(
+      (blob) => {
+        if (blob !== null && blob.type === type) { resolve(blob); return }
+        // WebP unsupported (blob null or silently re-typed): PNG fallback.
+        canvas.toBlob(
+          (fallback) => {
+            if (fallback === null) reject(new Error('image encoding failed'))
+            else resolve(fallback)
+          },
+          'image/png',
+        )
+      },
+      type,
+      quality,
+    )
   })
 }

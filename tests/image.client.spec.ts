@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-/** Image reading: rejection, brightness sampling, compression ladder, raw fallback. */
+/** Image preparation: rejection, brightness sampling, edge-bound resampling, pass-through. */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  derivePalette, estimateDataUrlBytes, fitWithin, MAX_INPUT_BYTES, MAX_STORED_BYTES,
-  readImageFile, sampleAccentColor, sampleImageDarkness,
+  derivePalette, fitWithin, MAX_INPUT_BYTES, prepareImage, RESAMPLE_EDGE,
+  sampleAccentColor, sampleImageDarkness,
 } from '../src/client/image.ts'
 
 /** Fake 2d context with controllable luminance readback. */
@@ -61,13 +61,6 @@ describe('fitWithin', () => {
   it('guards malformed input', () => {
     expect(fitWithin(0, 100, 1920)).toEqual({ width: 1, height: 100 })
     expect(fitWithin(Number.NaN, 100, 0)).toEqual({ width: 1, height: 100 })
-  })
-})
-
-describe('estimateDataUrlBytes', () => {
-  it('estimates base64 payload bytes from the length', () => {
-    expect(estimateDataUrlBytes('data:image/webp;base64,AAAA')).toBe(3)
-    expect(estimateDataUrlBytes('no-comma')).toBe(0)
   })
 })
 
@@ -142,63 +135,67 @@ describe('derivePalette', () => {
   })
 })
 
-describe('readImageFile', () => {
+describe('prepareImage', () => {
   it('rejects non-image files', async () => {
-    await expect(readImageFile(new File(['x'], 'note.txt', { type: 'text/plain' }))).rejects.toThrow()
+    await expect(prepareImage(new Blob(['x'], { type: 'text/plain' }))).rejects.toThrow(/unsupported file type/)
   })
 
   it('rejects files above the input size cap', async () => {
     const big = jpegFile()
     Object.defineProperty(big, 'size', { value: MAX_INPUT_BYTES + 1 })
-    await expect(readImageFile(big)).rejects.toThrow()
+    await expect(prepareImage(big)).rejects.toThrow(/input limit/)
   })
 
-  it('compresses and reports the sampled darkness', async () => {
+  it('passes sources within the edge bound through as-is with sampled metadata', async () => {
     stubBitmapSource(true)
-    const result = await readImageFile(jpegFile())
-    expect(result.url.startsWith('data:')).toBe(true)
+    const source = jpegFile()
+    const result = await prepareImage(source)
+    // Same reference: no re-encode below the edge bound (GIF animation survives).
+    expect(result.blob).toBe(source)
     expect(result.imageDark).toBe(true)
   })
 
-  it('walks the quality ladder when the first encode is oversized', async () => {
-    const calls: Array<string | undefined> = []
+  it('resamples oversized sources down to the edge bound', async () => {
+    stubBitmapSource(true)
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({
+      width: RESAMPLE_EDGE + 1000,
+      height: 2000,
+      close: vi.fn(),
+    })))
+    const drawn: Array<[number, number]> = []
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function () {
-      return fakeContext(true) as unknown as CanvasRenderingContext2D
+      return {
+        // Only the resampling call passes explicit target dimensions.
+        drawImage: (_bmp: unknown, _x: number, _y: number, w?: number, h?: number) => {
+          if (w !== undefined && h !== undefined) drawn.push([w, h])
+        },
+        getImageData: () => ({ data: new Uint8ClampedArray(24 * 24 * 4) }),
+      } as unknown as CanvasRenderingContext2D
     })
-    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(function (
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
       this: HTMLCanvasElement,
+      callback: BlobCallback,
       type?: string,
-      _quality?: number,
     ) {
-      calls.push(type)
-      // First attempt (webp@0.82 at 1920) over budget -> walk down the ladder.
-      if (calls.length === 1) return `data:image/webp;base64,${'A'.repeat(MAX_STORED_BYTES * 4)}`
-      return 'data:image/webp;base64,AAAA'
+      callback(new Blob(['encoded'], { type: type ?? 'image/png' }))
     })
-    const result = await readImageFile(jpegFile())
-    expect(result.url.startsWith('data:')).toBe(true)
-    expect(result.imageDark).toBe(true)
-    expect(calls.length).toBeGreaterThan(1)
-    expect(calls[1]).toBe('image/webp')
+    const source = jpegFile()
+    const result = await prepareImage(source)
+    expect(result.blob).not.toBe(source)
+    expect(result.blob.type).toBe('image/webp')
+    // The resampling call runs last (after the 24px/32px sampling draws) and
+    // caps the longest edge while keeping the aspect ratio.
+    const resample = drawn.at(-1)!
+    expect(resample[0]).toBe(RESAMPLE_EDGE)
+    expect(resample[1]).toBeLessThanOrEqual(2000)
   })
 
-  it('falls back to the raw file bytes when the canvas path fails', async () => {
-    stubCanvas(() => 'data:image/webp;base64,AAAA')
-    const result = await readImageFile(jpegFile())
-    expect(result.url.startsWith('data:image/jpeg')).toBe(true)
-    expect(result.imageDark).toBe(false)
-  })
-
-  it('falls back to the raw file bytes when decoding fails', async () => {
+  it('falls back to the raw source when decoding fails', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn(async () => { throw new Error('decode failed') }))
-    const result = await readImageFile(jpegFile())
-    expect(result.url.startsWith('data:image/jpeg')).toBe(true)
+    const source = jpegFile()
+    const result = await prepareImage(source)
+    expect(result.blob).toBe(source)
     expect(result.imageDark).toBe(false)
-  })
-
-  it('refuses an oversized raw fallback instead of bloating the settings document', async () => {
-    vi.stubGlobal('createImageBitmap', vi.fn(async () => { throw new Error('decode failed') }))
-    const big = new File([new Uint8Array(3 * 1024 * 1024)], 'huge.png', { type: 'image/png' })
-    await expect(readImageFile(big)).rejects.toThrow(/too large|storage budget/)
+    expect(result.accent).toBeNull()
   })
 })

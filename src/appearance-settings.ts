@@ -39,11 +39,12 @@ export type AppearanceColors = Record<AppearanceRole, string>
 
 /**
  * Durable appearance section. Color fields hold `#rrggbb` or `''` (stock);
- * the image field holds a compressed data URL or `''`; the numeric fields are
- * plain percentages/px values with their stock value as the default.
+ * the image field holds an IndexedDB record key (legacy records: an inline
+ * data URL); the numeric fields are plain percentages/px values with their
+ * stock value as the default.
  */
 export interface AppearanceSettings extends AppearanceColors {
-  /** Compressed background image data URL; '' clears the image. */
+  /** IndexedDB key of the background image (legacy: inline data URL); '' clears it. */
   backgroundImage: string
   /** IndexedDB key of the background video; '' clears the video. */
   backgroundVideo: string
