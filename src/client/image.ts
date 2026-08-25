@@ -7,7 +7,7 @@
  */
 
 /** Input file size cap (bytes); larger files are refused up front. */
-export const MAX_INPUT_BYTES = 5 * 1024 * 1024
+export const MAX_INPUT_BYTES = 25 * 1024 * 1024
 
 /** Storage budget for the persisted data URL (bytes of encoded payload). */
 export const MAX_STORED_BYTES = 2 * 1024 * 1024

@@ -12,7 +12,7 @@ const STORE_NAME = 'videos'
 const DB_VERSION = 1
 
 /** Video upload cap (bytes); larger files are refused up front. */
-export const MAX_VIDEO_BYTES = 20 * 1024 * 1024
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
 /** MIME types accepted by the video upload control. */
 export const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg']
