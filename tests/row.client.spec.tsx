@@ -12,8 +12,14 @@ import type {} from '../src/client/index.ts'
 
 vi.mock('../src/client/image.ts', () => ({
   ACCEPTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
-  MAX_INPUT_BYTES: 25 * 1024 * 1024,
-  readImageFile: vi.fn(async () => ({ url: 'data:image/jpeg;base64,AAAA', imageDark: true })),
+  MAX_INPUT_BYTES: 200 * 1024 * 1024,
+  prepareImage: vi.fn(async () => ({ blob: new Blob(['x'], { type: 'image/png' }), imageDark: true, accent: null })),
+}))
+
+vi.mock('../src/client/image-store.ts', () => ({
+  saveImage: vi.fn(async () => 'img-key-1'),
+  getImage: vi.fn(async () => undefined),
+  deleteImage: vi.fn(async () => {}),
 }))
 
 afterEach(cleanup)
@@ -174,7 +180,7 @@ describe('AppearanceCustomizerRow', () => {
     Object.defineProperty(file, 'type', { value: 'image/png' })
     fireEvent.drop(section, { dataTransfer: { files: [file] } })
     await act(async () => { await Promise.resolve() })
-    expect(b.setImage).toHaveBeenCalledWith({ url: 'data:image/jpeg;base64,AAAA', imageDark: true })
+    expect(b.setImage).toHaveBeenCalledWith({ url: 'img-key-1', imageDark: true })
   })
 
   it('reset drives the injected resetAll', () => {

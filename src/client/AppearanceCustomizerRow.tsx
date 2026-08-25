@@ -13,9 +13,10 @@ import {
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
-import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, readImageFile } from './image.ts'
+import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, prepareImage } from './image.ts'
+import { getImage, saveImage } from './image-store.ts'
 import { ACCEPTED_VIDEO_TYPES, deleteVideo, MAX_VIDEO_BYTES, saveVideo } from './video-store.ts'
-import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
+import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
@@ -133,6 +134,37 @@ function localErrorText(prefix: 'background.readError' | 'background.videoError'
   return t(key)
 }
 
+/** Thumbnail for the stored wallpaper. Legacy tokens are inline data URLs
+ * (rendered directly); current tokens are IndexedDB keys resolved to object
+ * URLs, revoked when the token changes or the row unmounts. */
+function BackgroundThumb(props: { token: string }) {
+  const { token } = props
+  const [src, setSrc] = useState('')
+  useEffect(() => {
+    if (token === '') {
+      setSrc('')
+      return
+    }
+    if (token.startsWith('data:')) {
+      setSrc(token)
+      return
+    }
+    let stale = false
+    let objectUrl: string | undefined
+    void getImage(token).then(blob => {
+      if (blob === undefined || stale) return
+      objectUrl = URL.createObjectURL(blob)
+      setSrc(objectUrl)
+    })
+    return () => {
+      stale = true
+      if (objectUrl !== undefined) URL.revokeObjectURL(objectUrl)
+    }
+  }, [token])
+  if (src === '') return null
+  return <img className={css.thumb} src={src} alt="" />
+}
+
 /**
  * Render the appearance customizer row.
  * @param props - composed slot props.
@@ -185,11 +217,13 @@ export function AppearanceCustomizerRow({
     setReading(true)
     setReadError(null)
     try {
-      const result = await readImageFile(file)
-      setImage({ url: result.url, imageDark: result.imageDark })
+      const payload = await prepareImage(file)
+      // Store by reference; the settings only carry the record key.
+      const key = await saveImage(payload.blob, file.name)
+      setImage({ url: key, imageDark: payload.imageDark })
       // Auto-palette: the wallpaper's dominant hue becomes the accent color
       // and fills the untouched surface roles.
-      if (result.accent !== null) applyWallpaperPalette(result.accent)
+      if (payload.accent !== null) applyWallpaperPalette(payload.accent)
     } catch {
       setReadError('read')
     } finally {
@@ -239,10 +273,12 @@ export function AppearanceCustomizerRow({
         const key = await saveVideo(file, file.name)
         setVideo(key)
       } else {
-        const result = await loadImageFromUrl(url)
-        setImage({ url: result.url, imageDark: result.imageDark })
+        const payload = await loadImageFromUrl(url)
+        // Store by reference (same rule as uploads).
+        const key = await saveImage(payload.blob, urlToName(url))
+        setImage({ url: key, imageDark: payload.imageDark })
         // Auto-palette, same rule as uploads.
-        if (result.accent !== null) applyWallpaperPalette(result.accent)
+        if (payload.accent !== null) applyWallpaperPalette(payload.accent)
       }
       setUrlDraft('')
     } catch (error) {
@@ -367,7 +403,7 @@ export function AppearanceCustomizerRow({
               </button>
               {settings.backgroundImage !== '' && (
                 <>
-                  <img className={css.thumb} src={settings.backgroundImage} alt="" />
+                  <BackgroundThumb token={settings.backgroundImage} />
                   <button type="button" className={css.ghostButton} onClick={() => { setImage(null) }}>
                     {t('background.remove')}
                   </button>
