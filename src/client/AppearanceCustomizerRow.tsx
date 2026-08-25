@@ -13,8 +13,8 @@ import {
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
-import { ACCEPTED_IMAGE_TYPES, derivePalette, readImageFile } from './image.ts'
-import { ACCEPTED_VIDEO_TYPES, deleteVideo, saveVideo } from './video-store.ts'
+import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, readImageFile } from './image.ts'
+import { ACCEPTED_VIDEO_TYPES, deleteVideo, MAX_VIDEO_BYTES, saveVideo } from './video-store.ts'
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
@@ -126,6 +126,13 @@ function urlErrorText(code: UrlLoadError, t: (key: AppearanceKey) => string): st
   return t(key)
 }
 
+/** Map a local-read failure code to the localized message key ('read' keeps
+ * the base key as the catch-all). */
+function localErrorText(prefix: 'background.readError' | 'background.videoError', code: 'type' | 'size' | 'read', t: (key: AppearanceKey) => string): string {
+  const key: AppearanceKey = (code === 'read' ? prefix : `${prefix}.${code}`) as AppearanceKey
+  return t(key)
+}
+
 /**
  * Render the appearance customizer row.
  * @param props - composed slot props.
@@ -137,9 +144,9 @@ export function AppearanceCustomizerRow({
   const settings = useStore(s => s.settings)
   const [open, setOpen] = useState(false)
   const [reading, setReading] = useState(false)
-  const [readError, setReadError] = useState(false)
+  const [readError, setReadError] = useState<'type' | 'size' | 'read' | null>(null)
   const [videoReading, setVideoReading] = useState(false)
-  const [videoError, setVideoError] = useState(false)
+  const [videoError, setVideoError] = useState<'type' | 'size' | 'read' | null>(null)
   const [dragging, setDragging] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
   const [urlReading, setUrlReading] = useState(false)
@@ -165,8 +172,18 @@ export function AppearanceCustomizerRow({
 
   const readFile = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
+    // Pre-classify the common failures so the hint can say why; the same
+    // guards stay authoritative inside readImageFile.
+    if (!file.type.startsWith('image/')) {
+      setReadError('type')
+      return
+    }
+    if (file.size > MAX_INPUT_BYTES) {
+      setReadError('size')
+      return
+    }
     setReading(true)
-    setReadError(false)
+    setReadError(null)
     try {
       const result = await readImageFile(file)
       setImage({ url: result.url, imageDark: result.imageDark })
@@ -174,7 +191,7 @@ export function AppearanceCustomizerRow({
       // and fills the untouched surface roles.
       if (result.accent !== null) applyWallpaperPalette(result.accent)
     } catch {
-      setReadError(true)
+      setReadError('read')
     } finally {
       setReading(false)
     }
@@ -182,11 +199,15 @@ export function AppearanceCustomizerRow({
   const readVideo = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
     if (!file.type.startsWith('video/')) {
-      setVideoError(true)
+      setVideoError('type')
+      return
+    }
+    if (file.size > MAX_VIDEO_BYTES) {
+      setVideoError('size')
       return
     }
     setVideoReading(true)
-    setVideoError(false)
+    setVideoError(null)
     try {
       // Replacing a video must drop the previous IndexedDB record, or the
       // store accumulates one entry per upload.
@@ -195,7 +216,7 @@ export function AppearanceCustomizerRow({
       const key = await saveVideo(file, file.name)
       setVideo(key)
     } catch {
-      setVideoError(true)
+      setVideoError('read')
     } finally {
       setVideoReading(false)
     }
@@ -400,12 +421,12 @@ export function AppearanceCustomizerRow({
             <div className={css.hint}>
               {urlError !== null
                 ? urlErrorText(urlError, t)
-                : videoError
-                  ? t('background.videoError')
+                : videoError !== null
+                  ? localErrorText('background.videoError', videoError, t)
                   : settings.backgroundVideo !== ''
                     ? t('background.videoHint')
-                    : readError
-                      ? t('background.readError')
+                    : readError !== null
+                      ? localErrorText('background.readError', readError, t)
                       : t('background.dropHint')}
             </div>
             <Slider

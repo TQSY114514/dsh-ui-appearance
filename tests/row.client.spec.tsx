@@ -12,6 +12,7 @@ import type {} from '../src/client/index.ts'
 
 vi.mock('../src/client/image.ts', () => ({
   ACCEPTED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
+  MAX_INPUT_BYTES: 25 * 1024 * 1024,
   readImageFile: vi.fn(async () => ({ url: 'data:image/jpeg;base64,AAAA', imageDark: true })),
 }))
 
