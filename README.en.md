@@ -30,7 +30,7 @@ It also works out of the box on **[DSH Desktop](https://github.com/anywhere-labs
 
 **Theme colors** — 6 color roles: accent, background, panel, input, text, border. Each role has a color picker and HEX input; text selection and the keyboard focus ring follow the accent automatically; message bubbles follow the accent too (keeping its hue when translucent); the top-left logo wordmark ("harness") follows the accent as well.
 
-**Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); it is compressed automatically and used as a full-UI wallpaper. Brightness is sampled on upload (dark wallpapers lift the surface family) and the **dominant hue is auto-derived as the accent color**, so wallpaper and UI tones stay in harmony. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported and stored in IndexedDB, keeping localStorage quota free.
+**Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP / GIF), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); the original quality is kept and stored in IndexedDB as a full-UI wallpaper (images over 4096px are scaled down proportionally, no quality drop). Brightness is sampled on upload (dark wallpapers lift the surface family) and the **dominant hue is auto-derived as the accent color**, so wallpaper and UI tones stay in harmony. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported; both images and videos live in IndexedDB, keeping localStorage quota free.
 
 **Glassmorphism & translucency** — Panel opacity and glass-blur sliders let the sidebar, settings panel, chat area, task panels, cards and buttons melt into the wallpaper instead of sitting as solid blocks; the sidebar can stay opaque on its own. **Input and code blocks have independent opacity knobs** (100% = follow the panel opacity). Emphasized text chips (`pnpm-lock.yaml`, `lib/`) keep a low-alpha accent tint — emphasis via hue, not solid fill — with an "emphasis tint" slider (0% = fully transparent) for independent tuning.
 
@@ -101,7 +101,7 @@ Settings panel at a glance:
 
 - Settings live in browser localStorage (key `dsh-ui-appearance.settings`); they survive refresh and restart and sync across tabs.
 - Removing the plugin from the profile restores the stock UI: disposal reclaims every overridden token, stylesheet and background layer.
-- Note: settings follow the browser — switching browsers or clearing site data loses them; wallpapers are stored as compressed data URLs under the localStorage quota.
+- Note: settings follow the browser — switching browsers or clearing site data loses them; wallpapers are stored at original quality in IndexedDB (localStorage only carries the record key), free from the localStorage quota, and persistent storage is requested from the browser to lower eviction risk.
 
 ## How it works
 
@@ -121,8 +121,8 @@ Settings panel at a glance:
 - Translucency is baked as plain `rgba()`; the sliders stay smooth at all values. Glass and background blur merge into one blur of the background layer (the sum of both sliders) — no `backdrop-filter`, so fixed-position elements never change their containing block; low-end devices can set the blur back to 0.
 - Dark wallpapers or dark background colors trigger a coordinated surface-family flip; an explicitly set text color still wins.
 - Each color role is a single value shared by both modes; derived colors are computed per mode automatically.
-- Images: 2 MB compressed budget, 5 MB input cap; subject to localStorage quota. Persisted data is validated and clamped against the schema on load, so hand-edited or stale localStorage can never produce invalid styles.
-- Video backgrounds: H.264 (MP4) or VP8/VP9 (WebM) recommended; unsupported codecs (e.g. HEVC) degrade back to the wallpaper automatically; replacing a video cleans up the old IndexedDB record.
+- Images: no compression, no size limit (200 MB sanity cap) — originals are stored in IndexedDB directly; images over 4096px are rescaled proportionally (re-encoded as WebP; GIF animation survives when within the bound). Legacy data-URL wallpapers migrate into IndexedDB automatically on upgrade. Persisted data is validated and clamped against the schema on load, so hand-edited or stale localStorage can never produce invalid styles.
+- Video backgrounds: 50 MB cap; H.264 (MP4) or VP8/VP9 (WebM) recommended; unsupported codecs (e.g. HEVC) degrade back to the wallpaper automatically; replacing a video cleans up the old IndexedDB record.
 - Syntax-highlight text colors (shiki `--shiki-token-*`) are a separate syntax-language palette and do not follow the accent (IDE convention); with a white accent, chip backgrounds are white and translucent, visually near-invisible on light surfaces — normal physics, not a bug.
 - Bubbles follow the accent and have no dedicated color setting: the harness renders its only bubble background on user messages, and assistant turns have no bubble at all (a rendering fact the plugin cannot split); bubbles stay stock pale blue when no accent is set.
 
@@ -137,8 +137,10 @@ src/
     ├── index.ts              # apply(): localStorage persistence, slot registration
     ├── applier.ts            # DOM applier (token overrides, background layer, glass)
     ├── tokens.ts             # Color roles → token mapping, presets, translucent baking
-    ├── color.ts / image.ts   # Color utilities / image compression
-    ├── video-store.ts        # IndexedDB video storage (20 MB cap)
+├── color.ts / image.ts   # Color utilities / image preparation (>4096px edge rescale, no quality drop)
+├── blob-db.ts            # IndexedDB base (DB v2: image + video stores)
+├── image-store.ts        # IndexedDB image storage (keyed reference)
+├── video-store.ts        # IndexedDB video storage (50 MB cap)
     ├── color-scheme.ts       # Scheme export/import (pure functions)
     ├── settings-store.ts     # Settings mirror store
     ├── locales.ts            # zh/en copy
