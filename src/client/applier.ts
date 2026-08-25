@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
 import { buildTokenOverrides, OVERRIDE_SOURCE } from './tokens.ts'
+import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
 
 /** Background layer element id (the stylesheet targets it). */
@@ -107,6 +108,8 @@ export class AppearanceApplier {
   private videoEl: HTMLVideoElement | undefined
   private videoUrl: string | undefined
   private videoKey = ''
+  private imageToken = ''
+  private imageUrl: string | undefined
   private removeOverrides: (() => void) | undefined
 
   /**
@@ -137,10 +140,9 @@ export class AppearanceApplier {
       this.removeOverrides = this.ctx.theme.overrideTokens(OVERRIDE_SOURCE, tokens)
     }
     const body = document.body
-    body.style.setProperty(
-      '--dsw-appearance-bg-image',
-      value.backgroundImage === '' ? 'none' : `url("${value.backgroundImage}")`,
-    )
+    // The wallpaper rides a CSS variable like every other knob; the value is
+    // a record key (or legacy inline data URL) and resolves asynchronously.
+    void this.syncImage(value.backgroundImage)
     body.style.setProperty('--dsw-appearance-bg-opacity', String(value.backgroundOpacity))
     // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
     // slider deepens the blur of the wallpaper that the translucent surfaces
@@ -161,6 +163,49 @@ export class AppearanceApplier {
     // A background video (IndexedDB record key) replaces the image layer;
     // loading is async and only re-runs when the key changes.
     void this.syncVideo(value.backgroundVideo)
+  }
+
+  /**
+   * Load or clear the wallpaper for a background token. Legacy records still
+   * carry an inline data URL (applied directly); current records hold an
+   * IndexedDB key resolved through an object URL. Reuses the object URL when
+   * the token is unchanged, so repeated applies never re-read IndexedDB.
+   * @param token - record key, legacy data URL, or '' to clear.
+   */
+  private async syncImage(token: string): Promise<void> {
+    if (token === this.imageToken) return
+    this.imageToken = token
+    this.teardownImage()
+    const body = document.body
+    if (token === '') {
+      body.style.setProperty('--dsw-appearance-bg-image', 'none')
+      return
+    }
+    if (token.startsWith('data:')) {
+      body.style.setProperty('--dsw-appearance-bg-image', `url("${token}")`)
+      return
+    }
+    const blob = await getImage(token)
+    if (this.imageToken !== token) {
+      // Superseded by a newer apply; the newer syncImage owns the variable.
+      return
+    }
+    if (blob === undefined) {
+      // Deleted while loading: fall back to no wallpaper.
+      this.imageToken = ''
+      body.style.setProperty('--dsw-appearance-bg-image', 'none')
+      return
+    }
+    this.imageUrl = URL.createObjectURL(blob)
+    body.style.setProperty('--dsw-appearance-bg-image', `url("${this.imageUrl}")`)
+  }
+
+  /** Revoke the wallpaper object URL, if any. */
+  private teardownImage(): void {
+    if (this.imageUrl !== undefined) {
+      URL.revokeObjectURL(this.imageUrl)
+      this.imageUrl = undefined
+    }
   }
 
   /**
@@ -228,11 +273,13 @@ export class AppearanceApplier {
   dispose(): void {
     this.removeOverrides?.()
     this.removeOverrides = undefined
-    // Drop the video key BEFORE tearing down: a getVideo() still in flight
-    // resolves after dispose, and the key comparison is what stops it from
-    // recreating the video element on the removed layer.
+    // Drop the keys BEFORE tearing down: a getVideo()/getImage() still in
+    // flight resolves after dispose, and the key comparison is what stops it
+    // from recreating media on the removed layer.
     this.videoKey = ''
     this.teardownVideo()
+    this.imageToken = ''
+    this.teardownImage()
     this.style.remove()
     this.layer.remove()
     const body = document.body

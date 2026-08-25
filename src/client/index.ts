@@ -5,8 +5,10 @@
  * namespace cannot be written through the settings RPC), projects every
  * change onto the document through the DOM applier (theme token overrides +
  * background layer), and registers the customizer row into the settings
- * General section. Writes are synchronous: update the section, persist it,
- * publish to the store and the applier. Cross-tab sync rides the `storage`
+ * General section. Settings writes are synchronous: update the section,
+ * persist it, publish to the store and the applier. Background media live in
+ * IndexedDB as blobs (settings only carry record keys) and resolve
+ * asynchronously inside the applier. Cross-tab sync rides the `storage`
  * event.
  */
 import type { BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
@@ -28,6 +30,7 @@ import {
 } from '../appearance-settings.ts'
 import { APPEARANCE_PRESETS } from './tokens.ts'
 import { AppearanceApplier } from './applier.ts'
+import { deleteImage, saveImage } from './image-store.ts'
 import { deleteVideo } from './video-store.ts'
 
 export type { AppearanceCustomizerComponentProps, AppearanceCustomizerInjected } from './AppearanceCustomizerRow.tsx'
@@ -68,6 +71,34 @@ function readStoredSettings(): AppearanceSettings {
 }
 
 /**
+ * One-shot migration: move a legacy inline data-URL wallpaper into the
+ * IndexedDB image store and swap the settings field to its record key.
+ * Failures keep the legacy value — the applier passes inline data URLs
+ * through untouched, so nothing breaks either way.
+ * @param read - read the live backgroundImage token (detects races).
+ * @param commitSwap - persist the swapped-in record key.
+ */
+function migrateLegacyImage(read: () => string, commitSwap: (key: string) => void): void {
+  const legacy = read()
+  if (!legacy.startsWith('data:')) return
+  void (async (): Promise<void> => {
+    try {
+      const blob = await (await fetch(legacy)).blob()
+      const key = await saveImage(blob, 'background')
+      // The user picked another background while migrating: drop our record,
+      // their choice is already persisted.
+      if (read() !== legacy) {
+        void deleteImage(key)
+        return
+      }
+      commitSwap(key)
+    } catch (_migrationFailed) {
+      // Keep the legacy inline value; retry on the next load.
+    }
+  })()
+}
+
+/**
  * Client plugin body: load the persisted section, mount the DOM applier, and
  * register the customizer row into the General section.
  * @param ctx - client cordis context.
@@ -87,10 +118,26 @@ export function apply(ctx: ClientContext): void {
     applier?.apply(current)
   }
 
-  // DOM applier: created once, retracts everything on dispose.
+  // DOM applier: created once, retracts everything on dispose. Storage
+  // persistence is best-effort: ask the browser not to evict the IndexedDB
+  // media records under storage pressure (unsupported environments skip).
   ctx.effect(() => {
+    try {
+      void navigator.storage?.persist?.().catch(() => { /* not grantable */ })
+    } catch (_storageUnsupported) {
+      // Environments without navigator.storage: nothing to persist anyway.
+    }
     applier = new AppearanceApplier(ctx)
     applier.apply(current)
+    // One-shot migration of a legacy inline wallpaper into IndexedDB; the
+    // applier shows the inline value until the swap lands.
+    migrateLegacyImage(
+      () => current.backgroundImage,
+      key => {
+        current = { ...current, backgroundImage: key }
+        commit()
+      },
+    )
     return () => {
       applier?.dispose()
       applier = undefined
@@ -127,6 +174,13 @@ export function apply(ctx: ClientContext): void {
   }
   const setImage = (image: { url: string; imageDark: boolean } | null): void => {
     const patch = { ...current }
+    // A replacement supersedes the previous record; drop it so repeated swaps
+    // cannot accumulate orphaned blobs (inline legacy data URLs need no
+    // cleanup — they never entered IndexedDB).
+    const old = patch.backgroundImage
+    if (old !== '' && !old.startsWith('data:') && old !== (image?.url ?? '')) {
+      void deleteImage(old)
+    }
     patch.backgroundImage = image?.url ?? ''
     patch.imageDark = image?.imageDark ?? false
     // Image and video backgrounds are mutually exclusive.
@@ -142,8 +196,11 @@ export function apply(ctx: ClientContext): void {
     }
     const patch = { ...current }
     patch.backgroundVideo = key ?? ''
-    // Image and video backgrounds are mutually exclusive.
+    // Image and video backgrounds are mutually exclusive. Dropping the image
+    // also drops its IndexedDB record (legacy inline data URLs need none).
     if (key !== null) {
+      const oldImage = patch.backgroundImage
+      if (oldImage !== '' && !oldImage.startsWith('data:')) void deleteImage(oldImage)
       patch.backgroundImage = ''
       patch.imageDark = false
     }
