@@ -2,6 +2,13 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Changed
+
+- 背景素材体积上限放宽:图片输入上限 5MB → 25MB、视频上限 20MB → 50MB(压缩管线与 2MB 存储预算不变;视频仍走 IndexedDB)
+- 本地上传失败提示报具体原因:类型不符 / 超过大小上限 / 读取失败分流提示(此前图片与视频一律笼统报「无法读取」)
+
 ## [0.1.5] - 2026-08-23
 
 ### Fixed

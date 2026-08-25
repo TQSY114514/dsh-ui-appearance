@@ -121,7 +121,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 - 半透明直接烘焙为 `rgba()`,滑块全程平滑;毛玻璃与背景模糊合并为背景图层的一次模糊(两滑块之和),不依赖 `backdrop-filter`,开启时不会改变页面内固定定位元素的包含块,低端设备可把模糊调回 0
 - 深色壁纸或深色背景色自动触发表面家族协调翻转;显式设置的文字色仍然优先
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导
-- 图片压缩预算 2MB、输入上限 5MB;受 localStorage 配额约束;持久化数据加载时会按 schema 校验与钳制,手改坏 localStorage 也不会产生无效样式
+- 图片压缩预算 2MB、输入上限 25MB;受 localStorage 配额约束;持久化数据加载时会按 schema 校验与钳制,手改坏 localStorage 也不会产生无效样式
 - 视频背景建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸;更换视频会同步清理 IndexedDB 中的旧记录
 - 代码的语法高亮文字色(shiki `--shiki-token-*`)是独立的语法语言配色,不随主色变化(与 IDE 惯例一致);主色为白色时强调字背景为白色半透明,在浅色表面上视觉上接近不可见,属正常物理结果
 - 气泡跟随主色,没有独立的气泡颜色设置:harness 把唯一的气泡背景渲染在用户消息上,AI 消息没有气泡(渲染事实,插件无法细分);主色未设置时气泡保持默认浅蓝白
@@ -138,7 +138,7 @@ src/
     ├── applier.ts            # DOM 应用器(token 覆写、背景图层、毛玻璃)
     ├── tokens.ts             # 颜色角色 → token 映射、预设、半透明烘焙
     ├── color.ts / image.ts   # 色值工具 / 图片压缩
-    ├── video-store.ts        # IndexedDB 视频存储(20MB 上限)
+    ├── video-store.ts        # IndexedDB 视频存储(50MB 上限)
     ├── color-scheme.ts       # 配色导出/导入(纯函数)
     ├── settings-store.ts     # 设置镜像 store
     ├── locales.ts            # 中英文案
