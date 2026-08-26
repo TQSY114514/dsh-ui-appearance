@@ -15,7 +15,7 @@
 #      'dsh.profile.bundles'), mirroring what `dsh plugin add` produces -
 #      idempotent, safe to rerun
 #
-# Pin a version with -Version '0.1.0'. DSH home defaults to %DSH_HOME% or
+# Pin a version with -Version '0.1.6'. DSH home defaults to %DSH_HOME% or
 # %USERPROFILE%\.dsh; override with -DshHome. Profile defaults to 'web'.
 # Reload the Web UI afterwards. Uninstall with
 # `dsh plugin --profile <name> remove dsh-ui-appearance`, or by hand:

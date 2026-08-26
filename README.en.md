@@ -59,7 +59,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's own `node_modules` and registers it in that profile's `package.json` (a `dependencies` entry plus `dsh.profile.bundles`, matching what `dsh plugin add` produces) — idempotent, safe to re-run. Optional parameters:
 
 ```powershell
-.\install.ps1 -Version '0.1.5'      # pin a version (default: latest release)
+.\install.ps1 -Version '0.1.6'      # pin a version (default: latest release)
 .\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
 .\install.ps1 -ProfileName 'web'    # target profile (default web; must be initialized)
 ```

@@ -59,7 +59,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 脚本直接从 npm registry 拉取已构建的发布包（`lib/` 预构建产物随包分发），链接进 profile 自己的 `node_modules` 并在该 profile 的 `package.json` 中注册（`dependencies` 条目 + `dsh.profile.bundles`，与 `dsh plugin add` 的产物一致）——幂等，可重复执行。可选参数：
 
 ```powershell
-.\install.ps1 -Version '0.1.5'      # 固定版本（默认装最新发布版）
+.\install.ps1 -Version '0.1.6'      # 固定版本（默认装最新发布版）
 .\install.ps1 -DshHome 'D:\.dsh'    # 自定义 DSH 主目录（默认 %DSH_HOME% 或 %USERPROFILE%\.dsh）
 .\install.ps1 -ProfileName 'web'    # 目标 profile（默认 web；profile 需已初始化）
 ```
