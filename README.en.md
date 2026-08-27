@@ -128,27 +128,25 @@ Settings panel at a glance:
 
 ## FAQ
 
-- **Q: Settings panel does not appear after installation or update?**
-  - **Check Profile**: Run `dsh plugin list` to verify the plugin is added to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`).
-  - **Build & Restart**: When installing from source, run `pnpm prepare` to compile `lib/` before restarting DSH services (e.g. `dsh web`).
-  - **Clear Cache**: Hard-refresh with `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge cached frontend bundles.
-- **Q: Are my appearance settings permanently saved?**
-  - Yes. Settings are persisted in browser `localStorage`, while wallpapers and videos are saved in `IndexedDB`. They survive restarts and refreshes.
-  - **Note**: Storage is tied to the current browser. Clearing site data or switching browsers will reset settings. Use "Color Schemes $\rightarrow$ Export" to back up your config as JSON.
-- **Q: Does uninstalling the plugin affect the stock DSH interface?**
-  - Not at all. Built entirely via official extension points with zero core code patches. Running `dsh plugin remove dsh-ui-appearance` fully reclaims all injected tokens and layers, restoring the stock UI.
-- **Q: How to handle conflicts with other third-party DSH plugins?**
-  - Other UI plugins modifying global CSS directly (e.g. hardcoded background or font overrides) may conflict.
-  - **Troubleshooting**: Temporarily disable other UI plugins to isolate the issue. When submitting an issue, please provide your DSH version, active plugin list, and reproduction steps.
-- **Q: Why do some third-party popups, sidebars, or overlays have stacking (Z-Index) issues?**
-  - Translucency and blur effects create a new CSS Stacking Context on certain containers. Third-party plugins rendering absolute/fixed overlays inside shared host containers may be affected.
+- **Q: Customizer panel does not appear in DSH settings after installation/update?**
+  - **Check Profile**: Verify the plugin is installed to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`; run `dsh plugin list` to check).
+  - **Build & Restart**: When installing from source, ensure `pnpm prepare` was run to compile `lib/` before restarting DSH services (e.g. `dsh web`).
+  - **Clear Cache**: Hard-refresh via `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge old bundle caches.
+- **Q: Where are my appearance configurations saved? How to migrate/backup?**
+  - Settings are saved in browser `localStorage` (key `dsh-ui-appearance.settings`), while original wallpaper images and videos reside in `IndexedDB`.
+  - **Backup & Migrate**: Under the "Color Schemes" section in the panel, click "Export Scheme" to copy JSON. On another browser or machine, paste and click "Import" to restore instantly.
+- **Q: Does uninstalling the plugin leave stale styles or break the stock DSH UI?**
+  - Not at all. Built strictly on official `ctx.theme.overrideTokens()` and settings slots with zero core code changes. Running `dsh plugin remove dsh-ui-appearance` fully reclaims all injected tokens, stylesheets, and background layers, cleanly restoring stock UI.
+- **Q: Are there conflicts when running alongside third-party plugins (e.g. sidebars, overlays)?**
+  - **Stacking issues resolved**: Starting from v0.1.5, the background layer is pushed to `z-index: -1` and `#root` creates no stacking context, ensuring third-party top-level panels (such as `dsh-better-sidebar`) and the settings dialog layer properly without interference ([#10](https://github.com/TQSY114514/dsh-ui-appearance/issues/10)).
+  - **Style override check**: If another plugin injects hardcoded global CSS overrides, styles may clash. Temporarily disable other UI plugins to isolate the issue.
 - **Q: Why don't certain text elements or UI components change color?**
-  - The plugin overrides global `--dsw-*` theme tokens. A few sub-components use hardcoded internal styles in upstream DSH, which will be addressed as extension points evolve. Code blocks use independent Shiki syntax palettes (IDE convention), and message bubbles follow the accent (only user turns have bubble containers in upstream).
+  - **Code Highlights**: Uses standalone Shiki syntax themes to follow IDE conventions, independent of UI theme tokens.
+  - **Message Bubbles**: DSH only renders bubble containers on user turns (assistant turns have none); user bubbles automatically follow the accent color.
+  - **Sub-components**: Components that do not yet consume `--dsw-*` tokens are being mapped and expanded as upstream extension points evolve.
 - **Q: Wallpaper or video background fails to load?**
-  - **Local Files**: Recommended images: JPG / PNG / WebP / GIF. Recommended videos: MP4 (H.264) or WebM (VP8/VP9) under 50 MB. Unsupported codecs degrade to wallpaper automatically.
-  - **Remote URLs**: Certain image/video CDNs restrict hotlinking or lack CORS headers. Download and upload locally, or use a CORS-friendly direct link.
-- **Q: How can I share or import color schemes?**
-  - Expand the "Color Schemes" section: click "Export Scheme" to copy JSON. On another machine/browser, paste the JSON into the input box and click "Import".
+  - **Local Files**: Originals stored in IndexedDB (auto-scaled above 4096px, GIF animation preserved); videos capped at 50 MB (MP4 H.264 / WebM VP8/VP9 recommended, unsupported codecs fallback to wallpaper).
+  - **Remote URLs**: Certain CDNs enforce hotlink protection or omit CORS headers, which browser security blocks. Download and upload locally, or use CORS-friendly direct links.
 
 ## Package layout
 
