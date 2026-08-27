@@ -1,0 +1,24 @@
+name: "🔧 安装 / 启动 / 更新问题"
+description: "执行 dsh plugin 命令报错、更新失败、启动报错等"
+title: "[Install]: "
+labels: ["installation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认你的 DSH 是否已升级到最新版本，且网络连接正常。
+  - type: input
+    id: command
+    attributes:
+      label: 你执行的完整命令
+      placeholder: dsh plugin --profile web add ...
+    validations:
+      required: true
+  - type: textarea
+    id: error_log
+    attributes:
+      label: 终端完整报错信息
+      description: 请复制终端输出的完整报错
+      render: shell
+    validations:
+      required: true

@@ -1,0 +1,29 @@
+name: "🐛 Bug 反馈 / 样式异常与冲突"
+description: "样式错乱、透明度失效、背景图不显示或与其他插件冲突"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供完整信息，有助于我们快速定位。
+  - type: input
+    id: env
+    attributes:
+      label: 运行环境
+      description: 操作系统 / DSH 版本 / 本插件版本
+      placeholder: Windows 11 / DSH v0.1.0-rc.6 / dsh-ui-appearance v0.3.0
+    validations:
+      required: true
+  - type: textarea
+    id: desc
+    attributes:
+      label: 异常现象描述
+      description: 发生了什么异常？以及你的预期效果是怎样的？
+    validations:
+      required: true
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 截图 / 控制台报错
+      description: 可直接拖拽图片进来，或粘贴报错文本。

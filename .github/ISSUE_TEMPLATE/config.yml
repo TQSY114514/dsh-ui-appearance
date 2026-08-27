@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📌 已知问题与常见冲突排查 (FAQ)
+    url: https://github.com/TQSY114514/dsh-ui-appearance#常见问题
+    about: 先看这里！很多由于其他插件旧版本或配置残留导致的问题已在这里记录。
+  - name: 💬 讨论区 / 主题配色分享 (Discussions)
+    url: https://github.com/TQSY114514/dsh-ui-appearance/discussions
+    about: 闲聊、询问使用技巧、或者分享你调出的神仙配色与背景图！

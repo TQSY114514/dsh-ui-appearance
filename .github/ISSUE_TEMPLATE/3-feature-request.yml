@@ -1,0 +1,16 @@
+name: "💡 功能建议 / 新外观特性"
+description: "提出新的自定义选项、界面调色需求或交互改进"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你期望增加什么功能？
+      description: 详细描述你的想法以及使用场景（例如：希望次级小字颜色可以独立调节）。
+    validations:
+      required: true
+  - type: textarea
+    id: mock
+    attributes:
+      label: 设想的效果或参考截图（选填）
