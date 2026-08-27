@@ -128,16 +128,28 @@ Settings panel at a glance:
 
 ## FAQ
 
-- **Customizer panel does not appear after installation/update?**
-  1. Check target profile: Ensure the plugin is added to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`).
-  2. Source builds: When building from source, run `pnpm prepare` to compile `lib/` before restarting DSH.
-  3. Clear cache: Hard-refresh via `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge old bundle caches.
-- **Image/Video URL fails to load?**
-  Certain image hosts and video CDN endpoints restrict cross-origin access or lack CORS headers. Download and upload the asset locally, or use a CORS-friendly direct link.
-- **Style conflict with other plugins?**
-  This plugin strictly uses official `--dsw-*` tokens and non-invasive layers. If another plugin injects hardcoded global CSS overrides, styles may clash. Try updating plugins or inspecting global CSS overrides.
-- **How to completely reset appearance settings?**
-  Click the "Default" preset and remove any wallpaper/video, or run `localStorage.removeItem('dsh-ui-appearance.settings')` in DevTools Console and refresh. Removing the plugin (`dsh plugin remove`) also cleans up all overrides cleanly.
+- **Q: Settings panel does not appear after installation or update?**
+  - **Check Profile**: Verify that the plugin is installed in the active profile (DSH Desktop defaults to `desktop`, WebUI to `web`; run `dsh plugin list` to verify).
+  - **Restart Service**: Restart the service (e.g. `dsh web`). If installed from source, ensure `pnpm prepare` was run first.
+  - **Clear Cache**: Hard-refresh with `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge cached frontend bundles.
+- **Q: Do I need to refresh or click save after adjusting settings?**
+  - No. All colors, opacity, blur, and wallpapers apply in **real-time** and are automatically saved. If not reflecting immediately, try refreshing the page.
+- **Q: Are my appearance settings permanently saved?**
+  - Yes. Settings are persisted in browser `localStorage`, while wallpapers and videos are saved in `IndexedDB`. They survive restarts and refreshes.
+  - **Note**: Storage is tied to the current browser. Clearing site data or switching browsers will reset settings. Use "Color Schemes $\rightarrow$ Export" to back up your config as JSON.
+- **Q: Does uninstalling the plugin affect the stock DSH interface?**
+  - Not at all. Built entirely via official extension points with zero core code patches. Running `dsh plugin remove dsh-ui-appearance` fully reclaims all injected tokens and layers, restoring the stock UI.
+- **Q: Wallpaper or video background fails to load?**
+  - **Local Files**: Recommended images: JPG / PNG / WebP / GIF. Recommended videos: MP4 (H.264) or WebM (VP8/VP9) under 50 MB. Unsupported codecs degrade to wallpaper automatically.
+  - **Remote URLs**: Certain image/video CDNs restrict hotlinking or lack CORS headers. Download and upload locally, or use a CORS-friendly direct link.
+- **Q: Why can't I customize the AI message bubble color separately?**
+  - DSH renders bubble background containers only on user messages (assistant messages have no bubble container). The plugin links the user bubble color to the accent; separating assistant turns is constrained by upstream architecture.
+- **Q: Why doesn't code syntax highlighting follow the accent color?**
+  - Code syntax uses dedicated Shiki syntax themes to preserve IDE readability standards, rather than UI theme tokens.
+- **Q: How to handle conflicts with other third-party UI plugins?**
+  - This plugin strictly uses `--dsw-*` semantic tokens. If another plugin injects hardcoded global CSS overrides, styles may clash. Try disabling other theme plugins to isolate the issue.
+- **Q: How can I share or import color schemes?**
+  - Expand the "Color Schemes" section: click "Export Scheme" to copy JSON. On another machine/browser, paste the JSON into the input box and click "Import".
 
 ## Package layout
 
