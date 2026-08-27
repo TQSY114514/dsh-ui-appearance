@@ -129,25 +129,24 @@ Settings panel at a glance:
 ## FAQ
 
 - **Q: Settings panel does not appear after installation or update?**
-  - **Check Profile**: Verify that the plugin is installed in the active profile (DSH Desktop defaults to `desktop`, WebUI to `web`; run `dsh plugin list` to verify).
-  - **Restart Service**: Restart the service (e.g. `dsh web`). If installed from source, ensure `pnpm prepare` was run first.
+  - **Check Profile**: Run `dsh plugin list` to verify the plugin is added to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`).
+  - **Build & Restart**: When installing from source, run `pnpm prepare` to compile `lib/` before restarting DSH services (e.g. `dsh web`).
   - **Clear Cache**: Hard-refresh with `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge cached frontend bundles.
-- **Q: Do I need to refresh or click save after adjusting settings?**
-  - No. All colors, opacity, blur, and wallpapers apply in **real-time** and are automatically saved. If not reflecting immediately, try refreshing the page.
 - **Q: Are my appearance settings permanently saved?**
   - Yes. Settings are persisted in browser `localStorage`, while wallpapers and videos are saved in `IndexedDB`. They survive restarts and refreshes.
   - **Note**: Storage is tied to the current browser. Clearing site data or switching browsers will reset settings. Use "Color Schemes $\rightarrow$ Export" to back up your config as JSON.
 - **Q: Does uninstalling the plugin affect the stock DSH interface?**
   - Not at all. Built entirely via official extension points with zero core code patches. Running `dsh plugin remove dsh-ui-appearance` fully reclaims all injected tokens and layers, restoring the stock UI.
+- **Q: How to handle conflicts with other third-party DSH plugins?**
+  - Other UI plugins modifying global CSS directly (e.g. hardcoded background or font overrides) may conflict.
+  - **Troubleshooting**: Temporarily disable other UI plugins to isolate the issue. When submitting an issue, please provide your DSH version, active plugin list, and reproduction steps.
+- **Q: Why do some third-party popups, sidebars, or overlays have stacking (Z-Index) issues?**
+  - Translucency and blur effects create a new CSS Stacking Context on certain containers. Third-party plugins rendering absolute/fixed overlays inside shared host containers may be affected.
+- **Q: Why don't certain text elements or UI components change color?**
+  - The plugin overrides global `--dsw-*` theme tokens. A few sub-components use hardcoded internal styles in upstream DSH, which will be addressed as extension points evolve. Code blocks use independent Shiki syntax palettes (IDE convention), and message bubbles follow the accent (only user turns have bubble containers in upstream).
 - **Q: Wallpaper or video background fails to load?**
   - **Local Files**: Recommended images: JPG / PNG / WebP / GIF. Recommended videos: MP4 (H.264) or WebM (VP8/VP9) under 50 MB. Unsupported codecs degrade to wallpaper automatically.
   - **Remote URLs**: Certain image/video CDNs restrict hotlinking or lack CORS headers. Download and upload locally, or use a CORS-friendly direct link.
-- **Q: Why can't I customize the AI message bubble color separately?**
-  - DSH renders bubble background containers only on user messages (assistant messages have no bubble container). The plugin links the user bubble color to the accent; separating assistant turns is constrained by upstream architecture.
-- **Q: Why doesn't code syntax highlighting follow the accent color?**
-  - Code syntax uses dedicated Shiki syntax themes to preserve IDE readability standards, rather than UI theme tokens.
-- **Q: How to handle conflicts with other third-party UI plugins?**
-  - This plugin strictly uses `--dsw-*` semantic tokens. If another plugin injects hardcoded global CSS overrides, styles may clash. Try disabling other theme plugins to isolate the issue.
 - **Q: How can I share or import color schemes?**
   - Expand the "Color Schemes" section: click "Export Scheme" to copy JSON. On another machine/browser, paste the JSON into the input box and click "Import".
 
