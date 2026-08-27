@@ -126,6 +126,19 @@ Settings panel at a glance:
 - Syntax-highlight text colors (shiki `--shiki-token-*`) are a separate syntax-language palette and do not follow the accent (IDE convention); with a white accent, chip backgrounds are white and translucent, visually near-invisible on light surfaces — normal physics, not a bug.
 - Bubbles follow the accent and have no dedicated color setting: the harness renders its only bubble background on user messages, and assistant turns have no bubble at all (a rendering fact the plugin cannot split); bubbles stay stock pale blue when no accent is set.
 
+## FAQ
+
+- **Customizer panel does not appear after installation/update?**
+  1. Check target profile: Ensure the plugin is added to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`).
+  2. Source builds: When building from source, run `pnpm prepare` to compile `lib/` before restarting DSH.
+  3. Clear cache: Hard-refresh via `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge old bundle caches.
+- **Image/Video URL fails to load?**
+  Certain image hosts and video CDN endpoints restrict cross-origin access or lack CORS headers. Download and upload the asset locally, or use a CORS-friendly direct link.
+- **Style conflict with other plugins?**
+  This plugin strictly uses official `--dsw-*` tokens and non-invasive layers. If another plugin injects hardcoded global CSS overrides, styles may clash. Try updating plugins or inspecting global CSS overrides.
+- **How to completely reset appearance settings?**
+  Click the "Default" preset and remove any wallpaper/video, or run `localStorage.removeItem('dsh-ui-appearance.settings')` in DevTools Console and refresh. Removing the plugin (`dsh plugin remove`) also cleans up all overrides cleanly.
+
 ## Package layout
 
 ```
