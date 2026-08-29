@@ -1249,8 +1249,6 @@ const COMPOSITE_MAX_PIXELS = 7680 * 4320;
  */
 function tryCompositeSceneLayers(scene, access, label) {
   const objects = scene.objects;
-  // 3D model scenes use UV maps on meshes, not 2D desktop quads.
-  if (objects.some((o) => o && typeof o.model === 'string' && o.model.length > 0)) return null;
   const isHelperName = (n) => {
     const l = String(n || '').toLowerCase();
     return (
@@ -1275,12 +1273,12 @@ function tryCompositeSceneLayers(scene, access, label) {
     );
   };
   const imageObjects = objects.filter((o) =>
-    o && typeof o.image === 'string'
-    && !o.image.startsWith('models/util/')
+    o && (typeof o.image === 'string' || typeof o.model === 'string' || typeof o.particle === 'string')
+    && !(typeof o.image === 'string' && o.image.startsWith('models/util/'))
     && o.visible !== false
     && !(o.visible && typeof o.visible === 'object' && o.visible.value === false)
     && !isHelperName(o.name)
-    && !PATH_PENALTY_RE.test(o.image));
+    && !(typeof o.image === 'string' && PATH_PENALTY_RE.test(o.image)));
   if (imageObjects.length === 0) return null;
 
   const projection = sceneProjectionSize(scene);
@@ -1291,17 +1289,19 @@ function tryCompositeSceneLayers(scene, access, label) {
   // Pass 1: resolve + decode every layer.
   const layers = [];
   for (const obj of imageObjects) {
+    const resPath = obj.image || obj.model;
     let modelJson = null;
     let texRef = null;
-    if (obj.image.toLowerCase().endsWith('.tex')) {
-      texRef = obj.image;
-    } else {
-      modelJson = access.readJson(obj.image);
-      if (!modelJson || typeof modelJson.material !== 'string') continue;
-      const matJson = access.readJson(modelJson.material)
-        || access.readJson('materials/' + modelJson.material);
-      const pass0 = matJson && Array.isArray(matJson.passes) ? matJson.passes[0] : null;
-      texRef = firstPassTextureRef(pass0);
+    if (resPath && resPath.toLowerCase().endsWith('.tex')) {
+      texRef = resPath;
+    } else if (resPath) {
+      modelJson = access.readJson(resPath);
+      if (modelJson && typeof modelJson.material === 'string') {
+        const matJson = access.readJson(modelJson.material)
+          || access.readJson('materials/' + modelJson.material);
+        const pass0 = matJson && Array.isArray(matJson.passes) ? matJson.passes[0] : null;
+        texRef = firstPassTextureRef(pass0);
+      }
     }
     if (!texRef || PATH_PENALTY_RE.test(String(texRef))) continue;
     const texPath = resolveSceneTexPath(access, texRef);
