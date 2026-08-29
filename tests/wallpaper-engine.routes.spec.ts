@@ -89,4 +89,15 @@ describe('wallpaper-engine: routes', () => {
     expect(registeredRoutes).toContain('/api/ui-appearance/wallpaper-engine/media')
     expect(registeredRoutes).toContain('/api/ui-appearance/wallpaper-engine/preview')
   })
+
+  it('streamFile supports versionIndex argument', () => {
+    const res = {
+      statusCode: 0,
+      setHeader: vi.fn(),
+      end: vi.fn(),
+    }
+    // Calling with nonexistent file and versionIndex should still 404 gracefully
+    streamFile(join(testDir, 'nonexistent.pkg'), { headers: {} }, res, 1)
+    expect(res.statusCode).toBe(404)
+  })
 })

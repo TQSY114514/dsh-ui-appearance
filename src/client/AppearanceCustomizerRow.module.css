@@ -449,3 +449,59 @@
 .weCardBuiltin {
   color: var(--dsw-alias-label-tertiary);
 }
+
+/* Version badge (shown on cards with multiple versions) */
+.weCardVersionBadge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--dsw-alias-brand-primary, #4176e6);
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Cards need relative positioning for the badge */
+.weCardRelative {
+  position: relative;
+}
+
+/* Version switcher row in the current wallpaper area */
+.weVersionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.weVersionLabel {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.weVersionButton {
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+
+.weVersionButton:hover:not(.weVersionButtonActive) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.weVersionButtonActive {
+  background: var(--dsw-alias-brand-primary, #4176e6);
+  border-color: var(--dsw-alias-brand-primary, #4176e6);
+  color: #fff;
+}

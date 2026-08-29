@@ -20,7 +20,7 @@ import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFail
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
 import { fetchCurrentWallpaper, fetchWallpaperInventory, loadWallpaperBlob } from './wallpaper-engine.ts'
-import type { WallpaperInventoryItem } from '../wallpaper-engine/types.ts'
+import type { WallpaperInventoryItem, SceneVersion } from '../wallpaper-engine/types.ts'
 import type { AppearanceKey } from './locales.ts'
 import type { createAppearanceRowStore } from './settings-store.ts'
 import css from './AppearanceCustomizerRow.module.css'
@@ -193,6 +193,10 @@ export function AppearanceCustomizerRow({
   const [weInventory, setWeInventory] = useState<WallpaperInventoryItem[]>([])
   const [weSearch, setWeSearch] = useState('')
   const [weFilter, setWeFilter] = useState<'all' | 'workshop' | 'default'>('all')
+  // Multi-version state: versions available for the currently-applied WE item
+  const [weCurrentVersions, setWeCurrentVersions] = useState<WallpaperInventoryItem['versions']>(undefined)
+  const [weCurrentVersionIndex, setWeCurrentVersionIndex] = useState(0)
+  const [weCurrentItem, setWeCurrentItem] = useState<WallpaperInventoryItem | null>(null)
   const [schemeOpen, setSchemeOpen] = useState(false)
   const [schemeDraft, setSchemeDraft] = useState('')
   const [schemeError, setSchemeError] = useState(false)
@@ -380,6 +384,35 @@ export function AppearanceCustomizerRow({
     return true
   })
 
+  const applyVersionedUrl = async (targetUrl: string, title: string, versionIndex: number): Promise<void> => {
+    setWeSyncing(true)
+    setWeError(null)
+    try {
+      const versionedUrl = versionIndex > 0
+        ? (targetUrl.includes('?') ? `${targetUrl}&version=${versionIndex}` : `${targetUrl}?version=${versionIndex}`)
+        : targetUrl
+      let blob = await loadWallpaperBlob(versionedUrl)
+      if (blob.type.startsWith('video/')) {
+        const key = await saveVideo(blob, title || 'wallpaper-engine.mp4')
+        setVideo(key)
+      } else {
+        if (!blob.type.startsWith('image/')) {
+          // Unexpected content type, try as image anyway
+          blob = new Blob([await blob.arrayBuffer()], { type: 'image/jpeg' })
+        }
+        const file = new File([blob], `${title || 'wallpaper'}.jpg`, { type: blob.type || 'image/jpeg' })
+        const payload = await prepareImage(file)
+        const key = await saveImage(payload.blob, file.name)
+        setImage({ url: key, imageDark: payload.imageDark })
+        if (payload.accent !== null) applyWallpaperPalette(payload.accent)
+      }
+    } catch {
+      setWeError(t('background.readError'))
+    } finally {
+      setWeSyncing(false)
+    }
+  }
+
   const applyInventoryItem = async (item: WallpaperInventoryItem): Promise<void> => {
     setWeSyncing(true)
     setWeError(null)
@@ -410,6 +443,15 @@ export function AppearanceCustomizerRow({
           setWeSuccessTitle(item.title)
         }
       }
+      // Store version info for the switcher UI
+      if (item.versions && item.versions.length > 1) {
+        setWeCurrentVersions(item.versions)
+        setWeCurrentItem(item)
+      } else {
+        setWeCurrentVersions(undefined)
+        setWeCurrentItem(null)
+      }
+      setWeCurrentVersionIndex(0)
       setWeLibraryOpen(false)
     } catch {
       setWeError(t('background.readError'))
@@ -590,6 +632,27 @@ export function AppearanceCustomizerRow({
                   </span>
                 )}
               </div>
+              {/* Version switcher: shown only when the applied wallpaper has multiple versions */}
+              {weCurrentVersions && weCurrentVersions.length > 1 && weCurrentItem && (
+                <div className={css.weVersionRow}>
+                  <span className={css.weVersionLabel}>{t('background.weSwitchVersion')}:</span>
+                  {weCurrentVersions.map((v: SceneVersion) => (
+                    <button
+                      key={v.index}
+                      type="button"
+                      className={clsx(css.weVersionButton, v.index === weCurrentVersionIndex && css.weVersionButtonActive)}
+                      disabled={weSyncing}
+                      onClick={() => {
+                        if (v.index === weCurrentVersionIndex || !weCurrentItem.mediaUrl) return
+                        setWeCurrentVersionIndex(v.index)
+                        void applyVersionedUrl(weCurrentItem.mediaUrl, weCurrentItem.title, v.index)
+                      }}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {weError && (
                 <div className={css.hint} style={{ color: 'var(--dsw-static-state-danger-600, #ef4444)' }}>
                   {weError}
@@ -650,9 +713,14 @@ export function AppearanceCustomizerRow({
                         return (
                           <div
                             key={item.id + item.folderPath}
-                            className={css.weCard}
+                            className={clsx(css.weCard, css.weCardRelative)}
                             onClick={() => { void applyInventoryItem(item) }}
                           >
+                            {item.versions && item.versions.length > 1 && (
+                              <span className={css.weCardVersionBadge}>
+                                {t('background.weVersionBadge').replace('{n}', String(item.versions.length))}
+                              </span>
+                            )}
                             {item.previewUrl && (
                               <img
                                 className={css.weCardThumb}

@@ -60,35 +60,101 @@ const SHEET = `
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  overflow: hidden;
+  opacity: var(--dsw-appearance-bg-opacity, 1);
+  filter: blur(var(--dsw-appearance-blur, 0px));
+  transform: var(--dsw-appearance-scale, none);
+}
+
+/* Landscape static image background */
+#${BG_LAYER_ID}:not([data-portrait]):not([data-video]) {
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
   background-image:
     linear-gradient(rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%, rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%),
     var(--dsw-appearance-bg-image, none);
-  opacity: var(--dsw-appearance-bg-opacity, 1);
-  filter: blur(var(--dsw-appearance-blur, 0px));
-  transform: var(--dsw-appearance-scale, none);
 }
+
+body[data-ds-dark-theme] #${BG_LAYER_ID}:not([data-portrait]):not([data-video]) {
+  background-image:
+    linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
+    var(--dsw-appearance-bg-image, none);
+}
+
+/* Portrait static image background: blur-extend background + centered contain foreground */
+#${BG_LAYER_ID}[data-portrait]:not([data-video])::before {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-image: var(--dsw-appearance-bg-image, none);
+  filter: blur(35px) brightness(0.85);
+  transform: scale(1.15);
+}
+
+#${BG_LAYER_ID}[data-portrait]:not([data-video])::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%, contain;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%, rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%),
+    var(--dsw-appearance-bg-image, none);
+}
+
+body[data-ds-dark-theme] #${BG_LAYER_ID}[data-portrait]:not([data-video])::after {
+  background-image:
+    linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
+    var(--dsw-appearance-bg-image, none);
+}
+
+/* Video background */
 #${BG_LAYER_ID} video {
+  display: none;
+}
+
+#${BG_LAYER_ID}[data-video] video.dsw-video-fg {
+  display: block;
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: none;
 }
-#${BG_LAYER_ID}[data-video] video {
+
+/* Portrait video mode */
+#${BG_LAYER_ID}[data-video][data-portrait] video.dsw-video-blur {
   display: block;
+  position: absolute;
+  inset: -30px;
+  width: calc(100% + 60px);
+  height: calc(100% + 60px);
+  object-fit: cover;
+  filter: blur(35px) brightness(0.85);
+  transform: scale(1.15);
 }
-#${BG_LAYER_ID}[data-video] {
-  background-image: none;
+
+#${BG_LAYER_ID}[data-video][data-portrait] video.dsw-video-fg {
+  object-fit: contain;
 }
-body[data-ds-dark-theme] #${BG_LAYER_ID} {
-  background-image:
-    linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
-    var(--dsw-appearance-bg-image, none);
+
+#${BG_LAYER_ID}[data-video]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, var(--dsw-appearance-scrim, 0));
+  pointer-events: none;
 }
+
+body[data-ds-dark-theme] #${BG_LAYER_ID}[data-video]::after {
+  background: rgba(8, 10, 18, var(--dsw-appearance-scrim, 0));
+}
+
 #root ::selection {
   background: var(--dsw-alias-brand-primary);
   color: var(--dsw-alias-label-primary-foreground);
@@ -107,6 +173,7 @@ export class AppearanceApplier {
   private readonly style: HTMLStyleElement
   private readonly layer: HTMLDivElement
   private videoEl: HTMLVideoElement | undefined
+  private videoBlurEl: HTMLVideoElement | undefined
   private videoUrl: string | undefined
   private videoKey = ''
   private imageToken = ''
@@ -190,6 +257,7 @@ export class AppearanceApplier {
     }
     if (token.startsWith('data:')) {
       body.style.setProperty('--dsw-appearance-bg-image', `url("${token}")`)
+      this.checkImageAspect(token, token)
       return
     }
     const blob = await getImage(token)
@@ -205,10 +273,29 @@ export class AppearanceApplier {
     }
     this.imageUrl = URL.createObjectURL(blob)
     body.style.setProperty('--dsw-appearance-bg-image', `url("${this.imageUrl}")`)
+    this.checkImageAspect(this.imageUrl, token)
+  }
+
+  /** Check image aspect ratio to enable portrait blur-extend layout when vertical. */
+  private checkImageAspect(src: string, token: string): void {
+    const img = new Image()
+    img.onload = (): void => {
+      if (this.imageToken !== token) return
+      if (img.naturalHeight > 0 && img.naturalWidth > 0 && img.naturalHeight > img.naturalWidth) {
+        this.layer.setAttribute('data-portrait', '')
+      } else {
+        this.layer.removeAttribute('data-portrait')
+      }
+    }
+    img.onerror = (): void => {
+      if (this.imageToken === token) this.layer.removeAttribute('data-portrait')
+    }
+    img.src = src
   }
 
   /** Revoke the wallpaper object URL, if any. */
   private teardownImage(): void {
+    this.layer.removeAttribute('data-portrait')
     if (this.imageUrl !== undefined) {
       URL.revokeObjectURL(this.imageUrl)
       this.imageUrl = undefined
@@ -239,9 +326,20 @@ export class AppearanceApplier {
     const video = this.ensureVideo()
     this.videoUrl = URL.createObjectURL(record)
     video.src = this.videoUrl
+    if (this.videoBlurEl !== undefined) this.videoBlurEl.src = this.videoUrl
     video.play().catch(() => {
       // Autoplay policy or unsupported codec: keep the layer fallback silent.
     })
+    this.videoBlurEl?.play().catch(() => {})
+    // Check if video is vertical on metadata load
+    video.onloadedmetadata = (): void => {
+      if (this.videoKey !== key) return
+      if (video.videoHeight > 0 && video.videoWidth > 0 && video.videoHeight > video.videoWidth) {
+        this.layer.setAttribute('data-portrait', '')
+      } else {
+        this.layer.removeAttribute('data-portrait')
+      }
+    }
     // Unsupported codec (e.g. HEVC in an mp4): drop the video layer so the
     // wallpaper fallback (if any) shows instead of a black frame.
     video.onerror = (): void => {
@@ -252,15 +350,25 @@ export class AppearanceApplier {
     this.layer.setAttribute('data-video', '')
   }
 
-  /** Create the background video element once. */
+  /** Create the background video elements (foreground and blur-extend). */
   private ensureVideo(): HTMLVideoElement {
     if (this.videoEl === undefined) {
+      const blurVideo = document.createElement('video')
+      blurVideo.muted = true
+      blurVideo.loop = true
+      blurVideo.playsInline = true
+      blurVideo.autoplay = true
+      blurVideo.className = 'dsw-video-blur'
+
       const video = document.createElement('video')
       video.muted = true
       video.loop = true
       video.playsInline = true
       video.autoplay = true
-      this.layer.append(video)
+      video.className = 'dsw-video-fg'
+
+      this.layer.append(blurVideo, video)
+      this.videoBlurEl = blurVideo
       this.videoEl = video
     }
     return this.videoEl
@@ -268,8 +376,11 @@ export class AppearanceApplier {
 
   /** Remove the video element and revoke its object URL. */
   private teardownVideo(): void {
+    this.layer.removeAttribute('data-portrait')
     this.videoEl?.remove()
     this.videoEl = undefined
+    this.videoBlurEl?.remove()
+    this.videoBlurEl = undefined
     if (this.videoUrl !== undefined) {
       URL.revokeObjectURL(this.videoUrl)
       this.videoUrl = undefined

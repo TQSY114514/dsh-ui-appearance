@@ -35,6 +35,20 @@ export interface ActiveWallpaperInfo {
   previewUrl?: string
 }
 
+/**
+ * One selectable version within a multi-version Scene wallpaper.
+ * Version 0 is always the primary (composite 2D layers); subsequent versions
+ * correspond to embedded MP4/video textures, day/night variants, etc.
+ */
+export interface SceneVersion {
+  /** 0-based index passed as `?version=N` to the /media route. */
+  index: number
+  /** Human-readable label (e.g. "主版本", "安全版", "视频版"). */
+  label: string
+  /** MIME type of the extracted media. */
+  mime: 'image/png' | 'video/mp4'
+}
+
 /** One item in the Wallpaper Engine local inventory list. */
 export interface WallpaperInventoryItem {
   id: string
@@ -45,6 +59,11 @@ export interface WallpaperInventoryItem {
   previewPath?: string
   previewUrl?: string
   mediaUrl?: string
+  /**
+   * Available versions for Scene wallpapers that contain multiple layers or
+   * embedded video textures. Undefined / empty means single-version only.
+   */
+  versions?: SceneVersion[]
 }
 
 /** Response for the inventory listing endpoint. */

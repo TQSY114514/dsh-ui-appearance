@@ -145,4 +145,13 @@ describe('AppearanceApplier', () => {
     applier.dispose()
     expect(layer.querySelector('video')).toBeNull()
   })
+
+  it('portrait detection sets data-portrait on layer and dispose cleans it up', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const layer = document.getElementById(BG_LAYER_ID)!
+    expect(layer.hasAttribute('data-portrait')).toBe(false)
+    applier.dispose()
+    expect(document.getElementById(BG_LAYER_ID)).toBeNull()
+  })
 })

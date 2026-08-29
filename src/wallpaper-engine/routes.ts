@@ -8,6 +8,8 @@ import { getCurrentWallpaper, getWallpaperInventory } from './scanner.ts'
 import {
   extractSceneMainImage,
   extractSceneMainImageFromDir,
+  enumerateSceneVersions,
+  enumerateSceneVersionsFromDir,
   extractTexVideoMp4,
   parsePkg,
   readPkgEntry,
@@ -37,6 +39,7 @@ export function getMimeType(filePath: string): string {
 
 /**
  * Handle streaming a local file to an HTTP response with HTTP Range support (for videos).
+ * @param versionIndex - 0 = default (2D composite), >0 = embedded MP4 version N.
  */
 export function streamFile(
   filePath: string,
@@ -48,6 +51,7 @@ export function streamFile(
     end: (chunk?: unknown) => void
     write?: (chunk: unknown) => boolean
   },
+  versionIndex = 0,
 ): void {
   if (!existsSync(filePath)) {
     if ('writeHead' in res && typeof res.writeHead === 'function') {
@@ -64,7 +68,7 @@ export function streamFile(
   if (filePath.toLowerCase().endsWith('.pkg')) {
     try {
       const data = readFileSync(filePath)
-      const extracted = extractSceneMainImage(data)
+      const extracted = extractSceneMainImage(data, versionIndex)
       if (extracted) {
         if ('writeHead' in res && typeof res.writeHead === 'function') {
           res.writeHead(200, {
@@ -135,9 +139,9 @@ export function streamFile(
     try {
       let extracted = null
       if (existsSync(pkgPath)) {
-        extracted = extractSceneMainImage(readFileSync(pkgPath))
+        extracted = extractSceneMainImage(readFileSync(pkgPath), versionIndex)
       } else {
-        extracted = extractSceneMainImageFromDir(dir)
+        extracted = extractSceneMainImageFromDir(dir, versionIndex)
       }
       if (extracted) {
         if ('writeHead' in res && typeof res.writeHead === 'function') {
@@ -303,15 +307,37 @@ export function handleWallpaperEngineRequest(
   }
 
   if (pathname === '/api/ui-appearance/wallpaper-engine/inventory') {
-    const wallpapers = getWallpaperInventory().map(item => ({
-      ...item,
-      previewUrl: item.previewPath
-        ? `/api/ui-appearance/wallpaper-engine/preview?path=${encodeURIComponent(item.previewPath)}`
-        : undefined,
-      mediaUrl: item.mediaPath
-        ? `/api/ui-appearance/wallpaper-engine/media?path=${encodeURIComponent(item.mediaPath)}`
-        : undefined,
-    }))
+    const wallpapers = getWallpaperInventory().map(item => {
+      const mapped: typeof item & { previewUrl?: string; mediaUrl?: string; versions?: unknown[] } = {
+        ...item,
+        previewUrl: item.previewPath
+          ? `/api/ui-appearance/wallpaper-engine/preview?path=${encodeURIComponent(item.previewPath)}`
+          : undefined,
+        mediaUrl: item.mediaPath
+          ? `/api/ui-appearance/wallpaper-engine/media?path=${encodeURIComponent(item.mediaPath)}`
+          : undefined,
+      }
+      // Enumerate multi-version info for Scene wallpapers
+      if (item.type === 'scene' && item.mediaPath) {
+        try {
+          const mp = item.mediaPath
+          let versions: unknown[]
+          if (mp.toLowerCase().endsWith('.pkg')) {
+            versions = enumerateSceneVersions(readFileSync(mp))
+          } else if (mp.toLowerCase().endsWith('.json')) {
+            const dir = dirname(mp)
+            const pkgPath = join(dir, 'scene.pkg')
+            versions = existsSync(pkgPath)
+              ? enumerateSceneVersions(readFileSync(pkgPath))
+              : enumerateSceneVersionsFromDir(dir)
+          } else {
+            versions = []
+          }
+          if (versions.length > 1) mapped.versions = versions
+        } catch { /* skip versions on error */ }
+      }
+      return mapped
+    })
     if ('writeHead' in res && typeof res.writeHead === 'function') {
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
@@ -341,7 +367,8 @@ export function handleWallpaperEngineRequest(
       res.end(JSON.stringify({ error: 'No active wallpaper media' }))
       return
     }
-    streamFile(target, req, res)
+    const versionIndex = query.version ? parseInt(query.version, 10) : 0
+    streamFile(target, req, res, isNaN(versionIndex) ? 0 : versionIndex)
     return
   }
 
@@ -374,7 +401,8 @@ export function handleWallpaperEngineRequest(
       res.end(JSON.stringify({ error: 'Missing path parameter' }))
       return
     }
-    streamFile(target, req, res)
+    const versionIndex = query.version ? parseInt(query.version, 10) : 0
+    streamFile(target, req, res, isNaN(versionIndex) ? 0 : versionIndex)
     return
   }
 
@@ -424,15 +452,36 @@ export function registerWallpaperEngineRoutes(router: {
   })
 
   router.get('/api/ui-appearance/wallpaper-engine/inventory', (ctx: any) => {
-    const wallpapers = getWallpaperInventory().map(item => ({
-      ...item,
-      previewUrl: item.previewPath
-        ? `/api/ui-appearance/wallpaper-engine/preview?path=${encodeURIComponent(item.previewPath)}`
-        : undefined,
-      mediaUrl: item.mediaPath
-        ? `/api/ui-appearance/wallpaper-engine/media?path=${encodeURIComponent(item.mediaPath)}`
-        : undefined,
-    }))
+    const wallpapers = getWallpaperInventory().map(item => {
+      const mapped: typeof item & { previewUrl?: string; mediaUrl?: string; versions?: unknown[] } = {
+        ...item,
+        previewUrl: item.previewPath
+          ? `/api/ui-appearance/wallpaper-engine/preview?path=${encodeURIComponent(item.previewPath)}`
+          : undefined,
+        mediaUrl: item.mediaPath
+          ? `/api/ui-appearance/wallpaper-engine/media?path=${encodeURIComponent(item.mediaPath)}`
+          : undefined,
+      }
+      if (item.type === 'scene' && item.mediaPath) {
+        try {
+          const mp = item.mediaPath
+          let versions: unknown[]
+          if (mp.toLowerCase().endsWith('.pkg')) {
+            versions = enumerateSceneVersions(readFileSync(mp))
+          } else if (mp.toLowerCase().endsWith('.json')) {
+            const dir = dirname(mp)
+            const pkgPath = join(dir, 'scene.pkg')
+            versions = existsSync(pkgPath)
+              ? enumerateSceneVersions(readFileSync(pkgPath))
+              : enumerateSceneVersionsFromDir(dir)
+          } else {
+            versions = []
+          }
+          if (versions.length > 1) mapped.versions = versions
+        } catch { /* skip versions on error */ }
+      }
+      return mapped
+    })
     ctx.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     ctx.body = {
       success: true,
@@ -448,8 +497,9 @@ export function registerWallpaperEngineRoutes(router: {
       ctx.body = { error: 'No active wallpaper media' }
       return
     }
+    const versionIndex = ctx.query?.version ? parseInt(ctx.query.version, 10) : 0
     ctx.respond = false
-    streamFile(target, ctx.req, ctx.res)
+    streamFile(target, ctx.req, ctx.res, isNaN(versionIndex) ? 0 : versionIndex)
   })
 
   router.get('/api/ui-appearance/wallpaper-engine/preview/current', (ctx: any) => {
@@ -471,8 +521,9 @@ export function registerWallpaperEngineRoutes(router: {
       ctx.body = { error: 'Missing path query parameter' }
       return
     }
+    const versionIndex = ctx.query?.version ? parseInt(ctx.query.version, 10) : 0
     ctx.respond = false
-    streamFile(rawPath, ctx.req, ctx.res)
+    streamFile(rawPath, ctx.req, ctx.res, isNaN(versionIndex) ? 0 : versionIndex)
   })
 
   router.get('/api/ui-appearance/wallpaper-engine/preview', (ctx: any) => {

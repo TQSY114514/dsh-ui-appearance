@@ -1459,15 +1459,16 @@ function tryCompositeSceneLayers(scene, access, label) {
   };
 }
 
-function extractSceneMainImageVia(access, label) {
+function extractSceneMainImageVia(access, label, versionIndex) {
   const scene = access.readJson('scene.json');
   if (!scene || !Array.isArray(scene.objects)) {
     throw new Error(label + ': scene.json not found or invalid');
   }
 
-  // 1. If the scene contains embedded MP4 video textures (e.g. 4K/60fps video wallpapers
-  // like 猫猫的耳朵、窗边的伊蕾娜、夏之雨、龙族绘梨衣), prefer streaming the full video directly
-  // instead of producing incomplete static composite layers.
+  // Collect all embedded MP4 video textures for multi-version support.
+  // These are NOT used as default output — they are only selected when the
+  // caller explicitly requests versionIndex > 0 (user switching to an
+  // alternative / "safe wallpaper" version).
   const videoCandidates = [];
   for (const path of access.listTexPaths()) {
     try {
@@ -1488,21 +1489,21 @@ function extractSceneMainImageVia(access, label) {
       }
     } catch { /* ignore */ }
   }
-  if (videoCandidates.length > 0) {
-    videoCandidates.sort((a, b) => b.score - a.score);
-    const top = videoCandidates[0];
-    return {
-      mime: 'video/mp4',
-      bytes: top.mp4,
-      width: top.width,
-      height: top.height,
-      texturePath: top.path,
-    };
+  videoCandidates.sort((a, b) => b.score - a.score);
+
+  // If a specific version index is requested (index > 0 = embedded MP4 #N-1):
+  if (typeof versionIndex === 'number' && versionIndex > 0) {
+    const idx = versionIndex - 1;
+    if (idx < videoCandidates.length) {
+      const v = videoCandidates[idx];
+      return { mime: 'video/mp4', bytes: v.mp4, width: v.width, height: v.height, texturePath: v.path };
+    }
+    // Requested index out of range — fall through to default (version 0)
   }
 
-  // 2. Multi-layer 2D scenes: composite every visible image object with
-  // its scene transform. The single-texture path below would otherwise pick
-  // ONE layer and the client's cover fit would show only the middle slice.
+  // 1. Multi-layer 2D composite: render every visible image layer with its
+  // scene transform. This shows what the user actually sees in WE (the
+  // anime character / landscape scene), NOT any embedded safe-wallpaper MP4.
   try {
     const composite = tryCompositeSceneLayers(scene, access, label);
     if (composite) return composite;
@@ -1698,8 +1699,8 @@ function trimTransparentPadding(rgba, width, height) {
 }
 
 /** Extract the main static frame of a packed scene.pkg (Uint8Array/Buffer). */
-function extractSceneMainImage(pkgData) {
-  return extractSceneMainImageVia(pkgSceneAccess(pkgData), 'pkg');
+function extractSceneMainImage(pkgData, versionIndex) {
+  return extractSceneMainImageVia(pkgSceneAccess(pkgData), 'pkg', versionIndex);
 }
 
 /**
@@ -1707,8 +1708,84 @@ function extractSceneMainImage(pkgData) {
  * that ships scene.json and textures as plain files instead of a packed
  * scene.pkg.
  */
-function extractSceneMainImageFromDir(dir) {
-  return extractSceneMainImageVia(dirSceneAccess(dir), 'scene');
+function extractSceneMainImageFromDir(dir, versionIndex) {
+  return extractSceneMainImageVia(dirSceneAccess(dir), 'scene', versionIndex);
 }
 
-export { extractSceneMainImage, extractSceneMainImageFromDir, parseTex, decodeTex, parsePkg, readPkgEntry, extractTexVideoMp4 };
+/**
+ * Enumerate all selectable versions in a Scene wallpaper.
+ *
+ * Version 0 is always "主版本" (the 2D composite / primary frame).
+ * Versions 1..N correspond to the embedded MP4 textures sorted by score
+ * (highest-quality / most-likely-to-be-the-background first).
+ *
+ * @param access - pkgSceneAccess or dirSceneAccess
+ * @returns Array of SceneVersion descriptors (always at least [{index:0}]).
+ */
+function enumerateSceneVersionsVia(access) {
+  const versions = [{ index: 0, label: '主版本', mime: 'image/png' }];
+  const scene = access.readJson('scene.json');
+  if (!scene || !Array.isArray(scene.objects)) return versions;
+
+  const videoCandidates = [];
+  for (const path of access.listTexPaths()) {
+    try {
+      const file = access.readFile(path);
+      if (!file) continue;
+      const mp4 = extractTexVideoMp4(file.bytes);
+      if (mp4) {
+        const info = parseTex(file.bytes);
+        const w = info ? info.width : 1920;
+        const h = info ? info.height : 1080;
+        const aspect = w / h;
+        let score = (w * h) + mp4.length;
+        if (aspect >= 1.2 && aspect <= 2.6) score *= 4.0;
+        const l = path.toLowerCase();
+        if (l.includes('bg') || l.includes('background') || l.includes('背景') || l.includes('壁纸') || l.includes('main') || l.includes('origin')) score *= 5.0;
+        if (l.includes('昼夜') || l.includes('4k') || l.includes('60帧') || l.includes('1080') || l.includes('batch')) score *= 3.0;
+        // Try to derive a human-readable label from the path
+        const base = path.split('/').pop() || path;
+        let label = '视频版';
+        if (/safe|健康|safe_wallpaper/i.test(base)) label = '安全版';
+        else if (/day|昼|白天/i.test(base)) label = '昼版';
+        else if (/night|夜|晚上/i.test(base)) label = '夜版';
+        else if (/4k|uhd/i.test(base)) label = '4K版';
+        else if (videoCandidates.length === 0) label = '视频版';
+        else label = `视频版 ${videoCandidates.length + 1}`;
+        videoCandidates.push({ path, score, label });
+      }
+    } catch { /* ignore */ }
+  }
+  videoCandidates.sort((a, b) => b.score - a.score);
+  for (let i = 0; i < videoCandidates.length; i++) {
+    versions.push({ index: i + 1, label: videoCandidates[i].label, mime: 'video/mp4' });
+  }
+  return versions;
+}
+
+/**
+ * Enumerate versions from a packed scene.pkg.
+ * Returns a single-element array when no embedded MP4 textures are found.
+ */
+function enumerateSceneVersions(pkgData) {
+  return enumerateSceneVersionsVia(pkgSceneAccess(pkgData));
+}
+
+/**
+ * Enumerate versions from a loose scene directory.
+ */
+function enumerateSceneVersionsFromDir(dir) {
+  return enumerateSceneVersionsVia(dirSceneAccess(dir));
+}
+
+export {
+  extractSceneMainImage,
+  extractSceneMainImageFromDir,
+  enumerateSceneVersions,
+  enumerateSceneVersionsFromDir,
+  parseTex,
+  decodeTex,
+  parsePkg,
+  readPkgEntry,
+  extractTexVideoMp4,
+};
