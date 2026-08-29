@@ -204,6 +204,31 @@ export function AppearanceCustomizerRow({
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
 
+  // Restore currently applied Wallpaper Engine item and version list from persisted settings
+  useEffect(() => {
+    if (!settings.wallpaperEngineItemId) {
+      setWeCurrentItem(null)
+      setWeCurrentVersions(undefined)
+      return
+    }
+    let stale = false
+    void fetchWallpaperInventory().then(inventory => {
+      if (stale) return
+      const item = inventory.find(i => i.id.toLowerCase() === settings.wallpaperEngineItemId.toLowerCase())
+      if (item) {
+        setWeCurrentItem(item)
+        setWeSuccessTitle(item.title)
+        if (item.versions && item.versions.length > 1) {
+          setWeCurrentVersions(item.versions)
+          setWeCurrentVersionIndex(settings.wallpaperEngineVersion ?? 0)
+        } else {
+          setWeCurrentVersions(undefined)
+        }
+      }
+    })
+    return () => { stale = true }
+  }, [settings.wallpaperEngineItemId, settings.wallpaperEngineVersion])
+
   const openWallpaperLibrary = async (): Promise<void> => {
     setWeLibraryOpen(true)
     setWeLibraryLoading(true)
@@ -362,6 +387,25 @@ export function AppearanceCustomizerRow({
           setWeSuccessTitle(info.title || '')
         }
       }
+      // Check inventory to match active wallpaper and discover multi-versions
+      try {
+        const inventory = await fetchWallpaperInventory()
+        const matched = inventory.find(i =>
+          (info.folderPath && i.folderPath === info.folderPath) ||
+          (info.title && i.title === info.title)
+        )
+        if (matched) {
+          set('wallpaperEngineItemId', matched.id)
+          set('wallpaperEngineVersion', 0)
+          setWeCurrentItem(matched)
+          if (matched.versions && matched.versions.length > 1) {
+            setWeCurrentVersions(matched.versions)
+          } else {
+            setWeCurrentVersions(undefined)
+          }
+          setWeCurrentVersionIndex(0)
+        }
+      } catch { /* ignore */ }
     } catch {
       setWeError(t('background.weNotFound'))
     } finally {
@@ -443,13 +487,14 @@ export function AppearanceCustomizerRow({
           setWeSuccessTitle(item.title)
         }
       }
-      // Store version info for the switcher UI
+      // Store version info for the switcher UI and persist item id in settings
+      set('wallpaperEngineItemId', item.id)
+      set('wallpaperEngineVersion', 0)
+      setWeCurrentItem(item)
       if (item.versions && item.versions.length > 1) {
         setWeCurrentVersions(item.versions)
-        setWeCurrentItem(item)
       } else {
         setWeCurrentVersions(undefined)
-        setWeCurrentItem(null)
       }
       setWeCurrentVersionIndex(0)
       setWeLibraryOpen(false)
@@ -645,6 +690,7 @@ export function AppearanceCustomizerRow({
                       onClick={() => {
                         if (v.index === weCurrentVersionIndex || !weCurrentItem.mediaUrl) return
                         setWeCurrentVersionIndex(v.index)
+                        set('wallpaperEngineVersion', v.index)
                         void applyVersionedUrl(weCurrentItem.mediaUrl, weCurrentItem.title, v.index)
                       }}
                     >

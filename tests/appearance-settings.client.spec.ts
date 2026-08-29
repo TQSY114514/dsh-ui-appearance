@@ -79,4 +79,14 @@ describe('sanitizeSettings', () => {
     expect(sanitized.preset).toBe('ocean')
     expect('hackerField' in sanitized).toBe(false)
   })
+
+  it('keeps wallpaperEngineItemId and wallpaperEngineVersion within bounds', () => {
+    const sanitized = sanitizeSettings({
+      ...DEFAULT_SETTINGS,
+      wallpaperEngineItemId: '2887099508',
+      wallpaperEngineVersion: 2,
+    })
+    expect(sanitized.wallpaperEngineItemId).toBe('2887099508')
+    expect(sanitized.wallpaperEngineVersion).toBe(2)
+  })
 })

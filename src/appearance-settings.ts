@@ -70,6 +70,10 @@ export interface AppearanceSettings extends AppearanceColors {
   emphasisAlpha: number
   /** Last applied preset id, or 'custom' after manual edits. */
   preset: string
+  /** ID of the currently applied Wallpaper Engine item (persisted so version list restores). */
+  wallpaperEngineItemId: string
+  /** Active version index within the Wallpaper Engine item (0 = primary). */
+  wallpaperEngineVersion: number
 }
 
 /** The section with every color role left stock and every effect off.
@@ -95,6 +99,8 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   glassBlur: 0,
   emphasisAlpha: 0.22,
   preset: '',
+  wallpaperEngineItemId: '',
+  wallpaperEngineVersion: 0,
 }
 
 /** Number fields and their schema bounds, used to sanitize persisted input. */
@@ -107,6 +113,7 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
   codeAlpha: { min: 0, max: 1 },
   glassBlur: { min: 0, max: GLASS_BLUR_MAX },
   emphasisAlpha: { min: EMPHASIS_ALPHA_MIN, max: EMPHASIS_ALPHA_MAX },
+  wallpaperEngineVersion: { min: 0, max: 99 },
 }
 
 /** Boolean fields, used to sanitize persisted input. */
@@ -141,7 +148,7 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
       result[role] = value === '' ? '' : normalizeHex(value)
     }
   }
-  const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo', 'preset']
+  const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo', 'preset', 'wallpaperEngineItemId']
   const index = result as unknown as Record<string, string | number | boolean>
   for (const field of strings) {
     const value = source[field]

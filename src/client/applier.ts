@@ -83,16 +83,20 @@ body[data-ds-dark-theme] #${BG_LAYER_ID}:not([data-portrait]):not([data-video]) 
 }
 
 /* Portrait static image background: blur-extend background + centered contain foreground */
+#${BG_LAYER_ID}[data-portrait]:not([data-video]) {
+  background-image: none !important;
+}
+
 #${BG_LAYER_ID}[data-portrait]:not([data-video])::before {
   content: '';
   position: absolute;
-  inset: -30px;
+  inset: -40px;
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
   background-image: var(--dsw-appearance-bg-image, none);
-  filter: blur(35px) brightness(0.85);
-  transform: scale(1.15);
+  filter: blur(40px) brightness(0.85);
+  transform: scale(1.2);
 }
 
 #${BG_LAYER_ID}[data-portrait]:not([data-video])::after {
@@ -101,7 +105,7 @@ body[data-ds-dark-theme] #${BG_LAYER_ID}:not([data-portrait]):not([data-video]) 
   inset: 0;
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 100% 100%, contain;
+  background-size: contain;
   background-image:
     linear-gradient(rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%, rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%),
     var(--dsw-appearance-bg-image, none);
@@ -281,7 +285,7 @@ export class AppearanceApplier {
     const img = new Image()
     img.onload = (): void => {
       if (this.imageToken !== token) return
-      if (img.naturalHeight > 0 && img.naturalWidth > 0 && img.naturalHeight > img.naturalWidth) {
+      if (img.naturalHeight > 0 && img.naturalWidth > 0 && (img.naturalWidth / img.naturalHeight) < 1.25) {
         this.layer.setAttribute('data-portrait', '')
       } else {
         this.layer.removeAttribute('data-portrait')
@@ -334,7 +338,7 @@ export class AppearanceApplier {
     // Check if video is vertical on metadata load
     video.onloadedmetadata = (): void => {
       if (this.videoKey !== key) return
-      if (video.videoHeight > 0 && video.videoWidth > 0 && video.videoHeight > video.videoWidth) {
+      if (video.videoHeight > 0 && video.videoWidth > 0 && (video.videoWidth / video.videoHeight) < 1.25) {
         this.layer.setAttribute('data-portrait', '')
       } else {
         this.layer.removeAttribute('data-portrait')
