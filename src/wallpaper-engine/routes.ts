@@ -422,6 +422,57 @@ export function handleWallpaperEngineRequest(
     return
   }
 
+  if (pathname === '/api/ui-appearance/wallpaper-engine/scene-data') {
+    const target = query.path
+    if (!target || !existsSync(target)) {
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+      } else {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+      }
+      res.end(JSON.stringify({ error: 'File not found' }))
+      return
+    }
+    try {
+      let scene: unknown = null
+      if (target.toLowerCase().endsWith('.pkg')) {
+        const data = readFileSync(target)
+        const entries = parsePkg(data)
+        const sceneEntry = entries.find(e => e.path.toLowerCase() === 'scene.json')
+        if (sceneEntry) {
+          const bytes = readPkgEntry(data, sceneEntry)
+          scene = JSON.parse(new TextDecoder('utf-8').decode(bytes))
+        }
+      } else if (target.toLowerCase().endsWith('.json')) {
+        scene = JSON.parse(readFileSync(target, 'utf-8'))
+      }
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Access-Control-Allow-Origin': '*',
+        })
+      } else {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+      }
+      res.end(JSON.stringify({ success: true, scene }))
+      return
+    } catch {
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+      } else {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+      }
+      res.end(JSON.stringify({ error: 'Failed to read scene data' }))
+      return
+    }
+  }
+
   if ('writeHead' in res && typeof res.writeHead === 'function') {
     res.writeHead(404, { 'Content-Type': 'text/plain' })
   } else {
@@ -535,5 +586,33 @@ export function registerWallpaperEngineRoutes(router: {
     }
     ctx.respond = false
     streamFile(rawPath, ctx.req, ctx.res)
+  })
+
+  router.get('/api/ui-appearance/wallpaper-engine/scene-data', (ctx: any) => {
+    const target = ctx.query?.path
+    if (typeof target !== 'string' || !target || !existsSync(target)) {
+      ctx.status = 404
+      ctx.body = { error: 'File not found' }
+      return
+    }
+    try {
+      let scene: unknown = null
+      if (target.toLowerCase().endsWith('.pkg')) {
+        const data = readFileSync(target)
+        const entries = parsePkg(data)
+        const sceneEntry = entries.find(e => e.path.toLowerCase() === 'scene.json')
+        if (sceneEntry) {
+          const bytes = readPkgEntry(data, sceneEntry)
+          scene = JSON.parse(new TextDecoder('utf-8').decode(bytes))
+        }
+      } else if (target.toLowerCase().endsWith('.json')) {
+        scene = JSON.parse(readFileSync(target, 'utf-8'))
+      }
+      ctx.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+      ctx.body = { success: true, scene }
+    } catch {
+      ctx.status = 500
+      ctx.body = { error: 'Failed to read scene data' }
+    }
   })
 }

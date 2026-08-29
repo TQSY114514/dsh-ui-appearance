@@ -13,6 +13,7 @@ import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
 import { buildTokenOverrides, OVERRIDE_SOURCE } from './tokens.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
+import { WebGlSceneRuntime } from './scene-webgl/index.ts'
 
 /** Background layer element id (the stylesheet targets it). */
 export const BG_LAYER_ID = 'dsw-appearance-bg'
@@ -402,6 +403,8 @@ export class AppearanceApplier {
     this.teardownVideo()
     this.imageToken = ''
     this.teardownImage()
+    this.sceneRuntime?.dispose()
+    this.sceneRuntime = undefined
     this.style.remove()
     this.layer.remove()
     const body = document.body
