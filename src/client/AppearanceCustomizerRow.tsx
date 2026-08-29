@@ -206,9 +206,20 @@ export function AppearanceCustomizerRow({
 
   // Restore currently applied Wallpaper Engine item and version list from persisted settings
   useEffect(() => {
+    if (settings.wallpaperEngineVersionsJson) {
+      try {
+        const parsed = JSON.parse(settings.wallpaperEngineVersionsJson)
+        if (Array.isArray(parsed) && parsed.length > 1) {
+          setWeCurrentVersions(parsed)
+          setWeCurrentVersionIndex(settings.wallpaperEngineVersion ?? 0)
+        }
+      } catch { /* ignore parse error */ }
+    }
+    if (settings.wallpaperEngineItemTitle) {
+      setWeSuccessTitle(settings.wallpaperEngineItemTitle)
+    }
     if (!settings.wallpaperEngineItemId) {
       setWeCurrentItem(null)
-      setWeCurrentVersions(undefined)
       return
     }
     let stale = false
@@ -221,13 +232,11 @@ export function AppearanceCustomizerRow({
         if (item.versions && item.versions.length > 1) {
           setWeCurrentVersions(item.versions)
           setWeCurrentVersionIndex(settings.wallpaperEngineVersion ?? 0)
-        } else {
-          setWeCurrentVersions(undefined)
         }
       }
     })
     return () => { stale = true }
-  }, [settings.wallpaperEngineItemId, settings.wallpaperEngineVersion])
+  }, [settings.wallpaperEngineItemId, settings.wallpaperEngineVersion, settings.wallpaperEngineVersionsJson, settings.wallpaperEngineItemTitle])
 
   const openWallpaperLibrary = async (): Promise<void> => {
     setWeLibraryOpen(true)
@@ -396,6 +405,9 @@ export function AppearanceCustomizerRow({
         )
         if (matched) {
           set('wallpaperEngineItemId', matched.id)
+          set('wallpaperEngineItemTitle', matched.title || '')
+          set('wallpaperEngineMediaUrl', matched.mediaUrl || '')
+          set('wallpaperEngineVersionsJson', JSON.stringify(matched.versions || []))
           set('wallpaperEngineVersion', 0)
           setWeCurrentItem(matched)
           if (matched.versions && matched.versions.length > 1) {
@@ -489,6 +501,9 @@ export function AppearanceCustomizerRow({
       }
       // Store version info for the switcher UI and persist item id in settings
       set('wallpaperEngineItemId', item.id)
+      set('wallpaperEngineItemTitle', item.title || '')
+      set('wallpaperEngineMediaUrl', item.mediaUrl || item.previewUrl || '')
+      set('wallpaperEngineVersionsJson', JSON.stringify(item.versions || []))
       set('wallpaperEngineVersion', 0)
       setWeCurrentItem(item)
       if (item.versions && item.versions.length > 1) {
@@ -678,7 +693,7 @@ export function AppearanceCustomizerRow({
                 )}
               </div>
               {/* Version switcher: shown only when the applied wallpaper has multiple versions */}
-              {weCurrentVersions && weCurrentVersions.length > 1 && weCurrentItem && (
+              {weCurrentVersions && weCurrentVersions.length > 1 && (
                 <div className={css.weVersionRow}>
                   <span className={css.weVersionLabel}>{t('background.weSwitchVersion')}:</span>
                   {weCurrentVersions.map((v: SceneVersion) => (
@@ -688,10 +703,13 @@ export function AppearanceCustomizerRow({
                       className={clsx(css.weVersionButton, v.index === weCurrentVersionIndex && css.weVersionButtonActive)}
                       disabled={weSyncing}
                       onClick={() => {
-                        if (v.index === weCurrentVersionIndex || !weCurrentItem.mediaUrl) return
+                        if (v.index === weCurrentVersionIndex) return
+                        const mediaUrl = weCurrentItem?.mediaUrl || settings.wallpaperEngineMediaUrl
+                        const title = weCurrentItem?.title || settings.wallpaperEngineItemTitle || ''
+                        if (!mediaUrl) return
                         setWeCurrentVersionIndex(v.index)
                         set('wallpaperEngineVersion', v.index)
-                        void applyVersionedUrl(weCurrentItem.mediaUrl, weCurrentItem.title, v.index)
+                        void applyVersionedUrl(mediaUrl, title, v.index)
                       }}
                     >
                       {v.label}

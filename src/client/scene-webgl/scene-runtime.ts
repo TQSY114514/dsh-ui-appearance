@@ -1,5 +1,5 @@
 /**
- * 1:1 Heavy WebGL Scene Runtime Player with multi-shader pipeline, particles, and skeleton evaluation.
+ * 1:1 Heavy WebGL Scene Runtime Player with multi-shader pipeline, glowing particles, and skeleton evaluation.
  */
 import { createFramebuffer, createGlContext, createProgram, createQuadBuffer, createTextureFromImage, type FramebufferObject } from './gl-util.ts'
 import { WebGlParticleEngine } from './particle-engine.ts'
@@ -22,6 +22,25 @@ import {
 } from './shaders.ts'
 import type { WebGlSceneLayer } from './types.ts'
 
+function createParticleGlowTexture(gl: WebGLRenderingContext | WebGL2RenderingContext): WebGLTexture | null {
+  const canvas = document.createElement('canvas')
+  canvas.width = 64
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const radGrad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  radGrad.addColorStop(0, 'rgba(255, 255, 255, 1.0)')
+  radGrad.addColorStop(0.3, 'rgba(255, 220, 240, 0.8)')
+  radGrad.addColorStop(0.7, 'rgba(255, 180, 220, 0.2)')
+  radGrad.addColorStop(1, 'rgba(255, 180, 220, 0.0)')
+
+  ctx.fillStyle = radGrad
+  ctx.fillRect(0, 0, 64, 64)
+
+  return createTextureFromImage(gl, canvas)
+}
+
 export class WebGlSceneRuntime {
   private canvas: HTMLCanvasElement
   private gl: WebGL2RenderingContext | WebGLRenderingContext | null = null
@@ -41,6 +60,7 @@ export class WebGlSceneRuntime {
   private bloomCombineProgram: WebGLProgram | null = null
 
   private quadBuffer: WebGLBuffer | null = null
+  private particleTexture: WebGLTexture | null = null
   private fboA: FramebufferObject | null = null
   private fboB: FramebufferObject | null = null
 
@@ -93,6 +113,7 @@ export class WebGlSceneRuntime {
     this.bloomCombineProgram = createProgram(gl, BASE_VERTEX_SHADER, BLOOM_COMBINE_FRAGMENT_SHADER)
 
     this.quadBuffer = createQuadBuffer(gl)
+    this.particleTexture = createParticleGlowTexture(gl)
 
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
@@ -189,6 +210,8 @@ export class WebGlSceneRuntime {
     const breatheOffset = Math.sin(time * 1.8) * 5.0
     const swayAngle = Math.sin(time * 2.5) * 0.04
 
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+
     for (const layer of this.layers) {
       if (!layer.visible || !layer.texture) continue
 
@@ -212,6 +235,33 @@ export class WebGlSceneRuntime {
 
       this.drawLayerQuad(prog, layer.texture, layer.x + px, layer.y + dy + py, layer.width, layer.height, rot, layer.alpha, time)
     }
+
+    // 4. Render particles on top with additive blending
+    this.drawParticles(time)
+  }
+
+  private drawParticles(time: number): void {
+    const gl = this.gl
+    if (!gl || !this.particleTexture || !this.baseProgram) return
+
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE) // Additive glowing particles
+
+    const particles = this.particleEngine.getParticles()
+    for (const p of particles) {
+      if (p.alpha <= 0.001) continue
+      this.drawLayerQuad(
+        this.baseProgram,
+        this.particleTexture,
+        p.x,
+        p.y,
+        p.size,
+        p.size,
+        p.rotation,
+        p.alpha,
+        time,
+        [p.r, p.g, p.b],
+      )
+    }
   }
 
   private drawLayerQuad(
@@ -222,6 +272,7 @@ export class WebGlSceneRuntime {
     rotation: number,
     alpha: number,
     time: number,
+    tint: [number, number, number] = [1.0, 1.0, 1.0],
   ): void {
     const gl = this.gl
     if (!gl || !prog || !this.quadBuffer) return
@@ -260,7 +311,7 @@ export class WebGlSceneRuntime {
     if (uSpeed) gl.uniform1f(uSpeed, 2.0)
 
     const uTint = gl.getUniformLocation(prog, 'u_tint')
-    if (uTint) gl.uniform3f(uTint, 1.0, 1.0, 1.0)
+    if (uTint) gl.uniform3f(uTint, tint[0], tint[1], tint[2])
 
     // 2D Affine Transformation Matrix
     const cos = Math.cos(rotation)

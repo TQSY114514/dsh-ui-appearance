@@ -263,6 +263,7 @@ export class AppearanceApplier {
     if (token.startsWith('data:')) {
       body.style.setProperty('--dsw-appearance-bg-image', `url("${token}")`)
       this.checkImageAspect(token, token)
+      this.startSceneRuntime(token)
       return
     }
     const blob = await getImage(token)
@@ -279,6 +280,37 @@ export class AppearanceApplier {
     this.imageUrl = URL.createObjectURL(blob)
     body.style.setProperty('--dsw-appearance-bg-image', `url("${this.imageUrl}")`)
     this.checkImageAspect(this.imageUrl, token)
+    this.startSceneRuntime(this.imageUrl)
+  }
+
+  /** Start the WebGL 2.0 dynamic scene runtime with particle and shader pipeline. */
+  private startSceneRuntime(url: string): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
+    try {
+      this.sceneRuntime?.dispose()
+      this.sceneRuntime = new WebGlSceneRuntime(this.layer)
+      const w = window.innerWidth || 1920
+      const h = window.innerHeight || 1080
+      this.sceneRuntime.loadLayers([
+        {
+          id: 1,
+          name: 'background',
+          textureUrl: url,
+          width: w,
+          height: h,
+          x: w * 0.5,
+          y: h * 0.5,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          alpha: 1,
+          visible: true,
+        },
+      ])
+      this.sceneRuntime.start()
+    } catch {
+      // Graceful fallback if WebGL is unavailable or running in headless test
+    }
   }
 
   /** Check image aspect ratio to enable portrait blur-extend layout when vertical. */
@@ -301,6 +333,8 @@ export class AppearanceApplier {
   /** Revoke the wallpaper object URL, if any. */
   private teardownImage(): void {
     this.layer.removeAttribute('data-portrait')
+    this.sceneRuntime?.dispose()
+    this.sceneRuntime = undefined
     if (this.imageUrl !== undefined) {
       URL.revokeObjectURL(this.imageUrl)
       this.imageUrl = undefined

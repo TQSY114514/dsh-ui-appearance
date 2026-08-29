@@ -72,6 +72,12 @@ export interface AppearanceSettings extends AppearanceColors {
   preset: string
   /** ID of the currently applied Wallpaper Engine item (persisted so version list restores). */
   wallpaperEngineItemId: string
+  /** Title of the currently applied Wallpaper Engine item. */
+  wallpaperEngineItemTitle: string
+  /** Media URL of the currently applied Wallpaper Engine item. */
+  wallpaperEngineMediaUrl: string
+  /** Serialized JSON list of versions available for the active WE item. */
+  wallpaperEngineVersionsJson: string
   /** Active version index within the Wallpaper Engine item (0 = primary). */
   wallpaperEngineVersion: number
 }
@@ -100,6 +106,9 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   emphasisAlpha: 0.22,
   preset: '',
   wallpaperEngineItemId: '',
+  wallpaperEngineItemTitle: '',
+  wallpaperEngineMediaUrl: '',
+  wallpaperEngineVersionsJson: '',
   wallpaperEngineVersion: 0,
 }
 
