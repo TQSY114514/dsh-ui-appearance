@@ -1788,4 +1788,5 @@ export {
   parsePkg,
   readPkgEntry,
   extractTexVideoMp4,
+  encodePng,
 };

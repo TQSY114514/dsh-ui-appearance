@@ -198,6 +198,8 @@ export class AppearanceApplier {
     document.body.prepend(this.layer)
   }
 
+  private currentSettings: AppearanceSettings | undefined
+
   /**
    * Apply a settings snapshot: rebuild the theme override layer and refresh
    * the body CSS variables. Undefined values (settings not yet loaded) apply
@@ -205,6 +207,7 @@ export class AppearanceApplier {
    * @param settings - current appearance settings or undefined while loading.
    */
   apply(settings: AppearanceSettings | undefined): void {
+    this.currentSettings = settings
     const value = settings ?? DEFAULT_SETTINGS
     this.removeOverrides?.()
     this.removeOverrides = undefined
@@ -283,7 +286,7 @@ export class AppearanceApplier {
     this.startSceneRuntime(this.imageUrl)
   }
 
-  /** Start the WebGL 2.0 dynamic scene runtime with particle and shader pipeline. */
+  /** Start the WebGL 2.0 dynamic scene runtime with particle, limb motion, and shader pipeline. */
   private startSceneRuntime(url: string): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') return
     try {
@@ -291,22 +294,30 @@ export class AppearanceApplier {
       this.sceneRuntime = new WebGlSceneRuntime(this.layer)
       const w = window.innerWidth || 1920
       const h = window.innerHeight || 1080
-      this.sceneRuntime.loadLayers([
-        {
-          id: 1,
-          name: 'background',
-          textureUrl: url,
-          width: w,
-          height: h,
-          x: w * 0.5,
-          y: h * 0.5,
-          scaleX: 1,
-          scaleY: 1,
-          rotation: 0,
-          alpha: 1,
-          visible: true,
-        },
-      ])
+
+      const mediaUrl = this.currentSettings?.wallpaperEngineMediaUrl
+      if (mediaUrl && (mediaUrl.toLowerCase().endsWith('.pkg') || mediaUrl.toLowerCase().endsWith('.json'))) {
+        fetch(`/api/ui-appearance/wallpaper-engine/scene-data?path=${encodeURIComponent(mediaUrl)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.success && data?.scene?.objects && Array.isArray(data.scene.objects) && data.scene.objects.length > 0) {
+              this.sceneRuntime?.loadSceneData(mediaUrl, data.scene)
+            } else {
+              this.sceneRuntime?.loadLayers([
+                { id: 1, name: 'background', textureUrl: url, width: w, height: h, x: w * 0.5, y: h * 0.5, scaleX: 1, scaleY: 1, rotation: 0, alpha: 1, visible: true },
+              ])
+            }
+          })
+          .catch(() => {
+            this.sceneRuntime?.loadLayers([
+              { id: 1, name: 'background', textureUrl: url, width: w, height: h, x: w * 0.5, y: h * 0.5, scaleX: 1, scaleY: 1, rotation: 0, alpha: 1, visible: true },
+            ])
+          })
+      } else {
+        this.sceneRuntime.loadLayers([
+          { id: 1, name: 'background', textureUrl: url, width: w, height: h, x: w * 0.5, y: h * 0.5, scaleX: 1, scaleY: 1, rotation: 0, alpha: 1, visible: true },
+        ])
+      }
       this.sceneRuntime.start()
     } catch {
       // Graceful fallback if WebGL is unavailable or running in headless test

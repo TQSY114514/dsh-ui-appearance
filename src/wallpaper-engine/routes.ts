@@ -13,6 +13,8 @@ import {
   extractTexVideoMp4,
   parsePkg,
   readPkgEntry,
+  decodeTex,
+  encodePng,
 } from './extractor.ts'
 
 const MIME_TYPES: Record<string, string> = {
@@ -267,6 +269,62 @@ export function streamFile(
   }
 }
 
+function extractLayerTexture(targetPath: string, entryName: string): { bytes: Buffer; mime: string } | null {
+  if (!existsSync(targetPath)) return null
+  const normalizedEntry = entryName.replace(/\\/g, '/').toLowerCase()
+
+  if (targetPath.toLowerCase().endsWith('.pkg')) {
+    const pkgData = readFileSync(targetPath)
+    const entries = parsePkg(pkgData)
+    const entry = entries.find(e => {
+      const p = e.path.toLowerCase()
+      return (
+        p === normalizedEntry ||
+        p === normalizedEntry + '.tex' ||
+        p.endsWith('/' + normalizedEntry) ||
+        p.endsWith('/' + normalizedEntry + '.tex') ||
+        p === 'materials/' + normalizedEntry ||
+        p === 'textures/' + normalizedEntry ||
+        p === 'materials/' + normalizedEntry + '.tex' ||
+        p === 'textures/' + normalizedEntry + '.tex'
+      )
+    })
+    if (!entry) return null
+    const texBytes = readPkgEntry(pkgData, entry)
+    const decoded = decodeTex(texBytes)
+    if (decoded.kind === 'jpeg') return { bytes: Buffer.from(decoded.bytes), mime: 'image/jpeg' }
+    if (decoded.kind === 'png-pass') return { bytes: Buffer.from(decoded.bytes), mime: 'image/png' }
+    return { bytes: Buffer.from(encodePng(decoded.width, decoded.height, decoded.rgba)), mime: 'image/png' }
+  } else {
+    // Loose directory
+    const dir = targetPath.toLowerCase().endsWith('.json') ? dirname(targetPath) : targetPath
+    const candidatePaths = [
+      join(dir, entryName),
+      join(dir, entryName + '.tex'),
+      join(dir, 'materials', entryName),
+      join(dir, 'materials', entryName + '.tex'),
+      join(dir, 'textures', entryName),
+      join(dir, 'textures', entryName + '.tex'),
+    ]
+    for (const cp of candidatePaths) {
+      if (existsSync(cp)) {
+        if (cp.toLowerCase().endsWith('.tex')) {
+          const texBytes = readFileSync(cp)
+          const decoded = decodeTex(texBytes)
+          if (decoded.kind === 'jpeg') return { bytes: Buffer.from(decoded.bytes), mime: 'image/jpeg' }
+          if (decoded.kind === 'png-pass') return { bytes: Buffer.from(decoded.bytes), mime: 'image/png' }
+          return { bytes: Buffer.from(encodePng(decoded.width, decoded.height, decoded.rgba)), mime: 'image/png' }
+        } else if (cp.toLowerCase().endsWith('.png')) {
+          return { bytes: readFileSync(cp), mime: 'image/png' }
+        } else if (cp.toLowerCase().endsWith('.jpg') || cp.toLowerCase().endsWith('.jpeg')) {
+          return { bytes: readFileSync(cp), mime: 'image/jpeg' }
+        }
+      }
+    }
+  }
+  return null
+}
+
 /**
  * Handle incoming HTTP requests for Wallpaper Engine endpoints.
  * Compatible with DSH host WebServer, Node http.Server, and Express/Koa.
@@ -473,6 +531,59 @@ export function handleWallpaperEngineRequest(
     }
   }
 
+  if (pathname === '/api/ui-appearance/wallpaper-engine/layer-texture') {
+    const target = query.path
+    const entryName = query.entry
+    if (!target || !entryName || !existsSync(target)) {
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+      } else {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'application/json')
+      }
+      res.end(JSON.stringify({ error: 'Resource not found' }))
+      return
+    }
+    try {
+      const tex = extractLayerTexture(target, entryName)
+      if (!tex) {
+        if ('writeHead' in res && typeof res.writeHead === 'function') {
+          res.writeHead(404, { 'Content-Type': 'application/json' })
+        } else {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+        }
+        res.end(JSON.stringify({ error: 'Layer texture not found' }))
+        return
+      }
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(200, {
+          'Content-Type': tex.mime,
+          'Content-Length': tex.bytes.length,
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+        })
+      } else {
+        res.statusCode = 200
+        res.setHeader('Content-Type', tex.mime)
+        res.setHeader('Content-Length', tex.bytes.length)
+        res.setHeader('Cache-Control', 'public, max-age=86400')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+      }
+      res.end(tex.bytes)
+      return
+    } catch {
+      if ('writeHead' in res && typeof res.writeHead === 'function') {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+      } else {
+        res.statusCode = 500
+        res.setHeader('Content-Type', 'application/json')
+      }
+      res.end(JSON.stringify({ error: 'Failed to extract layer texture' }))
+      return
+    }
+  }
+
   if ('writeHead' in res && typeof res.writeHead === 'function') {
     res.writeHead(404, { 'Content-Type': 'text/plain' })
   } else {
@@ -613,6 +724,31 @@ export function registerWallpaperEngineRoutes(router: {
     } catch {
       ctx.status = 500
       ctx.body = { error: 'Failed to read scene data' }
+    }
+  })
+
+  router.get('/api/ui-appearance/wallpaper-engine/layer-texture', (ctx: any) => {
+    const target = ctx.query?.path
+    const entryName = ctx.query?.entry
+    if (typeof target !== 'string' || !target || typeof entryName !== 'string' || !entryName || !existsSync(target)) {
+      ctx.status = 404
+      ctx.body = { error: 'Resource not found' }
+      return
+    }
+    try {
+      const tex = extractLayerTexture(target, entryName)
+      if (!tex) {
+        ctx.status = 404
+        ctx.body = { error: 'Layer texture not found' }
+        return
+      }
+      ctx.set('Content-Type', tex.mime)
+      ctx.set('Content-Length', String(tex.bytes.length))
+      ctx.set('Cache-Control', 'public, max-age=86400')
+      ctx.body = tex.bytes
+    } catch {
+      ctx.status = 500
+      ctx.body = { error: 'Failed to extract layer texture' }
     }
   })
 }
