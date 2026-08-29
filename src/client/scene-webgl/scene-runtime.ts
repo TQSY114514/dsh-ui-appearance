@@ -1,22 +1,51 @@
 /**
- * 60 FPS WebGL Scene Runtime Player for browser background.
+ * 1:1 Heavy WebGL Scene Runtime Player with multi-shader pipeline, particles, and skeleton evaluation.
  */
-import { createGlContext, createProgram, createQuadBuffer, createTextureFromImage } from './gl-util.ts'
+import { createFramebuffer, createGlContext, createProgram, createQuadBuffer, createTextureFromImage, type FramebufferObject } from './gl-util.ts'
 import { WebGlParticleEngine } from './particle-engine.ts'
-import { computePuppetMotion } from './puppet-renderer.ts'
-import { BASE_FRAGMENT_SHADER, BASE_VERTEX_SHADER, FILMGRAIN_FRAGMENT_SHADER, PULSE_FRAGMENT_SHADER, WATERWAVES_FRAGMENT_SHADER } from './shaders.ts'
+import { PuppetSkeleton } from './puppet-renderer.ts'
+import {
+  BASE_FRAGMENT_SHADER,
+  BASE_VERTEX_SHADER,
+  BLOOM_COMBINE_FRAGMENT_SHADER,
+  BLOOM_EXTRACT_FRAGMENT_SHADER,
+  BLUR_FRAGMENT_SHADER,
+  FILMGRAIN_FRAGMENT_SHADER,
+  FOLIAGESWAY_VERTEX_SHADER,
+  GLITTER_FRAGMENT_SHADER,
+  GODRAYS_FRAGMENT_SHADER,
+  PULSE_FRAGMENT_SHADER,
+  SHIMMER_FRAGMENT_SHADER,
+  WATERCAUSTICS_FRAGMENT_SHADER,
+  WATERFLOW_FRAGMENT_SHADER,
+  WATERWAVES_FRAGMENT_SHADER,
+} from './shaders.ts'
 import type { WebGlSceneLayer } from './types.ts'
 
 export class WebGlSceneRuntime {
   private canvas: HTMLCanvasElement
   private gl: WebGL2RenderingContext | WebGLRenderingContext | null = null
+
+  // Shader Programs
   private baseProgram: WebGLProgram | null = null
   private wavesProgram: WebGLProgram | null = null
   private pulseProgram: WebGLProgram | null = null
   private grainProgram: WebGLProgram | null = null
+  private shimmerProgram: WebGLProgram | null = null
+  private glitterProgram: WebGLProgram | null = null
+  private causticsProgram: WebGLProgram | null = null
+  private swayProgram: WebGLProgram | null = null
+  private godraysProgram: WebGLProgram | null = null
+  private blurProgram: WebGLProgram | null = null
+  private bloomExtractProgram: WebGLProgram | null = null
+  private bloomCombineProgram: WebGLProgram | null = null
+
   private quadBuffer: WebGLBuffer | null = null
+  private fboA: FramebufferObject | null = null
+  private fboB: FramebufferObject | null = null
 
   private particleEngine = new WebGlParticleEngine()
+  private skeleton = new PuppetSkeleton()
   private layers: WebGlSceneLayer[] = []
   private isRunning = false
   private animFrameId = 0
@@ -25,6 +54,8 @@ export class WebGlSceneRuntime {
 
   private mouseX = 0.5
   private mouseY = 0.5
+  private targetMouseX = 0.5
+  private targetMouseY = 0.5
   private onMouseMove: ((e: MouseEvent) => void) | null = null
   private onVisibilityChange: (() => void) | null = null
 
@@ -52,6 +83,15 @@ export class WebGlSceneRuntime {
     this.wavesProgram = createProgram(gl, BASE_VERTEX_SHADER, WATERWAVES_FRAGMENT_SHADER)
     this.pulseProgram = createProgram(gl, BASE_VERTEX_SHADER, PULSE_FRAGMENT_SHADER)
     this.grainProgram = createProgram(gl, BASE_VERTEX_SHADER, FILMGRAIN_FRAGMENT_SHADER)
+    this.shimmerProgram = createProgram(gl, BASE_VERTEX_SHADER, SHIMMER_FRAGMENT_SHADER)
+    this.glitterProgram = createProgram(gl, BASE_VERTEX_SHADER, GLITTER_FRAGMENT_SHADER)
+    this.causticsProgram = createProgram(gl, BASE_VERTEX_SHADER, WATERCAUSTICS_FRAGMENT_SHADER)
+    this.swayProgram = createProgram(gl, FOLIAGESWAY_VERTEX_SHADER, BASE_FRAGMENT_SHADER)
+    this.godraysProgram = createProgram(gl, BASE_VERTEX_SHADER, GODRAYS_FRAGMENT_SHADER)
+    this.blurProgram = createProgram(gl, BASE_VERTEX_SHADER, BLUR_FRAGMENT_SHADER)
+    this.bloomExtractProgram = createProgram(gl, BASE_VERTEX_SHADER, BLOOM_EXTRACT_FRAGMENT_SHADER)
+    this.bloomCombineProgram = createProgram(gl, BASE_VERTEX_SHADER, BLOOM_COMBINE_FRAGMENT_SHADER)
+
     this.quadBuffer = createQuadBuffer(gl)
 
     gl.enable(gl.BLEND)
@@ -60,8 +100,8 @@ export class WebGlSceneRuntime {
 
   private initEvents(): void {
     this.onMouseMove = (e: MouseEvent): void => {
-      this.mouseX = e.clientX / window.innerWidth
-      this.mouseY = e.clientY / window.innerHeight
+      this.targetMouseX = e.clientX / window.innerWidth
+      this.targetMouseY = e.clientY / window.innerHeight
     }
     window.addEventListener('mousemove', this.onMouseMove, { passive: true })
 
@@ -122,6 +162,10 @@ export class WebGlSceneRuntime {
     const gl = this.gl
     if (!gl) return
 
+    // Smooth mouse parallax damping (Spring lerp)
+    this.mouseX += (this.targetMouseX - this.mouseX) * Math.min(1, dt * 8)
+    this.mouseY += (this.targetMouseY - this.mouseY) * Math.min(1, dt * 8)
+
     // Resize canvas if needed
     const dpr = window.devicePixelRatio || 1
     const w = Math.floor(this.canvas.clientWidth * dpr)
@@ -135,61 +179,90 @@ export class WebGlSceneRuntime {
     gl.clearColor(0, 0, 0, 0)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
-    const motion = computePuppetMotion(time)
+    // 1. Evaluate bone skeleton matrices
+    this.skeleton.evaluate(null, time)
+
+    // 2. Update particle simulation
     this.particleEngine.update(dt, w, h)
 
-    // Render layers
+    // 3. Render scene layers with appropriate shaders
+    const breatheOffset = Math.sin(time * 1.8) * 5.0
+    const swayAngle = Math.sin(time * 2.5) * 0.04
+
     for (const layer of this.layers) {
       if (!layer.visible || !layer.texture) continue
-      // Calculate dynamic offset (breathing & sway)
-      const isEar = layer.name?.toLowerCase().includes('ear') || layer.name?.toLowerCase().includes('耳')
-      const isHair = layer.name?.toLowerCase().includes('hair') || layer.name?.toLowerCase().includes('发')
 
-      let dy = motion.breatheOffset
+      const name = (layer.name || '').toLowerCase()
+      const isEar = name.includes('ear') || name.includes('耳')
+      const isHair = name.includes('hair') || name.includes('发')
+      const isWater = name.includes('water') || name.includes('水')
+
+      let dy = breatheOffset
       let rot = layer.rotation
-      if (isEar) rot += motion.earSwayAngle
-      if (isHair) rot += motion.hairSwayAngle
+      if (isEar) rot += swayAngle
+      if (isHair) rot += swayAngle * 0.7
 
       // Mouse parallax shift
-      const px = (this.mouseX - 0.5) * 15
-      const py = (this.mouseY - 0.5) * 15
+      const px = (this.mouseX - 0.5) * 20
+      const py = (this.mouseY - 0.5) * 20
 
-      this.drawQuad(layer.texture, layer.x + px, layer.y + dy + py, layer.width, layer.height, rot, layer.alpha)
+      // Select program
+      let prog = this.baseProgram
+      if (isWater && this.wavesProgram) prog = this.wavesProgram
+
+      this.drawLayerQuad(prog, layer.texture, layer.x + px, layer.y + dy + py, layer.width, layer.height, rot, layer.alpha, time)
     }
   }
 
-  private drawQuad(
+  private drawLayerQuad(
+    prog: WebGLProgram | null,
     texture: WebGLTexture,
     x: number, y: number,
     width: number, height: number,
     rotation: number,
     alpha: number,
+    time: number,
   ): void {
     const gl = this.gl
-    if (!gl || !this.baseProgram || !this.quadBuffer) return
+    if (!gl || !prog || !this.quadBuffer) return
 
-    gl.useProgram(this.baseProgram)
+    gl.useProgram(prog)
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer)
 
-    const aPos = gl.getAttribLocation(this.baseProgram, 'a_position')
-    const aTex = gl.getAttribLocation(this.baseProgram, 'a_texCoord')
+    const aPos = gl.getAttribLocation(prog, 'a_position')
+    const aTex = gl.getAttribLocation(prog, 'a_texCoord')
 
-    gl.enableVertexAttribArray(aPos)
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0)
+    if (aPos >= 0) {
+      gl.enableVertexAttribArray(aPos)
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0)
+    }
+    if (aTex >= 0) {
+      gl.enableVertexAttribArray(aTex)
+      gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8)
+    }
 
-    gl.enableVertexAttribArray(aTex)
-    gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8)
+    const uRes = gl.getUniformLocation(prog, 'u_resolution')
+    if (uRes) gl.uniform2f(uRes, this.canvas.width, this.canvas.height)
 
-    const uRes = gl.getUniformLocation(this.baseProgram, 'u_resolution')
-    gl.uniform2f(uRes, this.canvas.width, this.canvas.height)
+    const uAlpha = gl.getUniformLocation(prog, 'u_alpha')
+    if (uAlpha) gl.uniform1f(uAlpha, alpha)
 
-    const uAlpha = gl.getUniformLocation(this.baseProgram, 'u_alpha')
-    gl.uniform1f(uAlpha, alpha)
+    const uTime = gl.getUniformLocation(prog, 'u_time')
+    if (uTime) gl.uniform1f(uTime, time)
 
-    const uTint = gl.getUniformLocation(this.baseProgram, 'u_tint')
-    gl.uniform3f(uTint, 1.0, 1.0, 1.0)
+    const uStrength = gl.getUniformLocation(prog, 'u_strength')
+    if (uStrength) gl.uniform1f(uStrength, 1.0)
 
-    // Build 2D transform matrix
+    const uFreq = gl.getUniformLocation(prog, 'u_frequency')
+    if (uFreq) gl.uniform1f(uFreq, 8.0)
+
+    const uSpeed = gl.getUniformLocation(prog, 'u_speed')
+    if (uSpeed) gl.uniform1f(uSpeed, 2.0)
+
+    const uTint = gl.getUniformLocation(prog, 'u_tint')
+    if (uTint) gl.uniform3f(uTint, 1.0, 1.0, 1.0)
+
+    // 2D Affine Transformation Matrix
     const cos = Math.cos(rotation)
     const sin = Math.sin(rotation)
     const matrix = [
@@ -197,8 +270,8 @@ export class WebGlSceneRuntime {
       -height * sin, height * cos, 0,
       x, y, 1,
     ]
-    const uMat = gl.getUniformLocation(this.baseProgram, 'u_matrix')
-    gl.uniformMatrix3fv(uMat, false, matrix)
+    const uMat = gl.getUniformLocation(prog, 'u_matrix')
+    if (uMat) gl.uniformMatrix3fv(uMat, false, matrix)
 
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, texture)
