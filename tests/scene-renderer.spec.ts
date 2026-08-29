@@ -10,6 +10,7 @@ import {
 } from '../src/wallpaper-engine/scene-renderer/math.ts'
 import { setupSceneCamera } from '../src/wallpaper-engine/scene-renderer/camera.ts'
 import { renderScene } from '../src/wallpaper-engine/scene-renderer/scene-engine.ts'
+import { parseMdl } from '../src/wallpaper-engine/scene-renderer/puppet.ts'
 
 describe('scene-renderer: math', () => {
   it('creates identity matrix', () => {
@@ -50,6 +51,35 @@ describe('scene-renderer: math', () => {
     expect(ar).toBe(150)
     expect(ag).toBe(150)
     expect(ab).toBe(150)
+  })
+})
+
+describe('scene-renderer: puppet MDL parser', () => {
+  it('handles empty or truncated buffers gracefully', () => {
+    expect(parseMdl(new Uint8Array(0))).toBeNull()
+    expect(parseMdl(new Uint8Array(8))).toBeNull()
+  })
+
+  it('parses valid MDLV header', () => {
+    const buf = new Uint8Array(64)
+    // Magic: MDLV0023
+    const magic = 'MDLV0023'
+    for (let i = 0; i < 8; i++) buf[i] = magic.charCodeAt(i)
+    const view = new DataView(buf.buffer)
+    view.setUint32(8, 1, true) // 1 vertex
+    view.setUint32(12, 16, true) // stride 16
+    // Vertex position (0, 0, 0) and UV (0.5, 0.5)
+    view.setFloat32(16, 10, true)
+    view.setFloat32(20, 20, true)
+    view.setFloat32(24, 0, true)
+    view.setFloat32(28, 0.5, true) // u
+    view.setFloat32(32, 0.5, true) // v
+
+    const parsed = parseMdl(buf)
+    expect(parsed).not.toBeNull()
+    expect(parsed?.vertices.length).toBe(1)
+    expect(parsed?.vertices[0].x).toBe(10)
+    expect(parsed?.vertices[0].y).toBe(20)
   })
 })
 
