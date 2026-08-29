@@ -1,6 +1,6 @@
 {
   "name": "dsh-ui-appearance",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Appearance customization plugin for DeepSeek Harness WebUI: theme palette, background image, transparency and blur over the --dsw-* token system",
   "license": "MIT",
   "type": "module",
@@ -69,6 +69,7 @@
     "@deepseek-ai/dsh-client-ui-settings": "*",
     "@deepseek-ai/dsh-client-ui-slots": "*",
     "@deepseek-ai/dsh-client-ui-theme": "*",
+    "@deepseek-ai/dsh-host-webserver": "*",
     "@deepseek-ai/dsh-invariants": "*",
     "@deepseek-ai/dsh-settings": "*",
     "@deepseek-ai/schemastery": "*",
@@ -100,6 +101,9 @@
       "optional": true
     },
     "@deepseek-ai/dsh-client-ui-theme": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-host-webserver": {
       "optional": true
     },
     "@deepseek-ai/dsh-invariants": {

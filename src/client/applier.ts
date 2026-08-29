@@ -24,6 +24,7 @@ const BODY_VARIABLES = [
   '--dsw-appearance-bg-image',
   '--dsw-appearance-bg-opacity',
   '--dsw-appearance-blur',
+  '--dsw-appearance-scale',
   '--dsw-appearance-scrim',
 ] as const
 
@@ -31,8 +32,7 @@ const BODY_VARIABLES = [
  * Static sheet: the background layer is pushed to `z-index: -1` so it paints
  * below all content but above the body background — surfaces painted with
  * translucent tokens still show the image through, and no stacking context is
- * created on #root. `inset: -48px` gives the blur filter room so edges never
- * show transparent bleed.
+ * created on #root.
  *
  * #root is deliberately left untouched: no `position`/`z-index`, no
  * `backdrop-filter`. A non-none backdrop-filter turns #root into the
@@ -57,7 +57,7 @@ const BODY_VARIABLES = [
 const SHEET = `
 #${BG_LAYER_ID} {
   position: fixed;
-  inset: -48px;
+  inset: 0;
   z-index: -1;
   pointer-events: none;
   background-repeat: no-repeat;
@@ -68,6 +68,7 @@ const SHEET = `
     var(--dsw-appearance-bg-image, none);
   opacity: var(--dsw-appearance-bg-opacity, 1);
   filter: blur(var(--dsw-appearance-blur, 0px));
+  transform: var(--dsw-appearance-scale, none);
 }
 #${BG_LAYER_ID} video {
   position: absolute;
@@ -147,10 +148,16 @@ export class AppearanceApplier {
     // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
     // slider deepens the blur of the wallpaper that the translucent surfaces
     // reveal. The panels themselves are never touched.
+    const totalBlur = value.backgroundBlur + value.glassBlur
     body.style.setProperty(
       '--dsw-appearance-blur',
-      `${value.backgroundBlur + value.glassBlur}px`,
+      `${totalBlur}px`,
     )
+    if (totalBlur > 0) {
+      body.style.setProperty('--dsw-appearance-scale', `scale(${1 + Math.min(0.08, totalBlur * 0.003)})`)
+    } else {
+      body.style.setProperty('--dsw-appearance-scale', 'none')
+    }
     // 毛玻璃 also drives the host's modal masks: dialogs/dropdowns dim the page
     // through `.mask` elements whose backdrop-filter is `var(--dsw-mask-blur)`
     // (stock: blur(2px)). Writing the token on body wins over the host's

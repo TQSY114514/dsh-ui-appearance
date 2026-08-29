@@ -2,6 +2,15 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.7] - 2026-08-28
+
+### Added
+
+- **Wallpaper Engine 壁纸一键同步与壁纸库浏览**:
+  - 新增「使用当前 Wallpaper Engine 壁纸」选项：自动检测本机 Steam 库与 Wallpaper Engine 配置（`selectedwallpapers`），一键将当前桌面运行的壁纸（Video 视频、Scene 场景静态帧、Image 图片壁纸、Web 壁纸）同步为 DSH 背景，图片类壁纸自动触发主色调提取与主题配色协调。
+  - 新增「浏览 WE 壁纸库」功能：自动扫描检测所有本地已安装与创意工坊壁纸，展示缩略图与类型标签，支持一键点击切换。
+  - Host 端自动跨平台探测 Steam 安装（Windows 注册表、多盘符扫描、WSL 挂载目录、Linux 与 macOS）并提供媒体流 Range 分片传输。
+
 ## [0.1.6] - 2026-08-26
 
 ### Changed

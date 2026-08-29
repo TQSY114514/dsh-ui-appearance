@@ -1,9 +1,9 @@
 /**
  * The Appearance customizer row registered into the General section item slot
  * (below ui-theme's Appearance preference row): preset chips, eight color
- * pickers, the background upload/drop zone with opacity and blur sliders, and
- * the interface transparency / glass sliders. All writes go through the
- * injected face; the scope round-trip reconciles.
+ * pickers, the background upload/drop zone with opacity and blur sliders,
+ * Wallpaper Engine integration, and the interface transparency / glass sliders.
+ * All writes go through the injected face; the scope round-trip reconciles.
  */
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import clsx from 'clsx'
@@ -19,6 +19,8 @@ import { ACCEPTED_VIDEO_TYPES, deleteVideo, MAX_VIDEO_BYTES, saveVideo } from '.
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
+import { fetchCurrentWallpaper, fetchWallpaperInventory, loadWallpaperBlob } from './wallpaper-engine.ts'
+import type { WallpaperInventoryItem } from '../wallpaper-engine/types.ts'
 import type { AppearanceKey } from './locales.ts'
 import type { createAppearanceRowStore } from './settings-store.ts'
 import css from './AppearanceCustomizerRow.module.css'
@@ -183,12 +185,35 @@ export function AppearanceCustomizerRow({
   const [urlDraft, setUrlDraft] = useState('')
   const [urlReading, setUrlReading] = useState(false)
   const [urlError, setUrlError] = useState<UrlLoadError | null>(null)
+  const [weSyncing, setWeSyncing] = useState(false)
+  const [weError, setWeError] = useState<string | null>(null)
+  const [weSuccessTitle, setWeSuccessTitle] = useState<string | null>(null)
+  const [weLibraryOpen, setWeLibraryOpen] = useState(false)
+  const [weLibraryLoading, setWeLibraryLoading] = useState(false)
+  const [weInventory, setWeInventory] = useState<WallpaperInventoryItem[]>([])
+  const [weSearch, setWeSearch] = useState('')
+  const [weFilter, setWeFilter] = useState<'all' | 'workshop' | 'default'>('all')
   const [schemeOpen, setSchemeOpen] = useState(false)
   const [schemeDraft, setSchemeDraft] = useState('')
   const [schemeError, setSchemeError] = useState(false)
   const [exported, setExported] = useState(false)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
+
+  const openWallpaperLibrary = async (): Promise<void> => {
+    setWeLibraryOpen(true)
+    setWeLibraryLoading(true)
+    setWeError(null)
+    try {
+      const inventory = await fetchWallpaperInventory()
+      const unique = Array.from(new Map(inventory.map(item => [item.id.toLowerCase(), item])).values())
+      setWeInventory(unique)
+    } catch {
+      setWeInventory([])
+    } finally {
+      setWeLibraryLoading(false)
+    }
+  }
 
   const applyWallpaperPalette = (accentHex: string): void => {
     // The accent always follows the sampled hue; the derived surfaces fill
@@ -230,6 +255,7 @@ export function AppearanceCustomizerRow({
       setReading(false)
     }
   }
+
   const readVideo = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
     if (!file.type.startsWith('video/')) {
@@ -255,10 +281,12 @@ export function AppearanceCustomizerRow({
       setVideoReading(false)
     }
   }
+
   const removeVideo = (): void => {
     if (settings.backgroundVideo !== '') void deleteVideo(settings.backgroundVideo)
     setVideo(null)
   }
+
   const loadFromUrl = async (): Promise<void> => {
     const url = urlDraft.trim()
     if (url === '') return
@@ -267,17 +295,19 @@ export function AppearanceCustomizerRow({
     try {
       if (classifyUrl(url) === 'video') {
         const file = await loadVideoFromUrl(url)
-        // Replacing a video must drop the previous record (same rule as uploads).
+        setImage(null)
         const oldKey = settings.backgroundVideo
         if (oldKey !== '') void deleteVideo(oldKey)
         const key = await saveVideo(file, file.name)
         setVideo(key)
       } else {
         const payload = await loadImageFromUrl(url)
-        // Store by reference (same rule as uploads).
+        if (settings.backgroundVideo !== '') {
+          void deleteVideo(settings.backgroundVideo)
+          setVideo(null)
+        }
         const key = await saveImage(payload.blob, urlToName(url))
         setImage({ url: key, imageDark: payload.imageDark })
-        // Auto-palette, same rule as uploads.
         if (payload.accent !== null) applyWallpaperPalette(payload.accent)
       }
       setUrlDraft('')
@@ -287,6 +317,107 @@ export function AppearanceCustomizerRow({
       setUrlReading(false)
     }
   }
+
+  const syncCurrentWallpaper = async (): Promise<void> => {
+    setWeSyncing(true)
+    setWeError(null)
+    setWeSuccessTitle(null)
+    try {
+      const info = await fetchCurrentWallpaper()
+      if (!info.success) {
+        if (info.error === 'not_found') {
+          setWeError(t('background.weNotFound'))
+        } else {
+          setWeError(t('background.weNoActive'))
+        }
+        return
+      }
+
+      const targetUrl = info.mediaUrl || info.previewUrl
+      if (targetUrl) {
+        let blob = await loadWallpaperBlob(targetUrl)
+        if (blob.type.startsWith('video/')) {
+          const key = await saveVideo(blob, info.title || 'wallpaper-engine.mp4')
+          setVideo(key)
+          setWeSuccessTitle(info.title || '')
+        } else {
+          if (!blob.type.startsWith('image/') && info.previewUrl && info.previewUrl !== targetUrl) {
+            try {
+              blob = await loadWallpaperBlob(info.previewUrl)
+            } catch {
+              // keep existing blob
+            }
+          }
+          const file = new File([blob], `${info.title || 'wallpaper-engine'}.jpg`, {
+            type: blob.type || 'image/jpeg',
+          })
+          const payload = await prepareImage(file)
+          const key = await saveImage(payload.blob, file.name)
+          setImage({ url: key, imageDark: payload.imageDark })
+          if (payload.accent !== null) applyWallpaperPalette(payload.accent)
+          setWeSuccessTitle(info.title || '')
+        }
+      }
+    } catch {
+      setWeError(t('background.weNotFound'))
+    } finally {
+      setWeSyncing(false)
+    }
+  }
+
+  const filteredInventory = weInventory.filter(item => {
+    const isWorkshop = /^\d+$/.test(item.id)
+    if (weFilter === 'workshop' && !isWorkshop) return false
+    if (weFilter === 'default' && isWorkshop) return false
+    if (weSearch.trim() !== '') {
+      const q = weSearch.toLowerCase().trim()
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.id.toLowerCase().includes(q) ||
+        item.type.toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+
+  const applyInventoryItem = async (item: WallpaperInventoryItem): Promise<void> => {
+    setWeSyncing(true)
+    setWeError(null)
+    setWeSuccessTitle(null)
+    try {
+      const targetUrl = item.mediaUrl || item.previewUrl
+      if (targetUrl) {
+        let blob = await loadWallpaperBlob(targetUrl)
+        if (blob.type.startsWith('video/')) {
+          const key = await saveVideo(blob, item.title || 'wallpaper-engine.mp4')
+          setVideo(key)
+          setWeSuccessTitle(item.title)
+        } else {
+          if (!blob.type.startsWith('image/') && item.previewUrl && item.previewUrl !== targetUrl) {
+            try {
+              blob = await loadWallpaperBlob(item.previewUrl)
+            } catch {
+              // keep existing blob
+            }
+          }
+          const file = new File([blob], `${item.title || 'wallpaper'}.jpg`, {
+            type: blob.type || 'image/jpeg',
+          })
+          const payload = await prepareImage(file)
+          const key = await saveImage(payload.blob, file.name)
+          setImage({ url: key, imageDark: payload.imageDark })
+          if (payload.accent !== null) applyWallpaperPalette(payload.accent)
+          setWeSuccessTitle(item.title)
+        }
+      }
+      setWeLibraryOpen(false)
+    } catch {
+      setWeError(t('background.readError'))
+    } finally {
+      setWeSyncing(false)
+    }
+  }
+
   const onPick = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -434,6 +565,120 @@ export function AppearanceCustomizerRow({
                 </button>
               )}
             </div>
+
+            {/* Wallpaper Engine integration container */}
+            <div className={css.weContainer}>
+              <div className={css.weActions}>
+                <button
+                  type="button"
+                  className={clsx(css.ghostButton, css.accentButton)}
+                  disabled={weSyncing}
+                  onClick={() => { void syncCurrentWallpaper() }}
+                >
+                  {weSyncing ? t('background.weSyncing') : t('background.weSync')}
+                </button>
+                <button
+                  type="button"
+                  className={css.ghostButton}
+                  onClick={() => { void openWallpaperLibrary() }}
+                >
+                  {t('background.weBrowse')}
+                </button>
+                {weSuccessTitle && (
+                  <span className={clsx(css.hint, css.hintSuccess)}>
+                    {t('background.weSynced')}: 《{weSuccessTitle}》
+                  </span>
+                )}
+              </div>
+              {weError && (
+                <div className={css.hint} style={{ color: 'var(--dsw-static-state-danger-600, #ef4444)' }}>
+                  {weError}
+                </div>
+              )}
+              {weLibraryOpen && (
+                <div className={css.weLibraryPanel}>
+                  <div className={css.weLibraryHeader}>
+                    <span>{t('background.weBrowseTitle')} ({filteredInventory.length}/{weInventory.length})</span>
+                    <button
+                      type="button"
+                      className={css.ghostButton}
+                      onClick={() => { setWeLibraryOpen(false) }}
+                    >
+                      {t('background.weClose')}
+                    </button>
+                  </div>
+                  <div className={css.weLibraryControls}>
+                    <input
+                      type="text"
+                      className={css.weSearchInput}
+                      placeholder={t('background.weSearchPlaceholder')}
+                      value={weSearch}
+                      onChange={e => { setWeSearch(e.target.value) }}
+                    />
+                    <div className={css.weFilterRow}>
+                      <button
+                        type="button"
+                        className={clsx(css.weFilterChip, weFilter === 'all' && css.weFilterChipActive)}
+                        onClick={() => { setWeFilter('all') }}
+                      >
+                        {t('background.weFilterAll')}
+                      </button>
+                      <button
+                        type="button"
+                        className={clsx(css.weFilterChip, weFilter === 'workshop' && css.weFilterChipActive)}
+                        onClick={() => { setWeFilter('workshop') }}
+                      >
+                        {t('background.weFilterWorkshop')}
+                      </button>
+                      <button
+                        type="button"
+                        className={clsx(css.weFilterChip, weFilter === 'default' && css.weFilterChipActive)}
+                        onClick={() => { setWeFilter('default') }}
+                      >
+                        {t('background.weFilterDefault')}
+                      </button>
+                    </div>
+                  </div>
+                  {weLibraryLoading ? (
+                    <div className={css.hint}>{t('background.weLoading')}</div>
+                  ) : filteredInventory.length === 0 ? (
+                    <div className={css.hint}>{t('background.weEmpty')}</div>
+                  ) : (
+                    <div className={css.weGrid}>
+                      {filteredInventory.map(item => {
+                        const isWorkshop = /^\d+$/.test(item.id)
+                        return (
+                          <div
+                            key={item.id + item.folderPath}
+                            className={css.weCard}
+                            onClick={() => { void applyInventoryItem(item) }}
+                          >
+                            {item.previewUrl && (
+                              <img
+                                className={css.weCardThumb}
+                                src={item.previewUrl}
+                                alt={item.title}
+                                loading="lazy"
+                              />
+                            )}
+                            <div className={css.weCardTitle} title={`${item.title} (${item.id})`}>
+                              {item.title}
+                            </div>
+                            <div className={css.weCardMeta}>
+                              <span className={css.weCardTag}>{item.type}</span>
+                              <span className={clsx(css.weCardSource, isWorkshop ? css.weCardWorkshop : css.weCardBuiltin)}>
+                                {isWorkshop ? `#${item.id}` : t('background.weFilterDefault')}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className={css.urlRow}>
               <input
                 type="url"

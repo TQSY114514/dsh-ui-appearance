@@ -19,10 +19,26 @@ declare module '@deepseek-ai/dsh-invariants' {
 }
 
 declare module '@deepseek-ai/cordis' {
-  /** Host-side cordis context (empty apply half uses almost none of it). */
+  /** Host-side cordis context. */
   export interface Context {
     invariants: {
       register(packageName: string, installer: () => void): () => void
+    }
+    webServer?: {
+      register(route: {
+        kind: 'exact' | 'prefix'
+        path: string
+        handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void | Promise<void>
+      }): () => void
+      [key: string]: unknown
+    }
+    router?: {
+      get(path: string, handler: (ctx: any) => Promise<void> | void): void
+      [key: string]: unknown
+    }
+    server?: {
+      get(path: string, handler: (ctx: any) => Promise<void> | void): void
+      [key: string]: unknown
     }
     [key: string]: unknown
   }
