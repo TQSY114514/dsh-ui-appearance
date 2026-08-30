@@ -2,7 +2,7 @@
 
 [English](README.en.md) · 中文
 
-DeepSeek Harness 外观自定义插件 —— 自由调色的主题色板、壁纸/视频背景、毛玻璃与背景氛围,全部实时预览、自动持久化;WebUI 与 DSH Desktop 均可使用。
+DeepSeek Harness 社区首个全功能外观自定义插件 —— 自由调色的主题色板、壁纸/视频背景、毛玻璃与背景氛围，全部实时预览、自动持久化；WebUI 与 DSH Desktop 均可使用。
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
