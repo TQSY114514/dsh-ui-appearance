@@ -2,7 +2,7 @@
 
 [中文](README.md) · English
 
-The first comprehensive appearance customization plugin for DeepSeek Harness — custom theme color palette, wallpaper/video background, frosted glass, and background ambience, all with live preview and automatic persistence; works on both WebUI and DSH Desktop.
+The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring fine-grained panel/input/code opacity controls, frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
