@@ -2,6 +2,13 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.7] - 2026-09-04
+
+### Fixed
+
+- **适配 DeepSeek Harness 0.1.2+**: 将设置 store 引擎 (`defineStore`) 迁移至 `@deepseek-ai/dsh-client-store`，更新 `dsh.client.inject` 声明、`peerDependencies` 及构建放行规则，避免最新版 Harness / Desktop 环境下因缺少旧运行时注入而导致插件加载失败。
+- **更新依赖**: 升级 `@testing-library/react` 到 `^16.3.3` (PR #17)。
+
 ## [0.1.6] - 2026-08-26
 
 ### Changed

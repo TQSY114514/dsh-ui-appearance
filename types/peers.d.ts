@@ -98,6 +98,14 @@ declare module '@deepseek-ai/dsh-client-runtime/client' {
   }
 }
 
+declare module '@deepseek-ai/dsh-client-store' {
+  /** Declare a reactive store from an init + actions spec. */
+  export function defineStore<S, A extends Record<string, (draft: S, ...rest: any[]) => any>>(spec: {
+    init: () => S
+    actions: A
+  }): import('@deepseek-ai/dsh-client-runtime/client').EngineStoreHandle<S, A>
+}
+
 declare module '@deepseek-ai/dsh-client-web-react' {
   /** Bind a snapshot store into a selector hook (test seat). */
   export function bindSnapshotSelector<S>(store: {

@@ -25,8 +25,8 @@ const PLATFORM_MODULES = [
   '@deepseek-ai/dsh-client-schema-form',
 ] as const
 
-/** Documented runtime exemption: the snapshot-store engine lives in runtime. */
-const RUNTIME_STORE_EXEMPTION = '@deepseek-ai/dsh-client-runtime/client'
+/** Documented runtime exemption: the snapshot-store engine lives in dsh-client-store. */
+const RUNTIME_STORE_EXEMPTION = '@deepseek-ai/dsh-client-store'
 
 /** Vendored framework libraries the client bundle inlines. */
 const VENDORED_LIBRARY = /^@deepseek-ai\/(cosmokit|schemastery)(\/|$)/
