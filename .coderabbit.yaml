@@ -1,0 +1,51 @@
+# CodeRabbit 閰嶇疆 鈥?dsh-ui-appearance
+# 鐩爣锛氬皬鏀瑰姩鑷姩閫氳繃 + 鑱氱劍楂樹环鍊煎鏌?+ 鍑忓皯鍣煶
+# 鏇村瀛楁鍙傝€? https://docs.coderabbit.ai/reference/configuration
+
+language: "zh-CN"
+early_access: false
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+
+  # 灏忔敼鍔ㄨ嚜鍔ㄩ€氳繃锛堝彧鏈夋敼鍔ㄦ枃浠跺皯銆佷笖涓嶅惈鏍稿績浠ｇ爜鎵嶈嚜鍔?approve锛?  auto_approve:
+    scope: "small"
+    ignore_files:
+      - "**/CHANGELOG.md"
+      - "**/README*.md"
+      - "**/docs/**"
+      - "**/*.lock"
+      - "**/package-lock.json"
+      - "**/pnpm-lock.yaml"
+      - "**/yarn.lock"
+
+  # 鍙鏍稿績鐩綍锛岄檷浣庝緷璧栨洿鏂?鏂囨。绫诲櫔闊?  ignore_files:
+    - "**/CHANGELOG.md"
+    - "**/README*.md"
+    - "**/docs/**"
+    - "**/*.lock"
+    - "**/package-lock.json"
+    - "**/pnpm-lock.yaml"
+    - "**/yarn.lock"
+
+  path_instructions:
+    - path: "src/**"
+      instructions: |
+        DSH 澶栬瀹氬埗鎻掍欢婧愮爜銆備繚鎸佹彃浠跺吋瀹规€э紝涓嶅紩鍏ョ牬鍧忔€у彉鏇淬€?        淇敼澶栬/閰嶇疆鏃堕渶淇濊瘉涓庣幇鏈夌敤鎴烽厤缃悜涓嬪吋瀹广€?    - path: "src/client/**"
+      instructions: |
+        Client 绔覆鏌撻€昏緫銆備繚鎸佷笌鎻掍欢涓荤洰褰曠ǔ瀹氳鎺ワ紝
+        涓嶉殢鎰忔敼鍔ㄥ凡鍏紑鐨勯厤缃粨鏋勪笌榛樿琛屼负銆?
+chat:
+  auto_reply: true
+  auto_respond_out_of_thread: false
+  auto_tag: false
