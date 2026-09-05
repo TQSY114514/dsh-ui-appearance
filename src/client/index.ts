@@ -25,10 +25,10 @@ import { AppearanceCustomizerRow } from './AppearanceCustomizerRow.tsx'
 import { createAppearanceRowStore } from './settings-store.ts'
 import { en, zh, type AppearanceKey } from './locales.ts'
 import {
-  APPEARANCE_ROLES, DEFAULT_SETTINGS, sanitizeSettings,
-  type AppearanceRole, type AppearanceSettings,
+  APPEARANCE_ROLES, DEFAULT_SETTINGS, DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME, sanitizeSettings,
+  type AppearanceRole, type AppearanceSettings, type ThemeMode,
 } from '../appearance-settings.ts'
-import { APPEARANCE_PRESETS } from './tokens.ts'
+import { APPEARANCE_PRESETS, LIGHT_PRESETS, DARK_PRESETS } from './tokens.ts'
 import { AppearanceApplier } from './applier.ts'
 import { deleteImage, saveImage } from './image-store.ts'
 import { deleteVideo } from './video-store.ts'
@@ -169,6 +169,27 @@ export function apply(ctx: ClientContext): void {
     // The union key cannot be assigned through the keyed type (mixed string /
     // number / boolean fields intersect to never), so write through an index view.
     ;(patch as Record<string, string | number | boolean>)[field] = value
+    if (APPEARANCE_ROLES.includes(field as AppearanceRole)) {
+      const hex = typeof value === 'string' ? value : ''
+      patch.light = { ...patch.light, [field]: hex }
+      patch.dark = { ...patch.dark, [field]: hex }
+    } else if (field === 'preset') {
+      const presetId = typeof value === 'string' ? value : ''
+      patch.light = { ...patch.light, preset: presetId }
+      patch.dark = { ...patch.dark, preset: presetId }
+    }
+    current = patch
+    commit()
+  }
+  const setModeRole = (mode: ThemeMode, role: AppearanceRole, value: string): void => {
+    const patch = { ...current }
+    patch[mode] = {
+      ...patch[mode],
+      [role]: value,
+      preset: 'custom',
+    }
+    patch[role] = value
+    patch.preset = 'custom'
     current = patch
     commit()
   }
@@ -207,36 +228,63 @@ export function apply(ctx: ClientContext): void {
     current = patch
     commit()
   }
-  const applyPreset = (id: string): void => {
-    const preset = APPEARANCE_PRESETS.find(candidate => candidate.id === id)
+  const applyModePreset = (mode: ThemeMode, id: string): void => {
+    const catalog = mode === 'light' ? LIGHT_PRESETS : DARK_PRESETS
+    const preset = catalog.find(candidate => candidate.id === id)
+      ?? APPEARANCE_PRESETS.find(candidate => candidate.id === id)
     if (preset === undefined) return
-    const partial: Partial<AppearanceSettings> = { preset: id }
+    const updatedTheme = { ...current[mode], preset: id }
     if (id === 'default') {
-      for (const role of APPEARANCE_ROLES) partial[role] = ''
+      for (const role of APPEARANCE_ROLES) updatedTheme[role] = ''
     } else {
       for (const [role, hex] of Object.entries(preset.colors)) {
         if (hex === undefined) continue
-        ;(partial as Record<string, string>)[role] = hex
+        updatedTheme[role as AppearanceRole] = hex
       }
     }
-    current = { ...current, ...partial }
+    const patch = { ...current, [mode]: updatedTheme }
+    for (const role of APPEARANCE_ROLES) patch[role] = updatedTheme[role]
+    patch.preset = id
+    current = patch
     commit()
   }
-  // One commit for a whole batch of role colors (scheme import), instead of a
-  // per-role set() storm of localStorage writes and override rebuilds.
-  const applyColors = (colors: Partial<Record<AppearanceRole, string>>): void => {
+  const applyModeColors = (mode: ThemeMode, colors: Partial<Record<AppearanceRole, string>>): void => {
     const entries = Object.entries(colors).filter(
       (entry): entry is [string, string] =>
         APPEARANCE_ROLES.includes(entry[0] as AppearanceRole) && entry[1] !== undefined && entry[1] !== '',
     )
     if (entries.length === 0) return
-    const partial: Partial<AppearanceSettings> = { preset: 'custom' }
-    for (const [role, hex] of entries) partial[role as AppearanceRole] = hex
-    current = { ...current, ...partial }
+    const updatedTheme = { ...current[mode], preset: 'custom' }
+    for (const [role, hex] of entries) updatedTheme[role as AppearanceRole] = hex
+    const patch = { ...current, [mode]: updatedTheme }
+    for (const [role, hex] of entries) patch[role as AppearanceRole] = hex
+    patch.preset = 'custom'
+    current = patch
     commit()
   }
+  const resetMode = (mode: ThemeMode): void => {
+    const defaultMode = mode === 'light' ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME
+    const patch = { ...current, [mode]: { ...defaultMode, preset: 'default' } }
+    for (const role of APPEARANCE_ROLES) patch[role] = defaultMode[role]
+    patch.preset = 'default'
+    current = patch
+    commit()
+  }
+  const applyPreset = (id: string): void => {
+    applyModePreset('dark', id)
+  }
+  // One commit for a whole batch of role colors (scheme import), instead of a
+  // per-role set() storm of localStorage writes and override rebuilds.
+  const applyColors = (colors: Partial<Record<AppearanceRole, string>>): void => {
+    applyModeColors('dark', colors)
+  }
   const resetAll = (): void => {
-    current = { ...DEFAULT_SETTINGS, preset: 'default' }
+    current = {
+      ...DEFAULT_SETTINGS,
+      preset: 'default',
+      light: { ...DEFAULT_LIGHT_THEME },
+      dark: { ...DEFAULT_DARK_THEME },
+    }
     commit()
   }
 
@@ -244,7 +292,11 @@ export function apply(ctx: ClientContext): void {
     bound = actions
     // Push the initial section so the row renders the persisted values.
     publish()
-    return { set, setImage, setVideo, applyPreset, applyColors, resetAll }
+    return {
+      set, setModeRole, setImage, setVideo,
+      applyModePreset, applyModeColors, resetMode,
+      applyPreset, applyColors, resetAll,
+    }
   }
 
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({

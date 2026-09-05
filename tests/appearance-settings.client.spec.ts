@@ -79,4 +79,44 @@ describe('sanitizeSettings', () => {
     expect(sanitized.preset).toBe('ocean')
     expect('hackerField' in sanitized).toBe(false)
   })
+
+  it('migrates legacy flat settings into mode-specific configurations', () => {
+    const legacyDark = sanitizeSettings({
+      accent: '#7c9cff',
+      background: '#1b1e2c',
+      panel: '#232737',
+      preset: 'midnight',
+    })
+    expect(legacyDark.dark.accent).toBe('#7c9cff')
+    expect(legacyDark.dark.background).toBe('#1b1e2c')
+    expect(legacyDark.dark.panel).toBe('#232737')
+    expect(legacyDark.dark.preset).toBe('midnight')
+    expect(legacyDark.light.accent).toBe('#7c9cff')
+    expect(legacyDark.light.background).toBe('')
+
+    const legacyLight = sanitizeSettings({
+      accent: '#0284c7',
+      background: '#f0f9ff',
+      panel: '#e0f2fe',
+      preset: 'sky',
+    })
+    expect(legacyLight.light.accent).toBe('#0284c7')
+    expect(legacyLight.light.background).toBe('#f0f9ff')
+    expect(legacyLight.light.preset).toBe('sky')
+    expect(legacyLight.dark.accent).toBe('#0284c7')
+    expect(legacyLight.dark.background).toBe('')
+  })
+
+  it('sanitizes independent light and dark configurations', () => {
+    const dual = sanitizeSettings({
+      light: { accent: '#d97706', background: '#fbfaf8', preset: 'dawn' },
+      dark: { accent: '#7c9cff', background: '#1b1e2c', preset: 'midnight' },
+    })
+    expect(dual.light.accent).toBe('#d97706')
+    expect(dual.light.background).toBe('#fbfaf8')
+    expect(dual.light.preset).toBe('dawn')
+    expect(dual.dark.accent).toBe('#7c9cff')
+    expect(dual.dark.background).toBe('#1b1e2c')
+    expect(dual.dark.preset).toBe('midnight')
+  })
 })

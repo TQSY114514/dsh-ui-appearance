@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import {
-  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, buildTokenOverrides, GLASS_BLUR_MAX, OVERRIDE_SOURCE,
+  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
 } from '../src/client/tokens.ts'
 
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
@@ -334,6 +334,35 @@ describe('buildTokenOverrides', () => {
     // Buttons still follow the darkened surface.
     expect(tokens['--dsw-alias-button-elevated-fill']).toBeDefined()
   })
+
+  it('emits independent token overrides for light and dark modes', () => {
+    const tokens = buildTokenOverrides(full({
+      light: {
+        accent: '#d97706',
+        background: '#fbfaf8',
+        panel: '#f4f1ea',
+        input: '#ffffff',
+        text: '#292524',
+        border: '#e7e5e4',
+        preset: 'dawn',
+      },
+      dark: {
+        accent: '#7c9cff',
+        background: '#1b1e2c',
+        panel: '#232737',
+        input: '#202435',
+        text: '#e6e9f4',
+        border: '#343a52',
+        preset: 'midnight',
+      },
+    }))
+    expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#d97706', dark: '#7c9cff' })
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#fbfaf8', dark: '#1b1e2c' })
+    expect(tokens['--dsw-alias-bg-layer-1']).toEqual({ light: '#f4f1ea', dark: '#292c39' })
+    expect(tokens['--dsw-specific-input-major']).toEqual({ light: 'rgba(255, 255, 255, 1)', dark: 'rgba(32, 36, 53, 1)' })
+    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#292524', dark: '#e6e9f4' })
+    expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#e7e5e4', dark: '#343a52' })
+  })
 })
 
 describe('preset catalog', () => {
@@ -345,6 +374,13 @@ describe('preset catalog', () => {
       }
       expect(Object.keys(preset.colors)).toHaveLength(6)
     }
+  })
+
+  it('LIGHT_PRESETS and DARK_PRESETS each have default and 5 distinct themes', () => {
+    expect(LIGHT_PRESETS).toHaveLength(6)
+    expect(DARK_PRESETS).toHaveLength(6)
+    expect(LIGHT_PRESETS.map(p => p.id)).toEqual(['default', 'dawn', 'sky', 'mint', 'sakura', 'clay'])
+    expect(DARK_PRESETS.map(p => p.id)).toEqual(['default', 'midnight', 'ocean', 'forest', 'rose', 'monochrome'])
   })
 })
 

@@ -112,313 +112,378 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const emit = (name: string, light: string, dark: string): void => {
     tokens[name] = { light, dark }
   }
-  const modePair = (value: string): [string, string] => [value, value]
-  const step = (value: string, weight: number): [string, string] =>
-    [mixHex(value, LIGHT_BASE, weight), mixHex(value, DARK_BASE, weight)]
 
-  const { accent, background, panel, input, text, border, backgroundImage, imageDark, surfaceAlpha, inputAlpha, codeAlpha, sidebarOpaque, emphasisAlpha } = settings
+  const {
+    backgroundImage, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
+    sidebarOpaque, emphasisAlpha,
+  } = settings
 
-  // Derived hover steps feed the translucent pass below, so hoist them.
-  let infoHover: [string, string] | undefined
-  let primaryHover: [string, string] | undefined
-  if (accent !== '') {
-    const [light, dark] = modePair(accent)
-    emit('--dsw-alias-brand-primary', light, dark)
-    // Deliberately NOT overriding --dsw-alias-brand-text: it is the ink ON
-    // the brand fill (label-primary-foreground drives buttons), and painting
-    // it the accent color makes on-brand text unreadable.
-    emit('--dsw-alias-state-business-primary', light, dark)
-    emit('--dsw-alias-button-info-fill', light, dark)
-    infoHover = step(accent, 0.15)
-    emit('--dsw-alias-button-info-hover', infoHover[0], infoHover[1])
-    primaryHover = step(accent, 0.22)
-    emit('--dsw-alias-button-primary-hover', primaryHover[0], primaryHover[1])
-    // Message bubbles (the harness renders its only bubble background on
-    // user messages; assistant turns have none) follow the accent color.
-    // Both bubble tokens get the hue; the translucent pass adds the alpha.
-    emit('--dsw-specific-bubble', light, dark)
-    emit('--dsw-specific-bubble-highlight', light, dark)
+  const getRole = (role: AppearanceRole): { light: string; dark: string } => {
+    const l = settings.light?.[role] || ''
+    const d = settings.dark?.[role] || ''
+    const legacy = settings[role] || ''
+    return {
+      light: l !== '' ? l : legacy,
+      dark: d !== '' ? d : legacy,
+    }
   }
 
-  if (background !== '') {
-    const [light, dark] = modePair(background)
-    emit('--dsw-alias-bg-base', light, dark)
-    const [l1l, l1d] = step(background, 0.04)
+  const accentRole = getRole('accent')
+  const hasAccentL = accentRole.light !== ''
+  const hasAccentD = accentRole.dark !== ''
+  const lightAccent = hasAccentL ? accentRole.light : '#4176e6'
+  const darkAccent = hasAccentD ? accentRole.dark : '#4176e6'
+
+  // Accent tokens: emit brand and state tokens
+  emit('--dsw-alias-brand-primary', lightAccent, darkAccent)
+  emit('--dsw-alias-state-business-primary', lightAccent, darkAccent)
+  emit('--dsw-alias-button-info-fill', lightAccent, darkAccent)
+
+  const lightInfoHover = hasAccentL ? mixHex(lightAccent, LIGHT_BASE, 0.15) : undefined
+  const darkInfoHover = hasAccentD ? mixHex(darkAccent, DARK_BASE, 0.15) : undefined
+  if (lightInfoHover !== undefined || darkInfoHover !== undefined) {
+    emit(
+      '--dsw-alias-button-info-hover',
+      lightInfoHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].light,
+      darkInfoHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].dark,
+    )
+  }
+
+  const lightPrimaryHover = hasAccentL ? mixHex(lightAccent, LIGHT_BASE, 0.22) : undefined
+  const darkPrimaryHover = hasAccentD ? mixHex(darkAccent, DARK_BASE, 0.22) : undefined
+  if (lightPrimaryHover !== undefined || darkPrimaryHover !== undefined) {
+    emit(
+      '--dsw-alias-button-primary-hover',
+      lightPrimaryHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'].light,
+      darkPrimaryHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'].dark,
+    )
+  }
+
+  emit('--dsw-specific-bubble', lightAccent, darkAccent)
+  emit('--dsw-specific-bubble-highlight', lightAccent, darkAccent)
+
+  const bg = getRole('background')
+  const panel = getRole('panel')
+
+  if (bg.light !== '' || bg.dark !== '') {
+    const lightBase = bg.light !== '' ? bg.light : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'].light
+    const darkBase = bg.dark !== '' ? bg.dark : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'].dark
+    emit('--dsw-alias-bg-base', lightBase, darkBase)
+
+    const l1l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light
+    const l1d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark
     emit('--dsw-alias-bg-layer-1', l1l, l1d)
-    const [l2l, l2d] = step(background, 0.08)
+
+    const l2l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].light
+    const l2d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].dark
     emit('--dsw-alias-bg-layer-2', l2l, l2d)
-    const [l3l, l3d] = step(background, 0.14)
+
+    const l3l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].light
+    const l3d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].dark
     emit('--dsw-alias-bg-layer-3', l3l, l3d)
-    const [modl, modd] = step(background, 0.06)
+
+    const modl = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].light
+    const modd = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].dark
     emit('--dsw-alias-bg-module-platform', modl, modd)
-    const [ovl, ovd] = step(background, 0.18)
+
+    const ovl = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.18) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].light
+    const ovd = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.18) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].dark
     emit('--dsw-alias-bg-overlay', ovl, ovd)
-    if (panel === '') {
-      const [sideL, sideD] = step(background, 0.05)
+
+    if (panel.light === '' && panel.dark === '') {
+      const sideL = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.05) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].light
+      const sideD = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.05) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].dark
       emit('--dsw-specific-sidebar-fill', sideL, sideD)
     }
   }
 
-  if (panel !== '') {
-    const [light, dark] = modePair(panel)
-    emit('--dsw-alias-bg-layer-1', light, dark)
-    const [l2l, l2d] = step(panel, 0.08)
+  if (panel.light !== '' || panel.dark !== '') {
+    const l1l = panel.light !== '' ? panel.light : (tokens['--dsw-alias-bg-layer-1']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light)
+    const l1d = panel.dark !== '' ? panel.dark : (tokens['--dsw-alias-bg-layer-1']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark)
+    emit('--dsw-alias-bg-layer-1', l1l, l1d)
+
+    const l2l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.08) : (tokens['--dsw-alias-bg-layer-2']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].light)
+    const l2d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.08) : (tokens['--dsw-alias-bg-layer-2']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].dark)
     emit('--dsw-alias-bg-layer-2', l2l, l2d)
-    const [l3l, l3d] = step(panel, 0.14)
+
+    const l3l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.14) : (tokens['--dsw-alias-bg-layer-3']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].light)
+    const l3d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.14) : (tokens['--dsw-alias-bg-layer-3']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].dark)
     emit('--dsw-alias-bg-layer-3', l3l, l3d)
-    const [ovl, ovd] = step(panel, 0.1)
+
+    const ovl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.1) : (tokens['--dsw-alias-bg-overlay']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].light)
+    const ovd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.1) : (tokens['--dsw-alias-bg-overlay']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].dark)
     emit('--dsw-alias-bg-overlay', ovl, ovd)
-    const [modl, modd] = step(panel, 0.06)
+
+    const modl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.06) : (tokens['--dsw-alias-bg-module-platform']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].light)
+    const modd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.06) : (tokens['--dsw-alias-bg-module-platform']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].dark)
     emit('--dsw-alias-bg-module-platform', modl, modd)
-    const [sideL, sideD] = step(panel, 0.04)
+
+    const sideL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.04) : (tokens['--dsw-specific-sidebar-fill']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].light)
+    const sideD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.04) : (tokens['--dsw-specific-sidebar-fill']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].dark)
     emit('--dsw-specific-sidebar-fill', sideL, sideD)
   }
 
-  if (input !== '') {
-    const [light, dark] = modePair(input)
-    emit('--dsw-specific-input-major', light, dark)
-    const [loginL, loginD] = step(input, 0.06)
+  const input = getRole('input')
+  if (input.light !== '' || input.dark !== '') {
+    const inputL = input.light !== '' ? input.light : DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].light
+    const inputD = input.dark !== '' ? input.dark : DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].dark
+    emit('--dsw-specific-input-major', inputL, inputD)
+
+    const loginL = input.light !== '' ? mixHex(input.light, LIGHT_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].light
+    const loginD = input.dark !== '' ? mixHex(input.dark, DARK_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].dark
     emit('--dsw-specific-login-input', loginL, loginD)
   }
 
-  if (text !== '') {
-    const [light, dark] = modePair(text)
-    emit('--dsw-alias-label-primary', light, dark)
-    const [secL, secD] = step(text, 0.38)
+  const text = getRole('text')
+  if (text.light !== '' || text.dark !== '') {
+    const textL = text.light !== '' ? text.light : '#0f1115'
+    const textD = text.dark !== '' ? text.dark : '#fafaf9'
+    emit('--dsw-alias-label-primary', textL, textD)
+
+    const secL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.38) : '#61666b'
+    const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.38) : '#d6d3d1'
     emit('--dsw-alias-label-secondary', secL, secD)
-    const [terL, terD] = step(text, 0.58)
+
+    const terL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.58) : '#9ea3a8'
+    const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.58) : '#808285'
     emit('--dsw-alias-label-tertiary', terL, terD)
-    // Re-derive the on-ink pairings so the harness badge letters and the
-    // ::selection text stay readable over the overridden label color.
-    const ink = onInk(light)
-    emit('--dsw-alias-label-primary-inverted', ink, ink)
-    emit('--dsw-alias-label-primary-foreground', ink, ink)
+
+    emit('--dsw-alias-label-primary-inverted', onInk(textL), onInk(textD))
+    emit('--dsw-alias-label-primary-foreground', onInk(textL), onInk(textD))
   }
 
-  if (border !== '') {
-    const [light, dark] = modePair(border)
-    emit('--dsw-alias-border-l1', light, dark)
-    emit('--dsw-alias-border-l2', light, dark)
-    const [l3l, l3d] = step(border, 0.3)
+  const border = getRole('border')
+  if (border.light !== '' || border.dark !== '') {
+    const borderL = border.light !== '' ? border.light : '#d9dde3'
+    const borderD = border.dark !== '' ? border.dark : '#333338'
+    emit('--dsw-alias-border-l1', borderL, borderD)
+    emit('--dsw-alias-border-l2', borderL, borderD)
+
+    const l3l = border.light !== '' ? mixHex(border.light, LIGHT_BASE, 0.3) : '#ebeef2'
+    const l3d = border.dark !== '' ? mixHex(border.dark, DARK_BASE, 0.3) : '#43454a'
     emit('--dsw-alias-border-l3', l3l, l3d)
   }
 
-  // Neutral controls (the new-session button, floating actions) and the
-  // settings nav selected/hover states follow the panel color (or the
-  // background when no panel is set) so a custom surface never leaves them
-  // stock-white. Buttons lift toward white in both modes (same convention
-  // as the dark flip below); the nav highlight emphasizes by moving toward
-  // the opposite mode base — darker in light mode, lighter in dark mode —
-  // matching the stock bluish-100/750 direction. The dark flip below still
-  // overrides these when a dark wallpaper demands the whole family flip.
-  const controlBase = panel !== '' ? panel : background
+  const controlBaseLight = panel.light !== '' ? panel.light : bg.light
+  const controlBaseDark = panel.dark !== '' ? panel.dark : bg.dark
   let controlButtonFill: [string, string] | undefined
   let controlButtonHover: [string, string] | undefined
   let controlNavActive: [string, string] | undefined
   let controlNavHover: [string, string] | undefined
-  if (controlBase !== '') {
-    const lift = (weight: number): [string, string] => {
-      const mixed = mixHex(controlBase, LIGHT_BASE, weight)
-      return [mixed, mixed]
-    }
-    const emphasize = (weight: number): [string, string] =>
-      [mixHex(controlBase, DARK_BASE, weight), mixHex(controlBase, LIGHT_BASE, weight)]
-    controlButtonFill = lift(0.06)
-    controlButtonHover = lift(0.12)
-    controlNavActive = emphasize(0.10)
-    controlNavHover = emphasize(0.05)
+  if (controlBaseLight !== '' || controlBaseDark !== '') {
+    const baseL = controlBaseLight !== '' ? controlBaseLight : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light
+    const baseD = controlBaseDark !== '' ? controlBaseDark : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark
+
+    controlButtonFill = [mixHex(baseL, LIGHT_BASE, 0.06), mixHex(baseD, LIGHT_BASE, 0.06)]
+    controlButtonHover = [mixHex(baseL, LIGHT_BASE, 0.12), mixHex(baseD, LIGHT_BASE, 0.12)]
+    controlNavActive = [mixHex(baseL, DARK_BASE, 0.10), mixHex(baseD, LIGHT_BASE, 0.10)]
+    controlNavHover = [mixHex(baseL, DARK_BASE, 0.05), mixHex(baseD, LIGHT_BASE, 0.05)]
+
     emit('--dsw-alias-button-elevated-fill', controlButtonFill[0], controlButtonFill[1])
     emit('--dsw-alias-button-floating-fill', controlButtonFill[0], controlButtonFill[1])
     emit('--dsw-alias-button-floating-hover', controlButtonHover[0], controlButtonHover[1])
     emit('--dsw-specific-sidebar-nav-item-active', controlNavActive[0], controlNavActive[1])
     emit('--dsw-specific-sidebar-nav-item-hover', controlNavHover[0], controlNavHover[1])
-    // The composer "+" trigger and its hover join the neutral-control family:
-    // stock light values are near-white (bluish-60/75), so a tinted surface
-    // otherwise leaves the button white while everything around it follows.
     emit('--dsw-specific-selector', controlButtonFill[0], controlButtonFill[1])
     emit('--dsw-alias-interactive-bg-hover-solid', controlButtonHover[0], controlButtonHover[1])
   }
 
-  // Background image makes the base canvas transparent so the wallpaper
-  // layer shows through; surfaces stay opaque unless the image (or a dark
-  // user background color) triggers the dark-family flip below.
   if (backgroundImage !== '') {
     emit('--dsw-alias-bg-base', 'transparent', 'transparent')
   }
 
-  // Dark-family coordinated flip: a dark wallpaper or a dark user background
-  // color demands the whole surface family adapt together — layers lift so
-  // cards stay distinguishable, the sidebar fill follows, labels flip light
-  // so text stays readable, and buttons follow the darkened surface instead
-  // of staying white (white button + light ink = unreadable). An explicit
-  // user text color still wins over the flipped labels.
-  const flipBase = backgroundImage !== ''
+  const flipBaseLight = backgroundImage !== ''
     ? (imageDark ? '#151517' : undefined)
-    : (background !== '' && isDarkColor(background) ? background : undefined)
-  // The flip's derived surface colors feed the translucent pass below, so a
-  // translucent dark theme stays coordinated.
-  let flipLayer1: string | undefined
-  let flipLayer2: string | undefined
-  let flipSidebar: string | undefined
-  let flipButtonElevated: string | undefined
-  let flipButtonFloating: string | undefined
-  let flipButtonFloatingHover: string | undefined
-  if (flipBase !== undefined) {
-    flipLayer1 = mixHex(flipBase, LIGHT_BASE, 0.06)
-    flipLayer2 = mixHex(flipBase, LIGHT_BASE, 0.12)
-    flipSidebar = mixHex(flipBase, LIGHT_BASE, 0.03)
-    flipButtonElevated = 'rgb(67, 69, 74)'
-    flipButtonFloating = 'rgb(44, 44, 46)'
-    flipButtonFloatingHover = 'rgb(53, 54, 56)'
-    emit('--dsw-alias-bg-layer-1', flipLayer1, flipLayer1)
-    emit('--dsw-alias-bg-layer-2', flipLayer2, flipLayer2)
-    emit('--dsw-specific-sidebar-fill', flipSidebar, flipSidebar)
-    if (text === '') {
-      emit('--dsw-alias-label-primary', '#fafaf9', '#fafaf9')
-      emit('--dsw-alias-label-secondary', '#d6d3d1', '#d6d3d1')
-      // The flipped near-white labels need their on-ink counterpart too,
-      // or the harness badge turns white-on-white over a dark wallpaper.
-      emit('--dsw-alias-label-primary-inverted', DARK_INK, DARK_INK)
-      emit('--dsw-alias-label-primary-foreground', DARK_INK, DARK_INK)
+    : (bg.light !== '' && isDarkColor(bg.light) ? bg.light : undefined)
+
+  const flipBaseDark = backgroundImage !== ''
+    ? (imageDark ? '#151517' : undefined)
+    : (bg.dark !== '' && isDarkColor(bg.dark) ? bg.dark : undefined)
+
+  let flipLayer1: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipLayer2: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipSidebar: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipButtonElevated: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipButtonFloating: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipButtonFloatingHover: [string | undefined, string | undefined] = [undefined, undefined]
+
+  if (flipBaseLight !== undefined || flipBaseDark !== undefined) {
+    const calcFlip = (base: string | undefined): {
+      l1: string; l2: string; side: string; btnElev: string; btnFloat: string; btnHover: string
+    } | undefined => {
+      if (base === undefined) return undefined
+      return {
+        l1: mixHex(base, LIGHT_BASE, 0.06),
+        l2: mixHex(base, LIGHT_BASE, 0.12),
+        side: mixHex(base, LIGHT_BASE, 0.03),
+        btnElev: 'rgb(67, 69, 74)',
+        btnFloat: 'rgb(44, 44, 46)',
+        btnHover: 'rgb(53, 54, 56)',
+      }
     }
-    emit('--dsw-alias-button-elevated-fill', flipButtonElevated, flipButtonElevated)
-    emit('--dsw-alias-button-floating-fill', flipButtonFloating, flipButtonFloating)
-    emit('--dsw-alias-button-floating-hover', flipButtonFloatingHover, flipButtonFloatingHover)
-    // The settings nav selected/hover states join the dark family too — the
-    // stock dark nav-active is bluish-750 (#43454a) and hover bluish-850
-    // (#2c2c2e), exactly the flipped button pair, so they share it.
-    emit('--dsw-specific-sidebar-nav-item-active', flipButtonElevated, flipButtonElevated)
-    emit('--dsw-specific-sidebar-nav-item-hover', flipButtonFloating, flipButtonFloating)
-    // The "+" trigger and its hover join the dark family too — stock dark
-    // selector is bluish-800 (#353638), matching the flipped floating pair.
-    emit('--dsw-specific-selector', flipButtonFloating, flipButtonFloating)
-    emit('--dsw-alias-interactive-bg-hover-solid', flipButtonFloatingHover, flipButtonFloatingHover)
+    const fl = calcFlip(flipBaseLight)
+    const fd = calcFlip(flipBaseDark)
+    flipLayer1 = [fl?.l1, fd?.l1]
+    flipLayer2 = [fl?.l2, fd?.l2]
+    flipSidebar = [fl?.side, fd?.side]
+    flipButtonElevated = [fl?.btnElev, fd?.btnElev]
+    flipButtonFloating = [fl?.btnFloat, fd?.btnFloat]
+    flipButtonFloatingHover = [fl?.btnHover, fd?.btnHover]
+
+    if (fl !== undefined || fd !== undefined) {
+      const getVal = (v: [string | undefined, string | undefined], fallbackToken: string): [string, string] => [
+        v[0] ?? tokens[fallbackToken]?.light ?? DEFAULT_SURFACE_COLORS[fallbackToken].light,
+        v[1] ?? tokens[fallbackToken]?.dark ?? DEFAULT_SURFACE_COLORS[fallbackToken].dark,
+      ]
+      const l1 = getVal(flipLayer1, '--dsw-alias-bg-layer-1')
+      emit('--dsw-alias-bg-layer-1', l1[0], l1[1])
+      const l2 = getVal(flipLayer2, '--dsw-alias-bg-layer-2')
+      emit('--dsw-alias-bg-layer-2', l2[0], l2[1])
+      const side = getVal(flipSidebar, '--dsw-specific-sidebar-fill')
+      emit('--dsw-specific-sidebar-fill', side[0], side[1])
+
+      if (text.light === '' && fl !== undefined) {
+        emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
+        emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
+        emit('--dsw-alias-label-primary-inverted', DARK_INK, tokens['--dsw-alias-label-primary-inverted']?.dark ?? DARK_INK)
+        emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
+      }
+      if (text.dark === '' && fd !== undefined) {
+        emit('--dsw-alias-label-primary', tokens['--dsw-alias-label-primary']?.light ?? '#0f1115', '#fafaf9')
+        emit('--dsw-alias-label-secondary', tokens['--dsw-alias-label-secondary']?.light ?? '#61666b', '#d6d3d1')
+        emit('--dsw-alias-label-primary-inverted', tokens['--dsw-alias-label-primary-inverted']?.light ?? LIGHT_INK, DARK_INK)
+        emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? LIGHT_INK, DARK_INK)
+      }
+
+      const btnElev = getVal(flipButtonElevated, '--dsw-alias-button-elevated-fill')
+      emit('--dsw-alias-button-elevated-fill', btnElev[0], btnElev[1])
+      const btnFloat = getVal(flipButtonFloating, '--dsw-alias-button-floating-fill')
+      emit('--dsw-alias-button-floating-fill', btnFloat[0], btnFloat[1])
+      const btnHover = getVal(flipButtonFloatingHover, '--dsw-alias-button-floating-hover')
+      emit('--dsw-alias-button-floating-hover', btnHover[0], btnHover[1])
+      emit('--dsw-specific-sidebar-nav-item-active', btnElev[0], btnElev[1])
+      emit('--dsw-specific-sidebar-nav-item-hover', btnFloat[0], btnFloat[1])
+      emit('--dsw-specific-selector', btnFloat[0], btnFloat[1])
+      emit('--dsw-alias-interactive-bg-hover-solid', btnHover[0], btnHover[1])
+    }
   }
 
-  // Surface translucency bakes a plain rgba() per mode — NEVER a
-  // color-mix referencing the token itself: `color-mix(in srgb,
-  // var(--x) n%, transparent)` assigned to --x is a custom-property
-  // cycle, the property goes guaranteed-invalid, and every surface using
-  // it turns fully transparent (only 0%/100% looked "working").
-  // Resolution order: explicit role color → dark-flip derived value →
-  // the stock palette for that mode (design-platform.css, kept in sync
-  // manually).
-  const bakeAlpha = (token: string, explicit: string | undefined, flip: string | undefined, a: number): void => {
-    if (explicit === 'transparent') {
-      emit(token, 'transparent', 'transparent')
-      return
-    }
-    const base = explicit !== undefined && explicit !== ''
-      ? { light: explicit, dark: explicit }
-      : flip !== undefined
-        ? { light: flip, dark: flip }
-        : DEFAULT_SURFACE_COLORS[token] ?? { light: LIGHT_BASE, dark: DARK_BASE }
-    emit(token, withAlpha(base.light, a), withAlpha(base.dark, a))
+  const bakeAlpha = (
+    token: string,
+    explicitLight: string | undefined,
+    explicitDark: string | undefined,
+    flipLight: string | undefined,
+    flipDark: string | undefined,
+    a: number,
+  ): void => {
+    const baseL = explicitLight === 'transparent' ? 'transparent'
+      : (explicitLight !== undefined && explicitLight !== '' ? explicitLight
+      : (flipLight !== undefined ? flipLight
+      : (tokens[token]?.light ?? DEFAULT_SURFACE_COLORS[token]?.light ?? LIGHT_BASE)))
+
+    const baseD = explicitDark === 'transparent' ? 'transparent'
+      : (explicitDark !== undefined && explicitDark !== '' ? explicitDark
+      : (flipDark !== undefined ? flipDark
+      : (tokens[token]?.dark ?? DEFAULT_SURFACE_COLORS[token]?.dark ?? DARK_BASE)))
+
+    emit(token, withAlpha(baseL, a), withAlpha(baseD, a))
   }
-  // For accent-based bakes we want the proper dark-mode derivation (the
-  // accent hue in dark mode shifts lighter for readability).
+
   const bakeAccent = (token: string, a: number): void => {
-    if (accent === '') {
-      bakeAlpha(token, undefined, undefined, a)
-      return
-    }
-    const [light, dark] = modePair(accent)
-    emit(token, withAlpha(light, a), withAlpha(dark, a))
+    emit(token, withAlpha(lightAccent, a), withAlpha(darkAccent, a))
   }
-  // Input and code surfaces are absolute, independent of the panel opacity —
-  // they bake at every panel value (even 100%), so their own knobs keep
-  // working no matter where the panel slider sits.
-  bakeAlpha('--dsw-specific-input-major', input, undefined, inputAlpha)
-  bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, codeAlpha)
-  bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, codeAlpha)
+
+  bakeAlpha('--dsw-specific-input-major', input.light, input.dark, undefined, undefined, inputAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, undefined, undefined, codeAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, undefined, undefined, codeAlpha)
 
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
-    const translucent = (token: string, explicit: string | undefined, flip: string | undefined): void => {
-      bakeAlpha(token, explicit, flip, alpha)
+    const translucent = (
+      token: string,
+      explicitLight: string | undefined,
+      explicitDark: string | undefined,
+      flipL: string | undefined,
+      flipD: string | undefined,
+    ): void => {
+      bakeAlpha(token, explicitLight, explicitDark, flipL, flipD, alpha)
     }
-    // An image keeps the base transparent even under surface translucency.
-    translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : background, undefined)
-    translucent('--dsw-alias-bg-layer-1', panel, flipLayer1)
-    // Layer-2 backs the settings panel root, so it must follow the panel
-    // color too (its 8% light-derived step keeps the layer depth).
-    translucent('--dsw-alias-bg-layer-2', panel !== '' ? mixHex(panel, LIGHT_BASE, 0.08) : undefined, flipLayer2)
-    translucent('--dsw-alias-bg-layer-3', undefined, undefined)
-    translucent('--dsw-alias-bg-overlay', undefined, undefined)
-    translucent('--dsw-alias-bg-module-platform', undefined, undefined)
-    translucent('--dsw-alias-bg-multi-select', undefined, undefined)
-    // The sidebar can opt out of the surface translucency: navigation stays
-    // solid even when everything else melts into the wallpaper.
-    if (!sidebarOpaque) translucent('--dsw-specific-sidebar-fill', panel ?? background, flipSidebar)
-    // Bubbles follow the accent hue at the surface alpha (set above).
-    translucent('--dsw-specific-bubble', accent, undefined)
-    translucent('--dsw-specific-bubble-highlight', accent, undefined)
-    // Neutral buttons ride the same translucency so they do not stand out as
-    // solid chips on a translucent interface; the settings nav selected/hover
-    // states ride it too. Resolution mirrors the opaque path: dark-flip value
-    // wins, then the panel-derived fill, then stock.
-    const bakeControl = (token: string, derived: [string, string] | undefined, flip: string | undefined): void => {
-      if (flip !== undefined) {
-        emit(token, withAlpha(flip, alpha), withAlpha(flip, alpha))
-        return
-      }
-      if (derived !== undefined) {
-        emit(token, withAlpha(derived[0], alpha), withAlpha(derived[1], alpha))
-        return
-      }
-      bakeAlpha(token, undefined, undefined, alpha)
+
+    translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : bg.light, backgroundImage !== '' ? 'transparent' : bg.dark, undefined, undefined)
+    translucent('--dsw-alias-bg-layer-1', panel.light, panel.dark, flipLayer1[0], flipLayer1[1])
+    translucent(
+      '--dsw-alias-bg-layer-2',
+      panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.08) : undefined,
+      panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.08) : undefined,
+      flipLayer2[0],
+      flipLayer2[1],
+    )
+    translucent('--dsw-alias-bg-layer-3', undefined, undefined, undefined, undefined)
+    translucent('--dsw-alias-bg-overlay', undefined, undefined, undefined, undefined)
+    translucent('--dsw-alias-bg-module-platform', undefined, undefined, undefined, undefined)
+    translucent('--dsw-alias-bg-multi-select', undefined, undefined, undefined, undefined)
+
+    if (!sidebarOpaque) {
+      translucent(
+        '--dsw-specific-sidebar-fill',
+        panel.light || bg.light || undefined,
+        panel.dark || bg.dark || undefined,
+        flipSidebar[0],
+        flipSidebar[1],
+      )
     }
-    bakeControl('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
-    bakeControl('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
-    bakeControl('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
-    bakeControl('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
-    bakeControl('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
-    translucent('--dsw-specific-menu', undefined, undefined)
-    translucent('--dsw-alias-fill-l2', undefined, undefined)
-    bakeControl('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
-    translucent('--dsw-specific-tip', undefined, undefined)
-    // Inline code keeps its emphasis via hue: a low-alpha brand tint (the
-    // user accent when set, else the stock blue so legacy empty-accent
-    // settings agree with the theme's actual default. The tint alpha is user-controlled
-    // (emphasisAlpha, default 0.22 to match the harness's own
-    // reference-chip alpha).
-    const inlineCodeBase = accent !== '' && accent !== undefined ? accent : '#4176e6'
-    const inlineCodeBaseDark = accent !== '' && accent !== undefined ? accent : '#679efe'
-    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBase, emphasisAlpha), withAlpha(inlineCodeBaseDark, emphasisAlpha))
+
+    translucent('--dsw-specific-bubble', lightAccent, darkAccent, undefined, undefined)
+    translucent('--dsw-specific-bubble-highlight', lightAccent, darkAccent, undefined, undefined)
+
+    const bakeControlTranslucent = (
+      token: string,
+      derived: [string, string] | undefined,
+      flip: [string | undefined, string | undefined],
+    ): void => {
+      const valL = flip[0] ?? derived?.[0] ?? tokens[token]?.light ?? DEFAULT_SURFACE_COLORS[token]?.light ?? LIGHT_BASE
+      const valD = flip[1] ?? derived?.[1] ?? tokens[token]?.dark ?? DEFAULT_SURFACE_COLORS[token]?.dark ?? DARK_BASE
+      emit(token, withAlpha(valL, alpha), withAlpha(valD, alpha))
+    }
+
+    bakeControlTranslucent('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
+    bakeControlTranslucent('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
+    bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
+    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
+    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
+    translucent('--dsw-specific-menu', undefined, undefined, undefined, undefined)
+    translucent('--dsw-alias-fill-l2', undefined, undefined, undefined, undefined)
+    bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
+    translucent('--dsw-specific-tip', undefined, undefined, undefined, undefined)
+
+    const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
+    const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'
+    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBaseL, emphasisAlpha), withAlpha(inlineCodeBaseD, emphasisAlpha))
   }
 
-  // Action affordances (send/stop fills and hovers, the "+" trigger) track
-  // the INPUT opacity at every panel value — same contract as the input
-  // surface above: the knob keeps working even when the panel sits at 100%.
-  // Under a translucent panel they bake at full input opacity too, so an
-  // opaque control does not sit on a translucent surface.
   if (surfaceAlpha < 1 || inputAlpha < 1) {
-    // Brand/accent action buttons (send, stop) are affordances, not
-    // surfaces — they follow the input knob rather than the panel's.
     bakeAccent('--dsw-alias-button-primary-fill', inputAlpha)
     bakeAccent('--dsw-alias-button-info-fill', inputAlpha)
-    // The hovers of those same buttons ride the input opacity too — an
-    // opaque hover fill on a translucent button reads as a different
-    // element snapping solid under the pointer (send key, full-access
-    // toggle). Resolution mirrors the fills: accent-derived step, else the
-    // stock hover palette.
-    const bakeInputHover = (token: string, derived: [string, string] | undefined): void => {
-      if (derived !== undefined) {
-        emit(token, withAlpha(derived[0], inputAlpha), withAlpha(derived[1], inputAlpha))
-        return
+
+    const bakeInputHover = (token: string, derivedLight?: string, derivedDark?: string): void => {
+      const stock = DEFAULT_SURFACE_COLORS[token]
+      const l = derivedLight ?? stock?.light
+      const d = derivedDark ?? stock?.dark
+      if (l !== undefined && d !== undefined) {
+        emit(token, withAlpha(l, inputAlpha), withAlpha(d, inputAlpha))
       }
-      bakeAlpha(token, undefined, undefined, inputAlpha)
     }
-    bakeInputHover('--dsw-alias-button-info-hover', infoHover)
-    bakeInputHover('--dsw-alias-button-primary-hover', primaryHover)
-    // The left-side command ("+") trigger is an input affordance as well;
-    // its base follows the derived/flip control family when one is active
-    // instead of staying stock near-white.
-    const plusBase = flipButtonFloating ?? controlButtonFill?.[0]
-    if (plusBase !== undefined) {
-      emit('--dsw-specific-selector', withAlpha(plusBase, inputAlpha), withAlpha(plusBase, inputAlpha))
+    bakeInputHover('--dsw-alias-button-info-hover', lightInfoHover, darkInfoHover)
+    bakeInputHover('--dsw-alias-button-primary-hover', lightPrimaryHover, darkPrimaryHover)
+
+    const plusBaseL = flipButtonFloating[0] ?? controlButtonFill?.[0]
+    const plusBaseD = flipButtonFloating[1] ?? controlButtonFill?.[1]
+    if (plusBaseL !== undefined || plusBaseD !== undefined) {
+      const pL = plusBaseL ?? DEFAULT_SURFACE_COLORS['--dsw-specific-selector'].light
+      const pD = plusBaseD ?? DEFAULT_SURFACE_COLORS['--dsw-specific-selector'].dark
+      emit('--dsw-specific-selector', withAlpha(pL, inputAlpha), withAlpha(pD, inputAlpha))
     } else {
-      bakeAlpha('--dsw-specific-selector', undefined, undefined, inputAlpha)
+      bakeAlpha('--dsw-specific-selector', undefined, undefined, undefined, undefined, inputAlpha)
     }
   }
 
@@ -431,11 +496,78 @@ export interface AppearancePreset {
   id: string
   /** Role colors; absent roles keep the user's current value. */
   colors: Partial<Record<AppearanceRole, string>>
+  /** Supported mode for this preset: 'light', 'dark', or 'both' (default 'both'). */
+  mode?: 'light' | 'dark' | 'both'
 }
 
-/** The shipped presets; `default` clears every role color. */
-export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
-  { id: 'default', colors: {} },
+/** Light mode starter presets. */
+export const LIGHT_PRESETS: readonly AppearancePreset[] = [
+  { id: 'default', colors: {}, mode: 'light' },
+  {
+    id: 'dawn',
+    colors: {
+      accent: '#d97706',
+      background: '#fbfaf8',
+      panel: '#f4f1ea',
+      input: '#ffffff',
+      text: '#292524',
+      border: '#e7e5e4',
+    },
+    mode: 'light',
+  },
+  {
+    id: 'sky',
+    colors: {
+      accent: '#0284c7',
+      background: '#f0f9ff',
+      panel: '#e0f2fe',
+      input: '#ffffff',
+      text: '#0f172a',
+      border: '#bae6fd',
+    },
+    mode: 'light',
+  },
+  {
+    id: 'mint',
+    colors: {
+      accent: '#059669',
+      background: '#f0fdf4',
+      panel: '#dcfce7',
+      input: '#ffffff',
+      text: '#14532d',
+      border: '#bbf7d0',
+    },
+    mode: 'light',
+  },
+  {
+    id: 'sakura',
+    colors: {
+      accent: '#db2777',
+      background: '#fdf2f8',
+      panel: '#fce7f3',
+      input: '#ffffff',
+      text: '#831843',
+      border: '#fbcfe8',
+    },
+    mode: 'light',
+  },
+  {
+    id: 'clay',
+    colors: {
+      accent: '#4b5563',
+      background: '#f9fafb',
+      panel: '#f3f4f6',
+      input: '#ffffff',
+      text: '#111827',
+      border: '#e5e7eb',
+    },
+    mode: 'light',
+  },
+]
+
+/** Dark mode starter presets. */
+export const DARK_PRESETS: readonly AppearancePreset[] = [
+  { id: 'default', colors: {}, mode: 'dark' },
   {
     id: 'midnight',
     colors: {
@@ -446,6 +578,7 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       text: '#e6e9f4',
       border: '#343a52',
     },
+    mode: 'dark',
   },
   {
     id: 'ocean',
@@ -457,6 +590,7 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       text: '#e1f1fa',
       border: '#1e455c',
     },
+    mode: 'dark',
   },
   {
     id: 'forest',
@@ -468,6 +602,7 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       text: '#e7f0ea',
       border: '#2b4637',
     },
+    mode: 'dark',
   },
   {
     id: 'rose',
@@ -479,6 +614,7 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       text: '#f7e9ee',
       border: '#4a3340',
     },
+    mode: 'dark',
   },
   {
     id: 'monochrome',
@@ -490,5 +626,12 @@ export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
       text: '#eeeef0',
       border: '#333338',
     },
+    mode: 'dark',
   },
+]
+
+/** All shipped presets; combining dark and light catalogs. */
+export const APPEARANCE_PRESETS: readonly AppearancePreset[] = [
+  ...DARK_PRESETS,
+  ...LIGHT_PRESETS.filter(candidate => candidate.id !== 'default'),
 ]

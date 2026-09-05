@@ -11,7 +11,8 @@ import type { Context } from '@deepseek-ai/cordis'
 
 export {
   APPEARANCE_SETTINGS_NAMESPACE, APPEARANCE_ROLES, DEFAULT_SETTINGS,
-  type AppearanceRole, type AppearanceSettings,
+  DEFAULT_MODE_THEME, DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME,
+  type AppearanceRole, type AppearanceSettings, type ThemeMode, type ModeThemeSettings,
 } from './appearance-settings.ts'
 
 /**

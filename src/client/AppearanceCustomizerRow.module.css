@@ -236,6 +236,7 @@
 .footer {
   display: flex;
   justify-content: flex-start;
+  gap: 8px;
 }
 
 .dragging {
@@ -263,3 +264,62 @@
   line-height: 18px;
   resize: vertical;
 }
+
+.modeSelectorRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modeSegmented {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--dsw-alias-bg-module-platform);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modeTab:hover:not(.modeTabActive) {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.modeTabActive {
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.modeTabIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.activeBadge {
+  font-size: 11px;
+  line-height: 14px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--dsw-alias-brand-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+

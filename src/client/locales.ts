@@ -3,8 +3,16 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'row.title': '个性化外观',
+  'mode.light': '浅色模式',
+  'mode.dark': '深色模式',
+  'mode.active': '当前',
   'presets.title': '预设主题',
   'preset.default': '默认',
+  'preset.dawn': '晨曦',
+  'preset.sky': '云天',
+  'preset.mint': '薄荷',
+  'preset.sakura': '樱粉',
+  'preset.clay': '雅灰',
   'preset.midnight': '午夜',
   'preset.ocean': '海洋',
   'preset.forest': '森林',
@@ -62,7 +70,8 @@ export const zh = {
   'scheme.cancel': '取消',
   'scheme.invalid': '配色 JSON 无效,请检查后重试',
   'scheme.exported': '配色已复制到剪贴板',
-  'actions.reset': '恢复默认',
+  'actions.reset': '恢复全部默认',
+  'actions.resetMode': '恢复当前模式默认',
 } satisfies Record<string, string>
 
 /** The settings.appearance namespace key union. */
@@ -71,8 +80,16 @@ export type AppearanceKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'row.title': 'Appearance',
+  'mode.light': 'Light Mode',
+  'mode.dark': 'Dark Mode',
+  'mode.active': 'Active',
   'presets.title': 'Presets',
   'preset.default': 'Default',
+  'preset.dawn': 'Dawn',
+  'preset.sky': 'Sky',
+  'preset.mint': 'Mint',
+  'preset.sakura': 'Sakura',
+  'preset.clay': 'Clay',
   'preset.midnight': 'Midnight',
   'preset.ocean': 'Ocean',
   'preset.forest': 'Forest',
@@ -129,6 +146,6 @@ export const en = {
   'scheme.apply': 'Apply',
   'scheme.cancel': 'Cancel',
   'scheme.invalid': 'Invalid color scheme JSON, check and retry',
-  'scheme.exported': 'Color scheme copied to clipboard',
-  'actions.reset': 'Reset to default',
+  'actions.reset': 'Reset all to default',
+  'actions.resetMode': 'Reset current mode to default',
 } satisfies Record<AppearanceKey, string>

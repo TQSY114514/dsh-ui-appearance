@@ -26,6 +26,9 @@ afterEach(cleanup)
 
 const COPY: Record<string, string> = {
   'row.title': 'Appearance',
+  'mode.light': 'Light Mode',
+  'mode.dark': 'Dark Mode',
+  'mode.active': 'Active',
   'presets.title': 'Presets',
   'preset.default': 'Default',
   'preset.midnight': 'Midnight',
@@ -112,6 +115,7 @@ describe('AppearanceCustomizerRow', () => {
   it('preset chips drive applyPreset and the selected chip follows the store', () => {
     const b = mount()
     openRow()
+    fireEvent.click(screen.getByRole('tab', { name: /Dark Mode/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Midnight' }))
     expect(b.applyPreset).toHaveBeenCalledWith('midnight')
     act(() => { b.store.actions.patch({ preset: 'midnight' }) })
@@ -212,5 +216,18 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.applyColors).not.toHaveBeenCalled()
     expect(screen.getByText('Invalid color scheme JSON')).toBeDefined()
     expect(screen.getByPlaceholderText('Paste an exported color scheme JSON…')).toBeDefined()
+  })
+
+  it('mode selector tabs switch between light and dark presets and palettes', () => {
+    mount()
+    openRow()
+    // By default in light mode, light presets like Dawn are visible
+    expect(screen.getByRole('button', { name: 'preset.dawn' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Midnight' })).toBeNull()
+
+    // Switch to dark mode tab
+    fireEvent.click(screen.getByRole('tab', { name: /Dark Mode/ }))
+    expect(screen.getByRole('button', { name: 'Midnight' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'preset.dawn' })).toBeNull()
   })
 })

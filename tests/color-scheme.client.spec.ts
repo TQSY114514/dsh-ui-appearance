@@ -19,6 +19,23 @@ describe('exportColorScheme', () => {
     // Sliders and the image are not part of a color scheme.
     expect(parsed.colors.backgroundImage).toBeUndefined()
   })
+
+  it('exports both light and dark mode colors when customized', () => {
+    const settings = full({
+      light: { accent: '#d97706', background: '#fbfaf8', panel: '#f4f1ea', input: '#ffffff', text: '#292524', border: '#e7e5e4', preset: 'dawn' },
+      dark: { accent: '#7c9cff', background: '#1b1e2c', panel: '#232737', input: '#202435', text: '#e6e9f4', border: '#343a52', preset: 'midnight' },
+    })
+    const parsed = JSON.parse(exportColorScheme(settings)) as {
+      version: number
+      colors: Record<string, string>
+      light?: Record<string, string>
+      dark?: Record<string, string>
+    }
+    expect(parsed.light?.accent).toBe('#d97706')
+    expect(parsed.light?.background).toBe('#fbfaf8')
+    expect(parsed.dark?.accent).toBe('#7c9cff')
+    expect(parsed.dark?.background).toBe('#1b1e2c')
+  })
 })
 
 describe('parseColorScheme', () => {
@@ -30,6 +47,18 @@ describe('parseColorScheme', () => {
     expect(colors.accent).toBe('#4176e6')
     expect(colors.background).toBe('')
     expect(colors.panel).toBe('#203040')
+  })
+
+  it('accepts dual-mode scheme with light and dark sub-sections', () => {
+    const result = parseColorScheme(JSON.stringify({
+      version: 1,
+      light: { accent: '#d97706', background: '#fbfaf8' },
+      dark: { accent: '#7c9cff', background: '#1b1e2c' },
+    }))
+    expect(result.light?.accent).toBe('#d97706')
+    expect(result.light?.background).toBe('#fbfaf8')
+    expect(result.dark?.accent).toBe('#7c9cff')
+    expect(result.dark?.background).toBe('#1b1e2c')
   })
 
   it('ignores unknown roles', () => {

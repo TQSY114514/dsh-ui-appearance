@@ -11,14 +11,17 @@ import {
   DisclosureRow, IconPersonalizationOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings } from '../appearance-settings.ts'
+import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings, type ThemeMode } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, prepareImage } from './image.ts'
 import { getImage, saveImage } from './image-store.ts'
 import { ACCEPTED_VIDEO_TYPES, deleteVideo, MAX_VIDEO_BYTES, saveVideo } from './video-store.ts'
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
-import { APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from './tokens.ts'
+import {
+  APPEARANCE_PRESETS, LIGHT_PRESETS, DARK_PRESETS,
+  BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX,
+} from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
 import type { createAppearanceRowStore } from './settings-store.ts'
 import css from './AppearanceCustomizerRow.module.css'
@@ -27,10 +30,18 @@ import css from './AppearanceCustomizerRow.module.css'
 export interface AppearanceCustomizerInjected {
   /** Update one settings field (optimistic + debounced persistence). */
   set: (field: keyof AppearanceSettings, value: string | number | boolean) => void
+  /** Update one role color in a specific mode (light or dark). */
+  setModeRole?: (mode: ThemeMode, role: AppearanceRole, value: string) => void
   /** Set or clear the background image (null removes it). */
   setImage: (image: { url: string; imageDark: boolean } | null) => void
   /** Set or clear the background video by its IndexedDB record key. */
   setVideo: (key: string | null) => void
+  /** Apply one shipped preset to a specific mode. */
+  applyModePreset?: (mode: ThemeMode, id: string) => void
+  /** Apply a batch of role colors to a specific mode in one write. */
+  applyModeColors?: (mode: ThemeMode, colors: Partial<Record<AppearanceRole, string>>) => void
+  /** Reset one mode's settings to default. */
+  resetMode?: (mode: ThemeMode) => void
   /** Apply one shipped preset (colors only). */
   applyPreset: (id: string) => void
   /** Apply a batch of role colors in one write (scheme import). */
@@ -44,15 +55,42 @@ export type AppearanceCustomizerComponentProps =
   PropsRuntime<'settings.general.item'> & PropsStore<ReturnType<typeof createAppearanceRowStore>>
   & PropsLocale<'settings.appearance'> & AppearanceCustomizerInjected
 
-/** Stock (light-mode) display color per role, shown when the role is unset
+/** Stock display color per role and mode, shown when the role is unset
  * so the swatch always mirrors what the theme actually uses. */
-const STOCK_ROLE_COLORS: Record<AppearanceRole, string> = {
-  accent: '#4176e6',
-  background: '#ffffff',
-  panel: '#ffffff',
-  input: '#ffffff',
-  text: '#0f1115',
-  border: '#d9dde3',
+const STOCK_ROLE_COLORS: Record<ThemeMode, Record<AppearanceRole, string>> = {
+  light: {
+    accent: '#4176e6',
+    background: '#ffffff',
+    panel: '#ffffff',
+    input: '#ffffff',
+    text: '#0f1115',
+    border: '#d9dde3',
+  },
+  dark: {
+    accent: '#4176e6',
+    background: '#151517',
+    panel: '#232324',
+    input: '#2c2c2e',
+    text: '#fafaf9',
+    border: '#333338',
+  },
+}
+
+function SunIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  )
 }
 
 /** One color field row: native swatch + hex text input. */
@@ -171,7 +209,9 @@ function BackgroundThumb(props: { token: string }) {
  * @returns the row element tree.
  */
 export function AppearanceCustomizerRow({
-  t, useStore, set, setImage, setVideo, applyPreset, applyColors, resetAll,
+  t, useStore, set, setModeRole, setImage, setVideo,
+  applyModePreset, applyModeColors, resetMode,
+  applyPreset, applyColors, resetAll,
 }: AppearanceCustomizerComponentProps) {
   const settings = useStore(s => s.settings)
   const [open, setOpen] = useState(false)
@@ -190,15 +230,54 @@ export function AppearanceCustomizerRow({
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
 
-  const applyWallpaperPalette = (accentHex: string): void => {
-    // The accent always follows the sampled hue; the derived surfaces fill
-    // in only the roles the user has not customized, so a hand-tuned theme
-    // is never overwritten.
-    set('accent', accentHex)
+  const detectHostDark = (): boolean => {
+    if (typeof document === 'undefined') return false
+    return document.body?.hasAttribute('data-ds-dark-theme')
+      || document.documentElement?.hasAttribute('data-ds-dark-theme')
+      || (document.documentElement?.getAttribute('data-theme') === 'dark')
+  }
+
+  const [hostDarkMode, setHostDarkMode] = useState(detectHostDark)
+  const currentHostMode: ThemeMode = hostDarkMode ? 'dark' : 'light'
+  const [activeMode, setActiveMode] = useState<ThemeMode>(() => (detectHostDark() ? 'dark' : 'light'))
+
+  useEffect(() => {
+    const update = (): void => { setHostDarkMode(detectHostDark()) }
+    const observer = new MutationObserver(update)
+    if (document.body) {
+      observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme', 'data-theme', 'class'] })
+    }
+    if (document.documentElement) {
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ds-dark-theme', 'data-theme', 'class'] })
+    }
+    const mql = window.matchMedia?.('(prefers-color-scheme: dark)')
+    mql?.addEventListener?.('change', update)
+    return () => {
+      observer.disconnect()
+      mql?.removeEventListener?.('change', update)
+    }
+  }, [])
+
+  const currentModeTheme = settings[activeMode] ?? (activeMode === 'light' ? settings.light : settings.dark)
+  const activePreset = currentModeTheme?.preset || (activeMode === 'dark' ? settings.preset : '')
+  const presetsCatalog = activeMode === 'light' ? LIGHT_PRESETS : DARK_PRESETS
+
+  const applyWallpaperPalette = (accentHex: string, isDark: boolean): void => {
+    const targetMode: ThemeMode = isDark ? 'dark' : 'light'
+    const targetTheme = settings[targetMode]
+    if (setModeRole) {
+      setModeRole(targetMode, 'accent', accentHex)
+    } else {
+      set('accent', accentHex)
+    }
     const palette = derivePalette(accentHex)
     for (const [role, hex] of Object.entries(palette)) {
-      if (settings[role as AppearanceRole] === '') set(role as AppearanceRole, hex)
+      if ((targetTheme?.[role as AppearanceRole] ?? settings[role as AppearanceRole]) === '') {
+        if (setModeRole) setModeRole(targetMode, role as AppearanceRole, hex)
+        else set(role as AppearanceRole, hex)
+      }
     }
+    setActiveMode(targetMode)
     set('preset', 'custom')
   }
 
@@ -223,7 +302,7 @@ export function AppearanceCustomizerRow({
       setImage({ url: key, imageDark: payload.imageDark })
       // Auto-palette: the wallpaper's dominant hue becomes the accent color
       // and fills the untouched surface roles.
-      if (payload.accent !== null) applyWallpaperPalette(payload.accent)
+      if (payload.accent !== null) applyWallpaperPalette(payload.accent, payload.imageDark)
     } catch {
       setReadError('read')
     } finally {
@@ -278,7 +357,7 @@ export function AppearanceCustomizerRow({
         const key = await saveImage(payload.blob, urlToName(url))
         setImage({ url: key, imageDark: payload.imageDark })
         // Auto-palette, same rule as uploads.
-        if (payload.accent !== null) applyWallpaperPalette(payload.accent)
+        if (payload.accent !== null) applyWallpaperPalette(payload.accent, payload.imageDark)
       }
       setUrlDraft('')
     } catch (error) {
@@ -306,8 +385,19 @@ export function AppearanceCustomizerRow({
   }
   const changeRole = (role: AppearanceRole, hex: string): void => {
     const normalized = hex.length === 4 ? formatHex(parseHex(hex)) : hex.toLowerCase()
-    set(role, normalized)
-    set('preset', 'custom')
+    if (setModeRole) {
+      setModeRole(activeMode, role, normalized)
+    } else {
+      set(role, normalized)
+      set('preset', 'custom')
+    }
+  }
+  const onPresetClick = (presetId: string): void => {
+    if (applyModePreset) {
+      applyModePreset(activeMode, presetId)
+    } else {
+      applyPreset(presetId)
+    }
   }
   const doExport = async (): Promise<void> => {
     setExported(false)
@@ -321,8 +411,25 @@ export function AppearanceCustomizerRow({
   const doImport = (): void => {
     setSchemeError(false)
     try {
-      const colors = parseColorScheme(schemeDraft)
-      applyColors(colors)
+      const parsed = parseColorScheme(schemeDraft)
+      if (parsed.light !== undefined && parsed.dark !== undefined) {
+        if (applyModeColors) {
+          applyModeColors('light', parsed.light)
+          applyModeColors('dark', parsed.dark)
+        } else {
+          applyColors(parsed.dark)
+        }
+      } else {
+        const roleColors: Partial<Record<AppearanceRole, string>> = {}
+        for (const role of APPEARANCE_ROLES) {
+          if (parsed[role] !== undefined) roleColors[role] = parsed[role]
+        }
+        if (applyModeColors) {
+          applyModeColors(activeMode, roleColors)
+        } else {
+          applyColors(roleColors)
+        }
+      }
       setSchemeOpen(false)
       setSchemeDraft('')
     } catch {
@@ -341,16 +448,43 @@ export function AppearanceCustomizerRow({
         onToggle={() => { setOpen(value => !value) }}
       >
         <div className={css.body} onClick={event => { event.stopPropagation() }}>
+          <div className={css.modeSelectorRow}>
+            <div className={css.modeSegmented} role="tablist" aria-label={t('row.title')}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeMode === 'light'}
+                className={clsx(css.modeTab, activeMode === 'light' && css.modeTabActive)}
+                onClick={() => { setActiveMode('light') }}
+              >
+                <span className={css.modeTabIcon}><SunIcon /></span>
+                <span>{t('mode.light')}</span>
+                {currentHostMode === 'light' && <span className={css.activeBadge}>{t('mode.active')}</span>}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeMode === 'dark'}
+                className={clsx(css.modeTab, activeMode === 'dark' && css.modeTabActive)}
+                onClick={() => { setActiveMode('dark') }}
+              >
+                <span className={css.modeTabIcon}><MoonIcon /></span>
+                <span>{t('mode.dark')}</span>
+                {currentHostMode === 'dark' && <span className={css.activeBadge}>{t('mode.active')}</span>}
+              </button>
+            </div>
+          </div>
+
           <div className={css.section}>
             <div className={css.sectionTitle}>{t('presets.title')}</div>
             <div className={css.chipRow} role="group">
-              {APPEARANCE_PRESETS.map(preset => (
+              {presetsCatalog.map(preset => (
                 <button
                   key={preset.id}
                   type="button"
-                  className={clsx(css.chip, settings.preset === preset.id && css.chipSelected)}
-                  aria-pressed={settings.preset === preset.id}
-                  onClick={() => { applyPreset(preset.id) }}
+                  className={clsx(css.chip, activePreset === preset.id && css.chipSelected)}
+                  aria-pressed={activePreset === preset.id}
+                  onClick={() => { onPresetClick(preset.id) }}
                 >
                   {t(`preset.${preset.id}` as AppearanceKey)}
                 </button>
@@ -363,10 +497,10 @@ export function AppearanceCustomizerRow({
             <div className={css.colorGrid}>
               {APPEARANCE_ROLES.map(role => (
                 <ColorField
-                  key={role}
+                  key={`${activeMode}-${role}`}
                   label={t(`color.${role}` as AppearanceKey)}
-                  value={settings[role]}
-                  stock={STOCK_ROLE_COLORS[role]}
+                  value={currentModeTheme?.[role] ?? settings[role] ?? ''}
+                  stock={STOCK_ROLE_COLORS[activeMode][role]}
                   onChange={hex => { changeRole(role, hex) }}
                   t={t}
                 />
@@ -597,6 +731,9 @@ export function AppearanceCustomizerRow({
           </div>
 
           <div className={css.footer}>
+            <button type="button" className={css.ghostButton} onClick={() => { resetMode(activeMode) }}>
+              {t('actions.resetMode')}
+            </button>
             <button type="button" className={css.ghostButton} onClick={resetAll}>
               {t('actions.reset')}
             </button>

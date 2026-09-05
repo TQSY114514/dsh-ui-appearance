@@ -37,18 +37,45 @@ export type AppearanceRole = typeof APPEARANCE_ROLES[number]
 /** Hex color fields, keyed by role. */
 export type AppearanceColors = Record<AppearanceRole, string>
 
+/** Supported appearance theme modes. */
+export type ThemeMode = 'light' | 'dark'
+
+/** Color settings and active preset for one theme mode (light or dark). */
+export interface ModeThemeSettings extends AppearanceColors {
+  /** Last applied preset id for this mode, or 'custom' / '' after manual edits. */
+  preset: string
+}
+
+/** Stock mode settings. */
+export const DEFAULT_MODE_THEME: ModeThemeSettings = {
+  accent: '',
+  background: '',
+  panel: '',
+  input: '',
+  text: '',
+  border: '',
+  preset: '',
+}
+
+export const DEFAULT_LIGHT_THEME: ModeThemeSettings = { ...DEFAULT_MODE_THEME }
+export const DEFAULT_DARK_THEME: ModeThemeSettings = { ...DEFAULT_MODE_THEME }
+
 /**
  * Durable appearance section. Color fields hold `#rrggbb` or `''` (stock);
  * the image field holds an IndexedDB record key (legacy records: an inline
- * data URL); the numeric fields are plain percentages/px values with their
+ * data URL); numeric sliders hold finite numbers. Every field uses its
  * stock value as the default.
  */
 export interface AppearanceSettings extends AppearanceColors {
+  /** Light mode theme configuration. */
+  light: ModeThemeSettings
+  /** Dark mode theme configuration. */
+  dark: ModeThemeSettings
   /** IndexedDB key of the background image (legacy: inline data URL); '' clears it. */
   backgroundImage: string
   /** IndexedDB key of the background video; '' clears the video. */
   backgroundVideo: string
-  /** True when the compressed image sampled as dark (< 35% average brightness). */
+  /** The background image was analyzed as predominantly dark. */
   imageDark: boolean
   /** Background image layer opacity, 0..1. */
   backgroundOpacity: number
@@ -68,7 +95,7 @@ export interface AppearanceSettings extends AppearanceColors {
   glassBlur: number
   /** Tint alpha of emphasized text chips (inline code), 0..0.45. */
   emphasisAlpha: number
-  /** Last applied preset id, or 'custom' after manual edits. */
+  /** Last applied preset id, or 'custom' after manual edits (legacy mirror). */
   preset: string
 }
 
@@ -82,6 +109,9 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   input: '',
   text: '',
   border: '',
+  preset: '',
+  light: { ...DEFAULT_LIGHT_THEME },
+  dark: { ...DEFAULT_DARK_THEME },
   backgroundImage: '',
   backgroundVideo: '',
   imageDark: false,
@@ -94,7 +124,6 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   sidebarOpaque: false,
   glassBlur: 0,
   emphasisAlpha: 0.22,
-  preset: '',
 }
 
 /** Number fields and their schema bounds, used to sanitize persisted input. */
@@ -121,6 +150,31 @@ function normalizeHex(value: string): string {
   return value.toLowerCase()
 }
 
+/** Check if a valid 6-digit hex is dark using standard sRGB luminance weights. */
+function isDarkHex(hex: string): boolean {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return false
+  const r = parseInt(hex.slice(1, 3), 16) / 255
+  const g = parseInt(hex.slice(3, 5), 16) / 255
+  const b = parseInt(hex.slice(5, 7), 16) / 255
+  const linear = (c: number): number => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  return (0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)) < 0.18
+}
+
+/** Sanitize one mode's theme settings object. */
+export function sanitizeModeTheme(raw: unknown, fallback: ModeThemeSettings = DEFAULT_MODE_THEME): ModeThemeSettings {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ...fallback }
+  const source = raw as Record<string, unknown>
+  const result: ModeThemeSettings = { ...fallback }
+  for (const role of APPEARANCE_ROLES) {
+    const value = source[role]
+    if (typeof value === 'string' && (value === '' || /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value))) {
+      result[role] = value === '' ? '' : normalizeHex(value)
+    }
+  }
+  if (typeof source.preset === 'string') result.preset = source.preset
+  return result
+}
+
 /**
  * Validate and coerce one parsed settings document against the schema, so
  * hand-edited or stale localStorage can never produce invalid CSS (e.g. a
@@ -134,18 +188,69 @@ function normalizeHex(value: string): string {
 export function sanitizeSettings(raw: unknown): AppearanceSettings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ...DEFAULT_SETTINGS }
   const source = raw as Record<string, unknown>
-  const result: AppearanceSettings = { ...DEFAULT_SETTINGS }
+  const result: AppearanceSettings = {
+    ...DEFAULT_SETTINGS,
+    light: { ...DEFAULT_LIGHT_THEME },
+    dark: { ...DEFAULT_DARK_THEME },
+  }
+
+  // 1. Sanitize top-level role colors and preset
   for (const role of APPEARANCE_ROLES) {
     const value = source[role]
     if (typeof value === 'string' && (value === '' || /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value))) {
       result[role] = value === '' ? '' : normalizeHex(value)
     }
   }
-  const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo', 'preset']
+  if (typeof source.preset === 'string') {
+    result.preset = source.preset
+  }
+
+  // 2. Sanitize dual-mode settings if present
+  if (source.light !== undefined || source.dark !== undefined) {
+    result.light = sanitizeModeTheme(source.light, DEFAULT_LIGHT_THEME)
+    result.dark = sanitizeModeTheme(source.dark, DEFAULT_DARK_THEME)
+  } else {
+    // 3. Legacy migration: migrate flat settings into mode configurations
+    const isDark = (result.background !== '' && isDarkHex(result.background))
+      || ['midnight', 'ocean', 'forest', 'rose', 'monochrome'].includes(result.preset)
+    const legacyTheme: ModeThemeSettings = {
+      accent: result.accent,
+      background: result.background,
+      panel: result.panel,
+      input: result.input,
+      text: result.text,
+      border: result.border,
+      preset: result.preset,
+    }
+    if (isDark) {
+      result.dark = { ...legacyTheme }
+      result.light = {
+        ...DEFAULT_LIGHT_THEME,
+        accent: result.accent !== '' ? result.accent : DEFAULT_LIGHT_THEME.accent,
+      }
+    } else {
+      result.light = { ...legacyTheme }
+      result.dark = {
+        ...DEFAULT_DARK_THEME,
+        accent: result.accent !== '' ? result.accent : DEFAULT_DARK_THEME.accent,
+      }
+    }
+  }
+
+  // 4. If top-level fields were not in source, mirror them from active/dark mode
+  for (const role of APPEARANCE_ROLES) {
+    if (source[role] === undefined) {
+      result[role] = result.dark[role] || result.light[role]
+    }
+  }
+  if (source.preset === undefined) {
+    result.preset = result.dark.preset || result.light.preset
+  }
+
+  const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo']
   const index = result as unknown as Record<string, string | number | boolean>
   for (const field of strings) {
     const value = source[field]
-    // Union-keyed writes intersect to never; write through an index view.
     if (typeof value === 'string') index[field] = value
   }
   for (const [field, { min, max }] of Object.entries(NUMERIC_BOUNDS)) {
