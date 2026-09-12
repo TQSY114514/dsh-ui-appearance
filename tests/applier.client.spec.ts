@@ -73,6 +73,31 @@ describe('AppearanceApplier', () => {
     expect(remove).toHaveBeenCalled()
   })
 
+  it('arms the bubble-ink gate per mode and retracts it when inversion is off', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    // Default settings have accent inversion ON in both modes.
+    applier.apply(full({ accent: '#111111' }))
+    const body = document.body
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+    // Dark accent → light ink in both modes.
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
+    // Turn inversion off in light mode only: light gate retracts, dark stays.
+    applier.apply(full({
+      light: { ...DEFAULT_SETTINGS.light, accent: '#111111', invert: { accent: false, background: false, panel: false, input: false } },
+      dark: { ...DEFAULT_SETTINGS.dark, accent: '#111111' },
+    }))
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+    applier.dispose()
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('')
+  })
+
   it('apply with undefined settings applies the default white accent', () => {
     const { ctx, overrideTokens, remove } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
@@ -83,6 +108,33 @@ describe('AppearanceApplier', () => {
     expect(overrideTokens).toHaveBeenCalledTimes(2)
     expect(remove).toHaveBeenCalledTimes(1)
     applier.dispose()
+  })
+
+  it('sets and retracts per-mode bubble ink attributes and variables', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    // Default settings have accent invert on:
+    applier.apply(full())
+    const body = document.body
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#0f1115')
+
+    // Disabling accent invert retracts the attribute and variable:
+    const off = full({
+      light: { ...DEFAULT_SETTINGS.light, invert: { ...DEFAULT_SETTINGS.light.invert, accent: false } },
+    })
+    applier.apply(off)
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+
+    // Dispose cleans up all bubble ink attributes and properties:
+    applier.dispose()
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('')
   })
 
   it('apply with an image removal resets the background image variable', () => {

@@ -10,7 +10,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
-import { buildTokenOverrides, OVERRIDE_SOURCE } from './tokens.ts'
+import { buildTokenOverrides, bubbleInk, OVERRIDE_SOURCE } from './tokens.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
 
@@ -25,6 +25,8 @@ const BODY_VARIABLES = [
   '--dsw-appearance-bg-opacity',
   '--dsw-appearance-blur',
   '--dsw-appearance-scrim',
+  '--dsw-appearance-bubble-ink-light',
+  '--dsw-appearance-bubble-ink-dark',
 ] as const
 
 /**
@@ -96,6 +98,21 @@ body[data-ds-dark-theme] #${BG_LAYER_ID} {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }
+/* Accent auto-inversion: the user bubble paints its background with
+   --dsw-specific-bubble (= accent) but its text with the GLOBAL
+   --dsw-alias-label-primary (there is no bubble foreground token), so a dark
+   accent + dark text is unreadable. Scope the text variable to the bubble
+   subtree only — CSS custom properties inherit through its DOM, so markdown
+   and links referencing the token follow too — and gate it on a body
+   attribute the applier sets per mode, so turning the toggle off / disabling
+   the plugin restores the stock color exactly. The hashed class prefix
+   (Sixlwa_) changes across host builds; the stable local name is 'bubble'. */
+body[data-dsw-bubble-ink-light] #root [class*="_bubble"] {
+  --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-light);
+}
+body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"] {
+  --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-dark);
+}
 `
 
 /**
@@ -160,9 +177,35 @@ export class AppearanceApplier {
     // stock 2px. dispose() removes the write so uninstall restores stock.
     body.style.setProperty('--dsw-mask-blur', `blur(${value.glassBlur}px)`)
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
+    // Accent auto-inversion: scope the bubble text token to a contrast ink.
+    // The stylesheet rules only match while the per-mode gate attribute is
+    // present, so a null ink (toggle off) retracts the override entirely.
+    const ink = bubbleInk(value)
+    this.applyBubbleInk('light', ink.light)
+    this.applyBubbleInk('dark', ink.dark)
     // A background video (IndexedDB record key) replaces the image layer;
     // loading is async and only re-runs when the key changes.
     void this.syncVideo(value.backgroundVideo)
+  }
+
+  /**
+   * Set or retract the per-mode bubble text ink. Writes a body custom
+   * property with the color and a gate attribute that arms the scoped
+   * stylesheet rule.
+   * @param mode - theme mode the ink is computed for.
+   * @param hex - contrast ink color, or null to retract the override.
+   */
+  private applyBubbleInk(mode: 'light' | 'dark', hex: string | null): void {
+    const body = document.body
+    const attr = `data-dsw-bubble-ink-${mode}`
+    const variable = `--dsw-appearance-bubble-ink-${mode}`
+    if (hex === null) {
+      body.removeAttribute(attr)
+      body.style.removeProperty(variable)
+    } else {
+      body.setAttribute(attr, '')
+      body.style.setProperty(variable, hex)
+    }
   }
 
   /**
@@ -285,5 +328,7 @@ export class AppearanceApplier {
     const body = document.body
     for (const name of BODY_VARIABLES) body.style.removeProperty(name)
     body.style.removeProperty('--dsw-mask-blur')
+    body.removeAttribute('data-dsw-bubble-ink-light')
+    body.removeAttribute('data-dsw-bubble-ink-dark')
   }
 }

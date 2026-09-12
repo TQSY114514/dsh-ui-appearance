@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_DARK_THEME, DEFAULT_INVERT, DEFAULT_LIGHT_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import {
-  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
+  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
 } from '../src/client/tokens.ts'
 
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
@@ -136,6 +136,28 @@ describe('buildTokenOverrides', () => {
       dark: { ...DEFAULT_DARK_THEME, text: '#ff0000', panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
     }))
     expect(textWins['--dsw-alias-label-primary']).toEqual({ light: '#ff0000', dark: '#ff0000' })
+  })
+
+  it('bubbleInk returns a contrasting ink per mode, or null when inversion is off', () => {
+    // Default: accent inversion on in both modes, default brand-blue accent yields dark ink.
+    expect(bubbleInk(full())).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // A dark accent in light mode flips the ink light; a light accent dark.
+    const dark = full({ accent: '#111111', light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' } })
+    const bright = full({ accent: '#ffffff', light: { ...DEFAULT_LIGHT_THEME, accent: '#ffffff' } })
+    expect(bubbleInk(dark).light).toBe('#fafaf9')
+    expect(bubbleInk(bright).light).toBe('#0f1115')
+    // Per-mode independence: dark accent light mode, light accent dark mode.
+    const mixed = full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' },
+      dark: { ...DEFAULT_DARK_THEME, accent: '#ffffff' },
+    })
+    expect(bubbleInk(mixed)).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    // Turning inversion off for a mode returns null (bubble keeps stock text).
+    const off = full({
+      light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_INVERT, accent: false } },
+      dark: { ...DEFAULT_DARK_THEME },
+    })
+    expect(bubbleInk(off)).toEqual({ light: null, dark: '#0f1115' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

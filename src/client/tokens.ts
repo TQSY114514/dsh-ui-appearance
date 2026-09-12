@@ -46,6 +46,33 @@ const onInk = (label: string): string => {
 }
 
 /**
+ * Per-mode ink color for the user-message bubble when accent auto-inversion
+ * is enabled; `null` for a mode where it is off (the bubble keeps the normal
+ * text color).
+ *
+ * The bubble stylesheet is `color: var(--dsw-alias-label-primary)` and there
+ * is no bubble-specific foreground token, so this cannot be fixed through the
+ * theme override layer alone (that variable is global). The applier instead
+ * scopes `--dsw-alias-label-primary` on the bubble subtree with this value;
+ * CSS custom properties inherit through the bubble DOM, so markdown and
+ * other descendants referencing the token pick up the contrasting ink too.
+ * @param settings - current appearance settings.
+ * @returns per-mode ink hex, or null when inversion is off for that mode.
+ */
+export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
+  const accentFor = (mode: 'light' | 'dark'): string => {
+    const per = settings[mode]?.accent || ''
+    if (per !== '') return per
+    const legacy = settings.accent || ''
+    return legacy !== '' ? legacy : '#4176e6'
+  }
+  return {
+    light: settings.light?.invert?.accent ? onInk(accentFor('light')) : null,
+    dark: settings.dark?.invert?.accent ? onInk(accentFor('dark')) : null,
+  }
+}
+
+/**
  * Stock surface colors per mode (design-platform.css alias tokens, resolved
  * to their static steps). The translucent pass bakes these into rgba() when
  * no role color or dark-flip value applies; keep in sync with the theme
