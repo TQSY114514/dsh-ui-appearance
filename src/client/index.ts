@@ -311,7 +311,7 @@ export function apply(ctx: ClientContext): void {
   }
   const resetMode = (mode: ThemeMode): void => {
     const defaultMode = mode === 'light' ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME
-    const patch = { ...current, [mode]: { ...defaultMode, preset: 'default' } }
+    const patch = { ...current, [mode]: { ...defaultMode, preset: 'default', invert: { ...defaultMode.invert } } }
     patch.preset = 'default'
     current = patch
     commit()
@@ -329,8 +329,8 @@ export function apply(ctx: ClientContext): void {
     current = {
       ...DEFAULT_SETTINGS,
       preset: 'default',
-      light: { ...DEFAULT_LIGHT_THEME },
-      dark: { ...DEFAULT_DARK_THEME },
+      light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_LIGHT_THEME.invert } },
+      dark: { ...DEFAULT_DARK_THEME, invert: { ...DEFAULT_DARK_THEME.invert } },
     }
     commit()
     flushApply()
