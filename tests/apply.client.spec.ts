@@ -11,6 +11,7 @@ import type { AppearanceCustomizerInjected } from '../src/client/AppearanceCusto
 /** Minimal cordis client context: runs effects synchronously, captures the row registration. */
 function fakeCtx() {
   let registerOptions: Record<string, unknown> | undefined
+  const overrideTokens = vi.fn(() => vi.fn())
   const ctx = {
     effect: (fn: () => void) => { fn() },
     locale: { register: () => () => {} },
@@ -18,9 +19,9 @@ function fakeCtx() {
       inject: (_name: string, factory: () => unknown) => { factory() },
       register: (options: Record<string, unknown>, _component: unknown) => { registerOptions = options },
     },
-    theme: { overrideTokens: () => () => {} },
+    theme: { overrideTokens },
   }
-  return { ctx: ctx as unknown as Parameters<typeof apply>[0], registerOptions: () => registerOptions }
+  return { ctx: ctx as unknown as Parameters<typeof apply>[0], registerOptions: () => registerOptions, overrideTokens }
 }
 
 function mount() {
@@ -32,7 +33,7 @@ function mount() {
   if (inject === undefined) throw new Error('row inject face missing')
   const store = createAppearanceRowStore().create()
   const face = inject(store.actions)
-  return { store, face }
+  return { store, face, overrideTokens: ctx.overrideTokens }
 }
 
 function storedSettings(): AppearanceSettings | undefined {
@@ -77,9 +78,12 @@ describe('apply write path (localStorage)', () => {
     const { store, face } = mount()
     face.applyPreset('midnight')
     const stored = storedSettings()
+    // applyPreset targets dark mode; only the dark theme is written, the
+    // top-level role mirror is left untouched so light mode stays independent.
     expect(stored?.preset).toBe('midnight')
-    expect(stored?.background).toBe('#1b1e2c')
-    expect(store.getSnapshot().settings.accent).toBe('#7c9cff')
+    expect(stored?.dark.background).toBe('#1b1e2c')
+    expect(stored?.dark.preset).toBe('midnight')
+    expect(store.getSnapshot().settings.dark.accent).toBe('#7c9cff')
   })
 
   it('resetAll restores the defaults and marks the preset default', () => {
@@ -88,6 +92,32 @@ describe('apply write path (localStorage)', () => {
     face.resetAll()
     expect(storedSettings()).toEqual({ ...DEFAULT_SETTINGS, preset: 'default' })
     expect(store.getSnapshot().settings.accent).toBe('#4176e6')
+  })
+
+  it('resetMode clears the active mode colors and marks its preset default', () => {
+    const { store, face } = mount()
+    face.setModeRole!('light', 'accent', '#ff0000')
+    face.setModeRole!('light', 'background', '#112233')
+    expect(store.getSnapshot().settings.light.accent).toBe('#ff0000')
+    face.resetMode!('light')
+    const snap = store.getSnapshot().settings
+    expect(snap.light.accent).toBe('')
+    expect(snap.light.background).toBe('')
+    expect(snap.light.preset).toBe('default')
+    // The other mode is untouched.
+    expect(snap.dark.accent).toBe('')
+    expect(storedSettings()?.light.preset).toBe('default')
+  })
+
+  it('resetMode removes the previously applied token overrides immediately', () => {
+    const { face, overrideTokens } = mount()
+    face.applyPreset('midnight')
+    expect(overrideTokens).toHaveBeenCalled()
+    const removeOverrides = overrideTokens.mock.results[0]!.value as ReturnType<typeof vi.fn>
+    face.resetMode!('dark')
+    // resetMode is a discrete action: it flushes the theme rebuild at once,
+    // so the override layer installed by the preset is removed synchronously.
+    expect(removeOverrides).toHaveBeenCalled()
   })
 
   it('setImage persists url and darkness together', () => {
@@ -127,10 +157,11 @@ describe('apply write path (localStorage)', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem')
     face.applyColors({ accent: '#112233', background: '#445566' })
     const stored = storedSettings()
-    expect(stored?.accent).toBe('#112233')
-    expect(stored?.background).toBe('#445566')
+    // applyColors writes dark mode only; top-level role mirror stays clean.
+    expect(stored?.dark.accent).toBe('#112233')
+    expect(stored?.dark.background).toBe('#445566')
     expect(stored?.preset).toBe('custom')
-    expect(store.getSnapshot().settings.accent).toBe('#112233')
+    expect(store.getSnapshot().settings.dark.accent).toBe('#112233')
     expect(setItem).toHaveBeenCalledTimes(1)
   })
 

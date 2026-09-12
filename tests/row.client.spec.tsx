@@ -56,6 +56,7 @@ const COPY: Record<string, string> = {
   'scheme.invalid': 'Invalid color scheme JSON',
   'scheme.exported': 'Copied to clipboard',
   'actions.reset': 'Reset to default',
+  'actions.resetMode': 'Reset current mode',
 }
 
 /** Empty global standard-kit hooks (the row reads neither). */
@@ -75,11 +76,18 @@ function emptyWorkspaces() {
 function mount() {
   const store = createAppearanceRowStore().create()
   const set = vi.fn()
+  const setModeRole = vi.fn((mode, role, hex) => {
+    store.actions.patch({ [mode]: { ...store.getSnapshot().settings[mode], [role]: hex, preset: 'custom' } })
+  })
   const setImage = vi.fn()
   const setVideo = vi.fn()
   const applyPreset = vi.fn()
   const applyColors = vi.fn()
   const resetAll = vi.fn()
+  const resetMode = vi.fn((mode) => {
+    const cleared = { accent: '', background: '', panel: '', input: '', text: '', border: '', preset: 'default' }
+    store.actions.patch({ [mode]: cleared, preset: 'default' })
+  })
   const props: AppearanceCustomizerComponentProps = {
     useSessions: emptySessions(),
     useWorkspaces: emptyWorkspaces(),
@@ -87,14 +95,16 @@ function mount() {
     actions: store.actions,
     t: (key: string) => COPY[key] ?? key,
     set,
+    setModeRole,
     setImage,
     setVideo,
     applyPreset,
     applyColors,
     resetAll,
+    resetMode,
   }
   render(<AppearanceCustomizerRow {...props} />)
-  return { store, set, setImage, setVideo, applyPreset, applyColors, resetAll }
+  return { store, set, setModeRole, setImage, setVideo, applyPreset, applyColors, resetAll, resetMode }
 }
 
 function openRow() {
@@ -128,8 +138,7 @@ describe('AppearanceCustomizerRow', () => {
     const accent = document.querySelector('input[type="color"]')
     expect(accent).not.toBeNull()
     fireEvent.change(accent as HTMLInputElement, { target: { value: '#ff0000' } })
-    expect(b.set).toHaveBeenCalledWith('accent', '#ff0000')
-    expect(b.set).toHaveBeenCalledWith('preset', 'custom')
+    expect(b.setModeRole).toHaveBeenCalledWith('light', 'accent', '#ff0000')
   })
 
   it('shows the stock blue for an empty accent in both the swatch and picker', () => {
@@ -148,8 +157,7 @@ describe('AppearanceCustomizerRow', () => {
     expect(hex).not.toBeNull()
     fireEvent.change(hex as HTMLInputElement, { target: { value: '#F0A' } })
     fireEvent.keyDown(hex as HTMLInputElement, { key: 'Enter' })
-    expect(b.set).toHaveBeenCalledWith('accent', '#ff00aa')
-    expect(b.set).toHaveBeenCalledWith('preset', 'custom')
+    expect(b.setModeRole).toHaveBeenCalledWith('light', 'accent', '#ff00aa')
   })
 
   it('sliders write their settings fields', () => {
@@ -229,5 +237,20 @@ describe('AppearanceCustomizerRow', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Dark Mode/ }))
     expect(screen.getByRole('button', { name: 'Midnight' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'preset.dawn' })).toBeNull()
+  })
+
+  it('reset-mode button restores the active mode swatches to stock', () => {
+    const b = mount()
+    openRow()
+    // Pick a custom accent in light mode.
+    const accent = document.querySelector('input[type="color"]') as HTMLInputElement
+    fireEvent.change(accent, { target: { value: '#ff0000' } })
+    expect(accent.parentElement?.getAttribute('style')).toBe('background-color: rgb(255, 0, 0);')
+
+    // Reset the current (light) mode.
+    fireEvent.click(screen.getByRole('button', { name: 'Reset current mode' }))
+    expect(b.resetMode).toHaveBeenCalledWith('light')
+    // Swatch falls back to the stock blue once the role is cleared.
+    expect(accent.parentElement?.getAttribute('style')).toBe('background-color: rgb(65, 118, 230);')
   })
 })

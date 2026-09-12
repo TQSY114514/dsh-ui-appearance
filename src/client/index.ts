@@ -111,11 +111,43 @@ export function apply(ctx: ClientContext): void {
   let current: AppearanceSettings = readStoredSettings()
   let revision = 0
   let applier: AppearanceApplier | undefined
+  // Token override rebuilds (applier.apply) are the expensive part of a
+  // commit. Drag-style writes fire on every pointermove, so cap the rebuild
+  // rate at ~30fps (leading + trailing edge). localStorage and the store sync
+  // stay synchronous so swatches and persistence never lag behind the drag.
+  let applyTimer: ReturnType<typeof setTimeout> | undefined
+  let applyPending = false
+  const APPLY_INTERVAL = 33
+
+  const scheduleApply = (): void => {
+    if (applyTimer === undefined) {
+      applier?.apply(current)
+      applyTimer = setTimeout(() => {
+        applyTimer = undefined
+        if (applyPending) {
+          applyPending = false
+          applier?.apply(current)
+        }
+      }, APPLY_INTERVAL)
+    } else {
+      applyPending = true
+    }
+  }
+
+  /** Cancel any pending rebuild and apply the latest state right now. */
+  const flushApply = (): void => {
+    if (applyTimer !== undefined) {
+      clearTimeout(applyTimer)
+      applyTimer = undefined
+    }
+    applyPending = false
+    applier?.apply(current)
+  }
 
   const publish = (): void => {
     revision += 1
     bound?.sync(current, revision)
-    applier?.apply(current)
+    scheduleApply()
   }
 
   // DOM applier: created once, retracts everything on dispose. Storage
@@ -136,6 +168,7 @@ export function apply(ctx: ClientContext): void {
       key => {
         current = { ...current, backgroundImage: key }
         commit()
+        flushApply()
       },
     )
     return () => {
@@ -168,7 +201,7 @@ export function apply(ctx: ClientContext): void {
     const patch = { ...current }
     // The union key cannot be assigned through the keyed type (mixed string /
     // number / boolean fields intersect to never), so write through an index view.
-    ;(patch as Record<string, string | number | boolean>)[field] = value
+    ;(patch as unknown as Record<string, string | number | boolean>)[field] = value
     if (APPEARANCE_ROLES.includes(field as AppearanceRole)) {
       const hex = typeof value === 'string' ? value : ''
       patch.light = { ...patch.light, [field]: hex }
@@ -188,7 +221,9 @@ export function apply(ctx: ClientContext): void {
       [role]: value,
       preset: 'custom',
     }
-    patch[role] = value
+    // Top-level role fields are a legacy mirror only: dual-mode writes must
+    // NOT pollute them, or the untouched mode falls back to this value via
+    // getRole() and shows the wrong color (e.g. light mode leaks dark edits).
     patch.preset = 'custom'
     current = patch
     commit()
@@ -208,6 +243,7 @@ export function apply(ctx: ClientContext): void {
     if (image !== null) patch.backgroundVideo = ''
     current = patch
     commit()
+    flushApply()
   }
   const setVideo = (key: string | null): void => {
     // A replacement supersedes the previous record; drop it now so repeated
@@ -227,6 +263,7 @@ export function apply(ctx: ClientContext): void {
     }
     current = patch
     commit()
+    flushApply()
   }
   const applyModePreset = (mode: ThemeMode, id: string): void => {
     const catalog = mode === 'light' ? LIGHT_PRESETS : DARK_PRESETS
@@ -243,10 +280,10 @@ export function apply(ctx: ClientContext): void {
       }
     }
     const patch = { ...current, [mode]: updatedTheme }
-    for (const role of APPEARANCE_ROLES) patch[role] = updatedTheme[role]
     patch.preset = id
     current = patch
     commit()
+    flushApply()
   }
   const applyModeColors = (mode: ThemeMode, colors: Partial<Record<AppearanceRole, string>>): void => {
     const entries = Object.entries(colors).filter(
@@ -257,18 +294,18 @@ export function apply(ctx: ClientContext): void {
     const updatedTheme = { ...current[mode], preset: 'custom' }
     for (const [role, hex] of entries) updatedTheme[role as AppearanceRole] = hex
     const patch = { ...current, [mode]: updatedTheme }
-    for (const [role, hex] of entries) patch[role as AppearanceRole] = hex
     patch.preset = 'custom'
     current = patch
     commit()
+    flushApply()
   }
   const resetMode = (mode: ThemeMode): void => {
     const defaultMode = mode === 'light' ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME
     const patch = { ...current, [mode]: { ...defaultMode, preset: 'default' } }
-    for (const role of APPEARANCE_ROLES) patch[role] = defaultMode[role]
     patch.preset = 'default'
     current = patch
     commit()
+    flushApply()
   }
   const applyPreset = (id: string): void => {
     applyModePreset('dark', id)
@@ -286,6 +323,7 @@ export function apply(ctx: ClientContext): void {
       dark: { ...DEFAULT_DARK_THEME },
     }
     commit()
+    flushApply()
   }
 
   const injected = (actions: BoundActions<typeof store>): AppearanceCustomizerInjected => {
