@@ -86,7 +86,7 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
     // Turn inversion off in light mode only: light gate retracts, dark stays.
     applier.apply(full({
-      light: { ...DEFAULT_SETTINGS.light, accent: '#111111', invert: { accent: false, background: false, panel: false, input: false } },
+      light: { ...DEFAULT_SETTINGS.light, accent: '#111111', invert: { ...DEFAULT_SETTINGS.light.invert, accent: false, background: false } },
       dark: { ...DEFAULT_SETTINGS.dark, accent: '#111111' },
     }))
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
@@ -118,8 +118,8 @@ describe('AppearanceApplier', () => {
     const body = document.body
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
     expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#0f1115')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
 
     // Disabling accent invert retracts the attribute and variable:
     const off = full({

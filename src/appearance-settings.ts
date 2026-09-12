@@ -35,22 +35,28 @@ export const APPEARANCE_ROLES = [
 export type AppearanceRole = typeof APPEARANCE_ROLES[number]
 
 /**
- * Background/surface roles whose foreground text can be auto-inverted to
- * guarantee contrast. Foreground roles (`text`, `border`) have nothing
- * painted "on top" of them, so inversion is meaningless there.
+ * Surface roles whose foreground text can be auto-inverted to guarantee
+ * contrast. Only roles that have a well-defined "whole surface" scope are
+ * invertible:
+ * - `accent`: inverts the text inside the accent-painted bubble (the original
+ *   readability pain point) via the scoped bubble ink token.
+ * - `background`: inverts the global text color against the app background.
+ * `panel` / `input` were dropped: they are sub-surfaces, and a single global
+ * label token cannot express per-sub-surface ink without hijacking the text
+ * on every other surface (cross-surface regressions). Foreground roles
+ * (`text`, `border`) have nothing painted "on top" of them, so inversion is
+ * meaningless there.
  */
-export const INVERTIBLE_ROLES = ['accent', 'background', 'panel', 'input'] as const
+export const INVERTIBLE_ROLES = ['accent', 'background'] as const
 
 /** One role eligible for foreground auto-inversion. */
 export type InvertibleRole = typeof INVERTIBLE_ROLES[number]
 
 /** Default per-role invert flags: accent on (the bubble readability pain
- * point), the rest off (background inversion can have "unexpected effects"). */
+ * point), background off (rely on the color scheme's stock contrast). */
 export const DEFAULT_INVERT: Record<InvertibleRole, boolean> = {
   accent: true,
   background: false,
-  panel: false,
-  input: false,
 }
 
 /** Hex color fields, keyed by role. */
@@ -184,9 +190,14 @@ function isDarkHex(hex: string): boolean {
 
 /** Sanitize one mode's theme settings object. */
 export function sanitizeModeTheme(raw: unknown, fallback: ModeThemeSettings = DEFAULT_MODE_THEME): ModeThemeSettings {
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return { ...fallback }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { ...fallback, invert: { ...fallback.invert } }
+  }
   const source = raw as Record<string, unknown>
-  const result: ModeThemeSettings = { ...fallback }
+  const result: ModeThemeSettings = {
+    ...fallback,
+    invert: { ...fallback.invert },
+  }
   for (const role of APPEARANCE_ROLES) {
     const value = source[role]
     if (typeof value === 'string' && (value === '' || /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value))) {
@@ -254,6 +265,7 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
       text: result.text,
       border: result.border,
       preset: result.preset,
+      invert: { ...DEFAULT_INVERT },
     }
     if (isDark) {
       result.dark = { ...legacyTheme }

@@ -111,41 +111,54 @@ describe('buildTokenOverrides', () => {
     expect(mixed['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
   })
 
-  it('surface inversion overrides the global text color when text is stock', () => {
-    // With the text role empty, turning on panel inversion makes the global
-    // label-primary contrast with the panel color. input > panel > background.
-    const darkPanel = buildTokenOverrides(full({
-      panel: '#111111',
-      light: { ...DEFAULT_LIGHT_THEME, panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
-      dark: { ...DEFAULT_DARK_THEME, panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+  it('background inversion overrides the global text color and re-derives the on-ink pair', () => {
+    // Turning on background inversion makes the global label-primary contrast
+    // with the app background. Dark background → light ink; the harness badge
+    // chip turns light, so its letters and ::selection flip dark in the same
+    // breath (previously the -inverted token kept its old value and the badge
+    // faded into the flipped chip).
+    const darkBg = buildTokenOverrides(full({
+      background: '#111111',
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
+      dark: { ...DEFAULT_DARK_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
     }))
-    expect(darkPanel['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    // input wins over panel when both are inverted.
-    const inputWins = buildTokenOverrides(full({
-      panel: '#111111',
-      input: '#ffffff',
-      light: { ...DEFAULT_LIGHT_THEME, panel: '#111111', input: '#ffffff', invert: { ...DEFAULT_INVERT, panel: true, input: true } },
-      dark: { ...DEFAULT_DARK_THEME, panel: '#111111', input: '#ffffff', invert: { ...DEFAULT_INVERT, panel: true, input: true } },
-    }))
-    expect(inputWins['--dsw-alias-label-primary']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    // An explicit text role wins over surface inversion.
-    const textWins = buildTokenOverrides(full({
+    expect(darkBg['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(darkBg['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(darkBg['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // Background inversion is an explicit user override: it wins over the
+    // text role (the whole app is that surface), unlike panel/input which
+    // were dropped — a single global label cannot express per-sub-surface ink.
+    const overrideText = buildTokenOverrides(full({
       text: '#ff0000',
-      panel: '#111111',
-      light: { ...DEFAULT_LIGHT_THEME, text: '#ff0000', panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
-      dark: { ...DEFAULT_DARK_THEME, text: '#ff0000', panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+      background: '#111111',
+      light: { ...DEFAULT_LIGHT_THEME, text: '#ff0000', background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
+      dark: { ...DEFAULT_DARK_THEME, text: '#ff0000', background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
     }))
-    expect(textWins['--dsw-alias-label-primary']).toEqual({ light: '#ff0000', dark: '#ff0000' })
+    expect(overrideText['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // Per-mode independence: dark background in light mode, light background
+    // in dark mode → inks follow each surface independently.
+    const perMode = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
+      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', invert: { ...DEFAULT_INVERT, background: true } },
+    }))
+    expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
+    expect(perMode['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
   })
 
   it('bubbleInk returns a contrasting ink per mode, or null when inversion is off', () => {
-    // Default: accent inversion on in both modes, default brand-blue accent yields dark ink.
-    expect(bubbleInk(full())).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // Default: accent inversion on in both modes, default brand-blue accent yields light ink (#fafaf9).
+    expect(bubbleInk(full())).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     // A dark accent in light mode flips the ink light; a light accent dark.
     const dark = full({ accent: '#111111', light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' } })
     const bright = full({ accent: '#ffffff', light: { ...DEFAULT_LIGHT_THEME, accent: '#ffffff' } })
     expect(bubbleInk(dark).light).toBe('#fafaf9')
     expect(bubbleInk(bright).light).toBe('#0f1115')
+    // Issue #18 scenario: user's dark blue (#355eb6) gives white text; pale blue (#749aec) gives dark text.
+    const issue18Dark = full({ light: { ...DEFAULT_LIGHT_THEME, accent: '#355eb6' } })
+    const issue18Pale = full({ light: { ...DEFAULT_LIGHT_THEME, accent: '#749aec' } })
+    expect(bubbleInk(issue18Dark).light).toBe('#fafaf9')
+    expect(bubbleInk(issue18Pale).light).toBe('#0f1115')
     // Per-mode independence: dark accent light mode, light accent dark mode.
     const mixed = full({
       light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' },
@@ -157,7 +170,7 @@ describe('buildTokenOverrides', () => {
       light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_INVERT, accent: false } },
       dark: { ...DEFAULT_DARK_THEME },
     })
-    expect(bubbleInk(off)).toEqual({ light: null, dark: '#0f1115' })
+    expect(bubbleInk(off)).toEqual({ light: null, dark: '#fafaf9' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

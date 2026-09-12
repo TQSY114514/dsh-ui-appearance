@@ -33,16 +33,20 @@ const DARK_INK = '#0f1115'
  * the stock light-mode white letters and the badge disappears.
  */
 const onInk = (label: string): string => {
-  // WCAG contrast between the label and each candidate ink; the winner is
-  // whichever ink the label contrasts more with. A fixed luminance threshold
-  // misclassifies mid-tones (a #808080 chip reads 3.8:1 against the light
-  // ink but 4.7:1 against the dark one).
+  // WCAG contrast between the label and each candidate ink. Human visual
+  // perception has a strong positive polarity bias on colored backgrounds
+  // (saturated hues like DeepSeek brand blue #4176e6 and purple #7c3aed
+  // have low sRGB blue coefficients, making white text significantly more legible
+  // than dark text even when mathematical contrast ratios are close).
+  // A modest offset of 0.5 favors light ink on rich colored surfaces while
+  // preserving dark ink for light backgrounds (#749aec, #ffffff) and neutral
+  // mid-tones (#808080).
   const contrast = (ink: string): number => {
     const a = relativeLuminance(label)
     const b = relativeLuminance(ink)
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
   }
-  return contrast(LIGHT_INK) >= contrast(DARK_INK) ? LIGHT_INK : DARK_INK
+  return contrast(LIGHT_INK) >= contrast(DARK_INK) - 0.5 ? LIGHT_INK : DARK_INK
 }
 
 /**
@@ -293,38 +297,30 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-label-primary-foreground', accentInkL, accentInkD)
   }
 
-  // Surface auto-inversion: when the text role is left stock, turning on
-  // inversion for a background role makes the global text color contrast with
-  // that surface. More specific surfaces win (input > panel > background).
-  // Per-mode independent so a dark-mode panel invert doesn't leak into light.
-  if (!textSet) {
-    const pickInk = (
-      mode: 'light' | 'dark',
-      surfaces: Array<{ role: 'input' | 'panel' | 'background'; color: string }>,
-    ): string => {
-      const inv = mode === 'light' ? invL : invD
-      for (const { role, color } of surfaces) {
-        if (inv[role] && color !== '') return onInk(color)
-      }
-      return ''
-    }
-    const inkL = pickInk('light', [
-      { role: 'input', color: input.light },
-      { role: 'panel', color: panel.light },
-      { role: 'background', color: bg.light },
-    ])
-    const inkD = pickInk('dark', [
-      { role: 'input', color: input.dark },
-      { role: 'panel', color: panel.dark },
-      { role: 'background', color: bg.dark },
-    ])
-    if (inkL !== '' || inkD !== '') {
-      emit(
-        '--dsw-alias-label-primary',
-        inkL !== '' ? inkL : '#0f1115',
-        inkD !== '' ? inkD : '#fafaf9',
-      )
-    }
+  // Background auto-inversion: turning on inversion for the background role
+  // makes the global text color contrast with that surface. This is an
+  // explicit user override — it wins over the text role (a dark background
+  // with stock light text would be unreadable), so there is no `!textSet`
+  // gate. Per-mode independent so a dark-mode invert doesn't leak into light.
+  // Only background is invertible here: panel/input are sub-surfaces and a
+  // single label token cannot express per-sub-surface ink.
+  const inkL = invL.background && bg.light !== '' ? onInk(bg.light) : ''
+  const inkD = invD.background && bg.dark !== '' ? onInk(bg.dark) : ''
+  if (inkL !== '' || inkD !== '') {
+    const prevPrimary = tokens['--dsw-alias-label-primary']
+    const prevInk = tokens['--dsw-alias-label-primary-inverted']
+    const labelL = inkL !== '' ? inkL : (prevPrimary?.light ?? '#0f1115')
+    const labelD = inkD !== '' ? inkD : (prevPrimary?.dark ?? '#fafaf9')
+    emit('--dsw-alias-label-primary', labelL, labelD)
+    // Re-derive the on-ink pair together with the new label, so the sidebar
+    // "harness" badge letters (painted with -inverted) and ::selection text
+    // pair with the new label fill instead of keeping the previous on-ink
+    // color and fading into the flipped chip. Modes left stock keep their
+    // previous on-ink value.
+    const invInkL = inkL !== '' ? onInk(labelL) : (prevInk?.light ?? LIGHT_INK)
+    const invInkD = inkD !== '' ? onInk(labelD) : (prevInk?.dark ?? DARK_INK)
+    emit('--dsw-alias-label-primary-inverted', invInkL, invInkD)
+    emit('--dsw-alias-label-primary-foreground', invInkL, invInkD)
   }
 
   const border = getRole('border')
