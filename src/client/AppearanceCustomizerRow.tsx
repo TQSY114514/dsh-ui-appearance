@@ -258,6 +258,14 @@ export function AppearanceCustomizerRow({
     }
   }, [])
 
+  // Keep the edited mode in sync with the host's actual theme mode so the
+  // palette swatches always reflect the colors currently on screen. The user
+  // can still manually switch tabs to edit the other mode; this only fires
+  // when the host genuinely changes (light <-> dark / follow-system).
+  useEffect(() => {
+    setActiveMode(hostDarkMode ? 'dark' : 'light')
+  }, [hostDarkMode])
+
   const currentModeTheme = settings[activeMode] ?? (activeMode === 'light' ? settings.light : settings.dark)
   const activePreset = currentModeTheme?.preset || (activeMode === 'dark' ? settings.preset : '')
   const presetsCatalog = activeMode === 'light' ? LIGHT_PRESETS : DARK_PRESETS
