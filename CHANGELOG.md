@@ -2,6 +2,17 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.9] - 2026-09-12
+
+### Security
+
+- **修复 vitest 路径穿越/任意文件读取漏洞（GHSA）**:将 `vitest` 与 `@vitest/mocker` 从 `4.1.10` 升级到 `4.1.11`（官方补丁版本，无需破坏性升级到 5.x）。
+
+### Changed
+
+- **升级构建工具**: `tsdown` 从 `0.22.14` 升级到 `0.23.0`，构建产物保持兼容。
+- **文档**: README 加入「Listed on DSH Directory」徽章；Awesome DSH Plugin 徽章跳转由首页改为本插件详情页（中/英分链）。
+
 ## [0.1.8] - 2026-09-05
 
 ### Added

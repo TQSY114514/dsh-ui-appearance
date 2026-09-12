@@ -5,7 +5,7 @@
 The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring fine-grained panel/input/code opacity controls, frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
 
 [![Listed on DSH Directory](https://dsh.directory/badges/listed.svg)](https://dsh.directory/plugins/tqsy114514/dsh-ui-appearance)
-[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+[![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com/p/TQSY114514/dsh-ui-appearance/)
 [![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance?label=npm%20downloads)](https://www.npmjs.com/package/dsh-ui-appearance)
 [![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
