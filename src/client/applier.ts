@@ -98,6 +98,12 @@ body[data-ds-dark-theme] #${BG_LAYER_ID} {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }
+/* Freeze transitions during active slider drag so rapid token updates (like
+   input opacity applied to the send button) render at 60fps without jitter. */
+body:has(input[type="range"]:active) *,
+body[data-dsw-sliding] * {
+  transition-duration: 0s !important;
+}
 /* Accent auto-inversion: the user bubble paints its background with
    --dsw-specific-bubble (= accent) but its text with the GLOBAL
    --dsw-alias-label-primary (there is no bubble foreground token), so a dark
@@ -107,11 +113,25 @@ body[data-ds-dark-theme] #${BG_LAYER_ID} {
    attribute the applier sets per mode, so turning the toggle off / disabling
    the plugin restores the stock color exactly. The hashed class prefix
    (Sixlwa_) changes across host builds; the stable local name is 'bubble'. */
-body[data-dsw-bubble-ink-light] #root [class*="_bubble"] {
+body[data-dsw-bubble-ink-light] #root [class*="_bubble"],
+body[data-dsw-bubble-ink-light] #root [class*="bubble" i] {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-light);
+  --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-light);
 }
-body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"] {
+body[data-dsw-bubble-ink-light] #root [class*="_bubble"] a,
+body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
+  color: inherit;
+  text-decoration: underline;
+}
+body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"],
+body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-dark);
+  --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-dark);
+}
+body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
+body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] a {
+  color: inherit;
+  text-decoration: underline;
 }
 `
 
@@ -150,12 +170,12 @@ export class AppearanceApplier {
    */
   apply(settings: AppearanceSettings | undefined): void {
     const value = settings ?? DEFAULT_SETTINGS
-    this.removeOverrides?.()
-    this.removeOverrides = undefined
+    const oldRemove = this.removeOverrides
     const tokens = buildTokenOverrides(value)
-    if (Object.keys(tokens).length > 0) {
-      this.removeOverrides = this.ctx.theme.overrideTokens(OVERRIDE_SOURCE, tokens)
-    }
+    this.removeOverrides = Object.keys(tokens).length > 0
+      ? this.ctx.theme.overrideTokens(OVERRIDE_SOURCE, tokens)
+      : undefined
+    oldRemove?.()
     const body = document.body
     // The wallpaper rides a CSS variable like every other knob; the value is
     // a record key (or legacy inline data URL) and resolves asynchronously.
@@ -330,5 +350,6 @@ export class AppearanceApplier {
     body.style.removeProperty('--dsw-mask-blur')
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
+    body.removeAttribute('data-dsw-sliding')
   }
 }

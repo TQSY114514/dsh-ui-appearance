@@ -104,7 +104,7 @@ function ColorField(props: {
   invert?: { on: boolean; onToggle: () => void; title: string }
   t: (key: AppearanceKey) => string
 }) {
-  const { label, value, stock, onChange, invert } = props
+  const { label, value, stock, onChange, invert, t } = props
   const [draft, setDraft] = useState(value)
   useEffect(() => { setDraft(value) }, [value])
   const commit = (): void => {
@@ -140,10 +140,11 @@ function ColorField(props: {
           type="button"
           className={clsx(css.invertToggle, invert.on && css.invertToggleOn)}
           title={invert.title}
+          aria-label={invert.title}
           aria-pressed={invert.on}
           onClick={event => { event.preventDefault(); invert.onToggle() }}
         >
-          反
+          {t('color.invertBadge')}
         </button>
       )}
     </label>
@@ -172,6 +173,9 @@ function Slider(props: {
         max={max}
         step={step}
         value={value}
+        onPointerDown={() => { document.body.setAttribute('data-dsw-sliding', '') }}
+        onPointerUp={() => { document.body.removeAttribute('data-dsw-sliding') }}
+        onPointerCancel={() => { document.body.removeAttribute('data-dsw-sliding') }}
         onChange={event => { onChange(Number(event.target.value)) }}
       />
       <span className={css.sliderValue}>{format(value)}</span>
@@ -546,6 +550,7 @@ export function AppearanceCustomizerRow({
                 )
               })}
             </div>
+            <div className={css.hint}>{t('color.hint' as AppearanceKey)}</div>
           </div>
 
           <div
