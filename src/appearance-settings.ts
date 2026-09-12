@@ -34,6 +34,25 @@ export const APPEARANCE_ROLES = [
 /** One customizable color role id. */
 export type AppearanceRole = typeof APPEARANCE_ROLES[number]
 
+/**
+ * Background/surface roles whose foreground text can be auto-inverted to
+ * guarantee contrast. Foreground roles (`text`, `border`) have nothing
+ * painted "on top" of them, so inversion is meaningless there.
+ */
+export const INVERTIBLE_ROLES = ['accent', 'background', 'panel', 'input'] as const
+
+/** One role eligible for foreground auto-inversion. */
+export type InvertibleRole = typeof INVERTIBLE_ROLES[number]
+
+/** Default per-role invert flags: accent on (the bubble readability pain
+ * point), the rest off (background inversion can have "unexpected effects"). */
+export const DEFAULT_INVERT: Record<InvertibleRole, boolean> = {
+  accent: true,
+  background: false,
+  panel: false,
+  input: false,
+}
+
 /** Hex color fields, keyed by role. */
 export type AppearanceColors = Record<AppearanceRole, string>
 
@@ -44,6 +63,8 @@ export type ThemeMode = 'light' | 'dark'
 export interface ModeThemeSettings extends AppearanceColors {
   /** Last applied preset id for this mode, or 'custom' / '' after manual edits. */
   preset: string
+  /** Per-role foreground auto-inversion flags (only invertible roles present). */
+  invert: Record<InvertibleRole, boolean>
 }
 
 /** Stock mode settings. */
@@ -55,6 +76,7 @@ export const DEFAULT_MODE_THEME: ModeThemeSettings = {
   text: '',
   border: '',
   preset: '',
+  invert: { ...DEFAULT_INVERT },
 }
 
 export const DEFAULT_LIGHT_THEME: ModeThemeSettings = { ...DEFAULT_MODE_THEME }
@@ -172,6 +194,17 @@ export function sanitizeModeTheme(raw: unknown, fallback: ModeThemeSettings = DE
     }
   }
   if (typeof source.preset === 'string') result.preset = source.preset
+  // Per-role invert flags: coerce 0/1 legacy writes to booleans, keep the
+  // fallback default for any role absent or malformed in the source.
+  if (typeof source.invert === 'object' && source.invert !== null && !Array.isArray(source.invert)) {
+    const inv = source.invert as Record<string, unknown>
+    for (const role of INVERTIBLE_ROLES) {
+      const v = inv[role]
+      if (typeof v === 'boolean') result.invert[role] = v
+      else if (v === 0) result.invert[role] = false
+      else if (v === 1) result.invert[role] = true
+    }
+  }
   return result
 }
 

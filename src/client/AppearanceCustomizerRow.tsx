@@ -11,7 +11,7 @@ import {
   DisclosureRow, IconPersonalizationOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings, type ThemeMode } from '../appearance-settings.ts'
+import { APPEARANCE_ROLES, INVERTIBLE_ROLES, type AppearanceRole, type AppearanceSettings, type InvertibleRole, type ThemeMode } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, prepareImage } from './image.ts'
 import { getImage, saveImage } from './image-store.ts'
@@ -32,6 +32,8 @@ export interface AppearanceCustomizerInjected {
   set: (field: keyof AppearanceSettings, value: string | number | boolean) => void
   /** Update one role color in a specific mode (light or dark). */
   setModeRole?: (mode: ThemeMode, role: AppearanceRole, value: string) => void
+  /** Toggle foreground auto-inversion for one surface role in a specific mode. */
+  setModeInvert?: (mode: ThemeMode, role: InvertibleRole, value: boolean) => void
   /** Set or clear the background image (null removes it). */
   setImage: (image: { url: string; imageDark: boolean } | null) => void
   /** Set or clear the background video by its IndexedDB record key. */
@@ -94,8 +96,15 @@ function MoonIcon() {
 }
 
 /** One color field row: native swatch + hex text input. */
-function ColorField(props: { label: string; value: string; stock: string; onChange: (hex: string) => void; t: (key: AppearanceKey) => string }) {
-  const { label, value, stock, onChange } = props
+function ColorField(props: {
+  label: string
+  value: string
+  stock: string
+  onChange: (hex: string) => void
+  invert?: { on: boolean; onToggle: () => void; title: string }
+  t: (key: AppearanceKey) => string
+}) {
+  const { label, value, stock, onChange, invert } = props
   const [draft, setDraft] = useState(value)
   useEffect(() => { setDraft(value) }, [value])
   const commit = (): void => {
@@ -126,6 +135,17 @@ function ColorField(props: { label: string; value: string; stock: string; onChan
         onBlur={commit}
         onKeyDown={event => { if (event.key === 'Enter') commit() }}
       />
+      {invert && (
+        <button
+          type="button"
+          className={clsx(css.invertToggle, invert.on && css.invertToggleOn)}
+          title={invert.title}
+          aria-pressed={invert.on}
+          onClick={event => { event.preventDefault(); invert.onToggle() }}
+        >
+          反
+        </button>
+      )}
     </label>
   )
 }
@@ -209,7 +229,7 @@ function BackgroundThumb(props: { token: string }) {
  * @returns the row element tree.
  */
 export function AppearanceCustomizerRow({
-  t, useStore, set, setModeRole, setImage, setVideo,
+  t, useStore, set, setModeRole, setModeInvert, setImage, setVideo,
   applyModePreset, applyModeColors, resetMode,
   applyPreset, applyColors, resetAll,
 }: AppearanceCustomizerComponentProps) {
@@ -400,6 +420,9 @@ export function AppearanceCustomizerRow({
       set('preset', 'custom')
     }
   }
+  const changeInvert = (role: InvertibleRole, on: boolean): void => {
+    if (setModeInvert) setModeInvert(activeMode, role, on)
+  }
   const onPresetClick = (presetId: string): void => {
     if (applyModePreset) {
       applyModePreset(activeMode, presetId)
@@ -503,16 +526,25 @@ export function AppearanceCustomizerRow({
           <div className={css.section}>
             <div className={css.sectionTitle}>{t('colors.title')}</div>
             <div className={css.colorGrid}>
-              {APPEARANCE_ROLES.map(role => (
-                <ColorField
-                  key={`${activeMode}-${role}`}
-                  label={t(`color.${role}` as AppearanceKey)}
-                  value={currentModeTheme?.[role] ?? settings[role] ?? ''}
-                  stock={STOCK_ROLE_COLORS[activeMode][role]}
-                  onChange={hex => { changeRole(role, hex) }}
-                  t={t}
-                />
-              ))}
+              {APPEARANCE_ROLES.map(role => {
+                const invertible = (INVERTIBLE_ROLES as readonly string[]).includes(role)
+                const invertOn = invertible ? !!currentModeTheme?.invert?.[role as InvertibleRole] : false
+                return (
+                  <ColorField
+                    key={`${activeMode}-${role}`}
+                    label={t(`color.${role}` as AppearanceKey)}
+                    value={currentModeTheme?.[role] ?? settings[role] ?? ''}
+                    stock={STOCK_ROLE_COLORS[activeMode][role]}
+                    onChange={hex => { changeRole(role, hex) }}
+                    invert={invertible ? {
+                      on: invertOn,
+                      onToggle: () => { changeInvert(role as InvertibleRole, !invertOn) },
+                      title: t('color.invertHint' as AppearanceKey),
+                    } : undefined}
+                    t={t}
+                  />
+                )
+              })}
             </div>
           </div>
 

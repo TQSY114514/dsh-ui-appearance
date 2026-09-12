@@ -235,21 +235,69 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
 
   const text = getRole('text')
-  if (text.light !== '' || text.dark !== '') {
-    const textL = text.light !== '' ? text.light : '#0f1115'
-    const textD = text.dark !== '' ? text.dark : '#fafaf9'
-    emit('--dsw-alias-label-primary', textL, textD)
+  const textSet = text.light !== '' || text.dark !== ''
+  const textL = text.light !== '' ? text.light : '#0f1115'
+  const textD = text.dark !== '' ? text.dark : '#fafaf9'
 
-    const secL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.38) : '#61666b'
-    const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.38) : '#d6d3d1'
-    emit('--dsw-alias-label-secondary', secL, secD)
+  // Per-mode invert flags. `invert.accent` makes the foreground text painted
+  // on accent surfaces (bubble, selection, accent buttons) auto-contrast with
+  // the accent color instead of the text role.
+  const invL = settings.light?.invert ?? {}
+  const invD = settings.dark?.invert ?? {}
+  const accentInkL = invL.accent ? onInk(lightAccent) : onInk(textL)
+  const accentInkD = invD.accent ? onInk(darkAccent) : onInk(textD)
 
-    const terL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.58) : '#9ea3a8'
-    const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.58) : '#808285'
-    emit('--dsw-alias-label-tertiary', terL, terD)
+  if (textSet || invL.accent || invD.accent) {
+    if (textSet) {
+      emit('--dsw-alias-label-primary', textL, textD)
 
-    emit('--dsw-alias-label-primary-inverted', onInk(textL), onInk(textD))
-    emit('--dsw-alias-label-primary-foreground', onInk(textL), onInk(textD))
+      const secL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.38) : '#61666b'
+      const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.38) : '#d6d3d1'
+      emit('--dsw-alias-label-secondary', secL, secD)
+
+      const terL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.58) : '#9ea3a8'
+      const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.58) : '#808285'
+      emit('--dsw-alias-label-tertiary', terL, terD)
+    }
+    // The on-accent ink pair is emitted whenever the text role is customized
+    // OR accent inversion is on, so the bubble/selection/accent-button text
+    // always pairs with its actual background.
+    emit('--dsw-alias-label-primary-inverted', accentInkL, accentInkD)
+    emit('--dsw-alias-label-primary-foreground', accentInkL, accentInkD)
+  }
+
+  // Surface auto-inversion: when the text role is left stock, turning on
+  // inversion for a background role makes the global text color contrast with
+  // that surface. More specific surfaces win (input > panel > background).
+  // Per-mode independent so a dark-mode panel invert doesn't leak into light.
+  if (!textSet) {
+    const pickInk = (
+      mode: 'light' | 'dark',
+      surfaces: Array<{ role: 'input' | 'panel' | 'background'; color: string }>,
+    ): string => {
+      const inv = mode === 'light' ? invL : invD
+      for (const { role, color } of surfaces) {
+        if (inv[role] && color !== '') return onInk(color)
+      }
+      return ''
+    }
+    const inkL = pickInk('light', [
+      { role: 'input', color: input.light },
+      { role: 'panel', color: panel.light },
+      { role: 'background', color: bg.light },
+    ])
+    const inkD = pickInk('dark', [
+      { role: 'input', color: input.dark },
+      { role: 'panel', color: panel.dark },
+      { role: 'background', color: bg.dark },
+    ])
+    if (inkL !== '' || inkD !== '') {
+      emit(
+        '--dsw-alias-label-primary',
+        inkL !== '' ? inkL : '#0f1115',
+        inkD !== '' ? inkD : '#fafaf9',
+      )
+    }
   }
 
   const border = getRole('border')

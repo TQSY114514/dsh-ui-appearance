@@ -1,6 +1,6 @@
 /** Token override builder and preset catalog. */
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
+import { DEFAULT_DARK_THEME, DEFAULT_INVERT, DEFAULT_LIGHT_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import {
   APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
 } from '../src/client/tokens.ts'
@@ -63,22 +63,25 @@ describe('buildTokenOverrides', () => {
     // The harness badge paints its chip with the label color and its letters
     // with -inverted; ::selection pairs its background with -foreground. A
     // light text color must flip both inks dark, or the badge disappears.
-    const light = buildTokenOverrides(full({ text: '#fafaf9' }))
+    // Note: accent inversion (on by default) derives these from the accent
+    // instead of the text role, so disable it here to test the text path.
+    const noInvert = { light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_INVERT, accent: false } }, dark: { ...DEFAULT_DARK_THEME, invert: { ...DEFAULT_INVERT, accent: false } } }
+    const light = buildTokenOverrides(full({ text: '#fafaf9', ...noInvert }))
     expect(light['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     expect(light['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // A dark text color flips both inks light again.
-    const dark = buildTokenOverrides(full({ text: '#111111' }))
+    const dark = buildTokenOverrides(full({ text: '#111111', ...noInvert }))
     expect(dark['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(dark['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     // A mid-tone chip contrasts more with the dark ink (4.7:1 vs 3.8:1), so
     // the winner is picked by WCAG contrast, not a luminance threshold.
-    const mid = buildTokenOverrides(full({ text: '#808080' }))
+    const mid = buildTokenOverrides(full({ text: '#808080', ...noInvert }))
     expect(mid['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     expect(mid['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // Shorthand hex reaches the builder un-normalized within a session (the
     // persistence sanitizer expands it only on reload), so ink selection and
     // the dark-flip check must handle #rgb directly.
-    const shorthand = buildTokenOverrides(full({ text: '#888' }))
+    const shorthand = buildTokenOverrides(full({ text: '#888', ...noInvert }))
     expect(shorthand['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // A light shorthand background must not trigger the dark-family flip.
     const lightShorthand = buildTokenOverrides(full({ background: '#eee' }))
@@ -86,8 +89,53 @@ describe('buildTokenOverrides', () => {
     // A four-character value without the # prefix is malformed, not a
     // shorthand — it must classify as dark (luminance 0), not expand to a
     // fake color.
-    const malformed = buildTokenOverrides(full({ text: 'abcd' }))
+    const malformed = buildTokenOverrides(full({ text: 'abcd', ...noInvert }))
     expect(malformed['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+  })
+
+  it('accent inversion drives the on-accent ink from the accent color', () => {
+    // Default invert.accent is on: the bubble/selection/accent-button
+    // foreground auto-contrasts with the accent, not the text role.
+    const darkAccent = buildTokenOverrides(full({ accent: '#111111' }))
+    // Dark accent → light ink on top of it.
+    expect(darkAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(darkAccent['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // Light accent → dark ink.
+    const lightAccent = buildTokenOverrides(full({ accent: '#ffffff' }))
+    expect(lightAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // Per-mode independence: dark accent in light mode, light accent in dark.
+    const mixed = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' },
+      dark: { ...DEFAULT_DARK_THEME, accent: '#ffffff' },
+    }))
+    expect(mixed['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+  })
+
+  it('surface inversion overrides the global text color when text is stock', () => {
+    // With the text role empty, turning on panel inversion makes the global
+    // label-primary contrast with the panel color. input > panel > background.
+    const darkPanel = buildTokenOverrides(full({
+      panel: '#111111',
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+      dark: { ...DEFAULT_DARK_THEME, panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+    }))
+    expect(darkPanel['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // input wins over panel when both are inverted.
+    const inputWins = buildTokenOverrides(full({
+      panel: '#111111',
+      input: '#ffffff',
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#111111', input: '#ffffff', invert: { ...DEFAULT_INVERT, panel: true, input: true } },
+      dark: { ...DEFAULT_DARK_THEME, panel: '#111111', input: '#ffffff', invert: { ...DEFAULT_INVERT, panel: true, input: true } },
+    }))
+    expect(inputWins['--dsw-alias-label-primary']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    // An explicit text role wins over surface inversion.
+    const textWins = buildTokenOverrides(full({
+      text: '#ff0000',
+      panel: '#111111',
+      light: { ...DEFAULT_LIGHT_THEME, text: '#ff0000', panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+      dark: { ...DEFAULT_DARK_THEME, text: '#ff0000', panel: '#111111', invert: { ...DEFAULT_INVERT, panel: true } },
+    }))
+    expect(textWins['--dsw-alias-label-primary']).toEqual({ light: '#ff0000', dark: '#ff0000' })
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

@@ -26,7 +26,7 @@ import { createAppearanceRowStore } from './settings-store.ts'
 import { en, zh, type AppearanceKey } from './locales.ts'
 import {
   APPEARANCE_ROLES, DEFAULT_SETTINGS, DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME, sanitizeSettings,
-  type AppearanceRole, type AppearanceSettings, type ThemeMode,
+  type AppearanceRole, type AppearanceSettings, type InvertibleRole, type ThemeMode,
 } from '../appearance-settings.ts'
 import { APPEARANCE_PRESETS, LIGHT_PRESETS, DARK_PRESETS } from './tokens.ts'
 import { AppearanceApplier } from './applier.ts'
@@ -228,6 +228,16 @@ export function apply(ctx: ClientContext): void {
     current = patch
     commit()
   }
+  const setModeInvert = (mode: ThemeMode, role: InvertibleRole, value: boolean): void => {
+    const patch = { ...current }
+    patch[mode] = {
+      ...patch[mode],
+      invert: { ...patch[mode].invert, [role]: value },
+    }
+    current = patch
+    commit()
+    flushApply()
+  }
   const setImage = (image: { url: string; imageDark: boolean } | null): void => {
     const patch = { ...current }
     // A replacement supersedes the previous record; drop it so repeated swaps
@@ -331,7 +341,7 @@ export function apply(ctx: ClientContext): void {
     // Push the initial section so the row renders the persisted values.
     publish()
     return {
-      set, setModeRole, setImage, setVideo,
+      set, setModeRole, setModeInvert, setImage, setVideo,
       applyModePreset, applyModeColors, resetMode,
       applyPreset, applyColors, resetAll,
     }
