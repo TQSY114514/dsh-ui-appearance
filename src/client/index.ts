@@ -112,33 +112,32 @@ export function apply(ctx: ClientContext): void {
   let revision = 0
   let applier: AppearanceApplier | undefined
   // Token override rebuilds (applier.apply) are the expensive part of a
-  // commit. Drag-style writes fire on every pointermove, so cap the rebuild
-  // rate at ~30fps (leading + trailing edge). localStorage and the store sync
-  // stay synchronous so swatches and persistence never lag behind the drag.
-  let applyTimer: ReturnType<typeof setTimeout> | undefined
+  // commit. Drag-style writes fire on every pointermove / color-picker input,
+  // so coalesce rebuilds onto the animation frame: at most one rebuild per
+  // rendered frame, aligned with vsync. The trailing edge still applies the
+  // very last value one frame later, so a drag never drops its final position.
+  // localStorage and the store sync stay synchronous so swatches, React rows,
+  // and persistence never lag behind the drag.
+  let applyRaf: number | undefined
   let applyPending = false
-  const APPLY_INTERVAL = 33
 
   const scheduleApply = (): void => {
-    if (applyTimer === undefined) {
-      applier?.apply(current)
-      applyTimer = setTimeout(() => {
-        applyTimer = undefined
-        if (applyPending) {
-          applyPending = false
-          applier?.apply(current)
-        }
-      }, APPLY_INTERVAL)
-    } else {
+    if (applyRaf !== undefined) {
       applyPending = true
+      return
     }
+    applyRaf = requestAnimationFrame(() => {
+      applyRaf = undefined
+      applyPending = false
+      applier?.apply(current)
+    })
   }
 
-  /** Cancel any pending rebuild and apply the latest state right now. */
+  /** Cancel any pending frame and apply the latest state right now. */
   const flushApply = (): void => {
-    if (applyTimer !== undefined) {
-      clearTimeout(applyTimer)
-      applyTimer = undefined
+    if (applyRaf !== undefined) {
+      cancelAnimationFrame(applyRaf)
+      applyRaf = undefined
     }
     applyPending = false
     applier?.apply(current)
@@ -172,6 +171,11 @@ export function apply(ctx: ClientContext): void {
       },
     )
     return () => {
+      if (applyRaf !== undefined) {
+        cancelAnimationFrame(applyRaf)
+        applyRaf = undefined
+        applyPending = false
+      }
       applier?.dispose()
       applier = undefined
     }

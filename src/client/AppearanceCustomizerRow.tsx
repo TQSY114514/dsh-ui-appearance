@@ -95,6 +95,11 @@ function MoonIcon() {
   )
 }
 
+/** Freeze host transitions while a control is being dragged so rapid token
+ * updates render at full frame rate (see the applier stylesheet rule). */
+const beginDragFreeze = (): void => { document.body.setAttribute('data-dsw-sliding', '') }
+const endDragFreeze = (): void => { document.body.removeAttribute('data-dsw-sliding') }
+
 /** One color field row: native swatch + hex text input. */
 function ColorField(props: {
   label: string
@@ -115,13 +120,15 @@ function ColorField(props: {
   }
   return (
     <label className={css.colorField}>
-      <span className={css.colorLabel}>{label}</span>
       <span className={css.colorSwatch} style={{ backgroundColor: value === '' ? stock : value }}>
         <input
           type="color"
           className={css.colorSwatchInput}
           aria-label={`${label} (color picker)`}
           value={value === '' ? stock : value}
+          onPointerDown={beginDragFreeze}
+          onPointerCancel={endDragFreeze}
+          onBlur={endDragFreeze}
           onChange={event => { onChange(event.target.value) }}
         />
       </span>
@@ -173,9 +180,9 @@ function Slider(props: {
         max={max}
         step={step}
         value={value}
-        onPointerDown={() => { document.body.setAttribute('data-dsw-sliding', '') }}
-        onPointerUp={() => { document.body.removeAttribute('data-dsw-sliding') }}
-        onPointerCancel={() => { document.body.removeAttribute('data-dsw-sliding') }}
+        onPointerDown={beginDragFreeze}
+        onPointerUp={endDragFreeze}
+        onPointerCancel={endDragFreeze}
         onChange={event => { onChange(Number(event.target.value)) }}
       />
       <span className={css.sliderValue}>{format(value)}</span>

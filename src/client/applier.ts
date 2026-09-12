@@ -98,9 +98,13 @@ body[data-ds-dark-theme] #${BG_LAYER_ID} {
   outline: 2px solid var(--dsw-alias-state-business-primary);
   outline-offset: 2px;
 }
-/* Freeze transitions during active slider drag so rapid token updates (like
-   input opacity applied to the send button) render at 60fps without jitter. */
+/* Freeze transitions during active slider / color-picker drags so rapid
+   token updates (like input opacity applied to the send button) render at
+   60fps without jitter. data-dsw-sliding is set by the row's drag handlers;
+   the :active color-input rule is a belt-and-suspenders for the native
+   picker keeping focus without pointer events. */
 body:has(input[type="range"]:active) *,
+body:has(input[type="color"]:active) *,
 body[data-dsw-sliding] * {
   transition-duration: 0s !important;
 }
