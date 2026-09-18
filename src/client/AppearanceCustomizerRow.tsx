@@ -15,7 +15,7 @@ import { APPEARANCE_ROLES, INVERTIBLE_ROLES, type AppearanceRole, type Appearanc
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, prepareImage } from './image.ts'
 import { getImage, saveImage } from './image-store.ts'
-import { ACCEPTED_VIDEO_TYPES, deleteVideo, MAX_VIDEO_BYTES, saveVideo } from './video-store.ts'
+import { ACCEPTED_VIDEO_TYPES, deleteVideo, isVideoFile, MAX_VIDEO_BYTES, saveVideo } from './video-store.ts'
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import {
@@ -197,10 +197,12 @@ function urlErrorText(code: UrlLoadError, t: (key: AppearanceKey) => string): st
 }
 
 /** Map a local-read failure code to the localized message key ('read' keeps
- * the base key as the catch-all). */
+ * the base key as the catch-all). A missing sub-key must never render as a
+ * blank hint, so fall back to the catch-all message instead. */
 function localErrorText(prefix: 'background.readError' | 'background.videoError', code: 'type' | 'size' | 'read', t: (key: AppearanceKey) => string): string {
   const key: AppearanceKey = (code === 'read' ? prefix : `${prefix}.${code}`) as AppearanceKey
-  return t(key)
+  const text = t(key)
+  return text === '' || text === key ? t(prefix) : text
 }
 
 /** Thumbnail for the stored wallpaper. Legacy tokens are inline data URLs
@@ -351,7 +353,7 @@ export function AppearanceCustomizerRow({
   }
   const readVideo = async (file: File | undefined): Promise<void> => {
     if (file === undefined) return
-    if (!file.type.startsWith('video/')) {
+    if (!isVideoFile(file)) {
       setVideoError('type')
       return
     }
@@ -420,7 +422,9 @@ export function AppearanceCustomizerRow({
     event.preventDefault()
     setDragging(false)
     const file = event.dataTransfer.files?.[0]
-    if (file?.type.startsWith('video/')) void readVideo(file)
+    // Route by video-ness (MIME or extension), not MIME alone: empty-MIME
+    // containers like .mkv used to fall into the image path and die there.
+    if (file !== undefined && isVideoFile(file)) void readVideo(file)
     else void readFile(file)
   }
   const changeRole = (role: AppearanceRole, hex: string): void => {
@@ -612,7 +616,7 @@ export function AppearanceCustomizerRow({
                 {videoReading
                   ? t('background.reading')
                   : settings.backgroundVideo !== ''
-                    ? t('background.replace')
+                    ? t('background.videoReplace')
                     : t('background.videoUpload')}
               </button>
               {settings.backgroundVideo !== '' && (

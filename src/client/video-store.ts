@@ -9,8 +9,19 @@ import { newBlobKey, runBlobTx, VIDEO_STORE } from './blob-db.ts'
 /** Video upload cap (bytes); larger files are refused up front. */
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 
-/** MIME types accepted by the video upload control. */
-export const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg']
+/** MIME types plus extensions accepted by the video upload control. Some
+ * containers (.mov, .mkv) arrive with an empty or uncommon MIME type
+ * depending on the OS and browser, so the dialog also filters by
+ * extension — otherwise those files are greyed out and unselectable. */
+export const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg', '.mp4', '.webm', '.ogv', '.ogg', '.mov', '.mkv', '.m4v']
+
+/** Whether a picked or dropped file should be routed to the video pipeline.
+ * MIME is preferred but not trusted — when it is missing, the file name
+ * extension is the fallback gate. Either way the decoder stays the final
+ * authority: anything it cannot play surfaces the codec hint. */
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/') || /\.(mp4|webm|ogv|ogg|mov|mkv|m4v)$/i.test(file.name)
+}
 
 /** One stored video record. New records keep the payload as a Blob —
  * IDB structured cloning holds it by reference, so the bytes never have to

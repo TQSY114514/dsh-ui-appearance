@@ -22,6 +22,15 @@ vi.mock('../src/client/image-store.ts', () => ({
   deleteImage: vi.fn(async () => {}),
 }))
 
+vi.mock('../src/client/video-store.ts', () => ({
+  ACCEPTED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/ogg', '.mp4', '.webm', '.mov', '.mkv', '.m4v'],
+  MAX_VIDEO_BYTES: 50 * 1024 * 1024,
+  isVideoFile: (file: File): boolean =>
+    file.type.startsWith('video/') || /\.(mp4|webm|ogv|ogg|mov|mkv|m4v)$/i.test(file.name),
+  saveVideo: vi.fn(async () => 'video-key-1'),
+  deleteVideo: vi.fn(async () => {}),
+}))
+
 afterEach(cleanup)
 
 const COPY: Record<string, string> = {
@@ -39,6 +48,13 @@ const COPY: Record<string, string> = {
   'background.upload': 'Upload image',
   'background.remove': 'Remove image',
   'background.dropHint': 'drop an image here',
+  'background.reading': 'Reading…',
+  'background.replace': 'Replace image',
+  'background.videoUpload': 'Upload video',
+  'background.videoReplace': 'Replace video',
+  'background.videoRemove': 'Remove video',
+  'background.videoError': 'Could not read that video, try another one',
+  'background.videoError.type': 'That is not a video file',
   'background.videoHint': 'video plays muted in a loop',
   'background.videoUnsupported': 'this browser cannot play that codec',
   'background.opacity': 'Image opacity',
@@ -209,6 +225,71 @@ describe('AppearanceCustomizerRow', () => {
     expect(screen.queryByText('video plays muted in a loop')).toBeNull()
     act(() => { b.store.actions.setVideoPlaybackError(false) })
     expect(screen.getByText('video plays muted in a loop')).toBeDefined()
+  })
+
+  it('reads a dropped video through the injected setVideo', async () => {
+    const b = mount()
+    openRow()
+    const hint = screen.getByText('drop an image here')
+    const section = hint.parentElement
+    if (section === null) throw new Error('missing background section')
+    const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' })
+    fireEvent.drop(section, { dataTransfer: { files: [file] } })
+    await act(async () => { await Promise.resolve() })
+    expect(b.setVideo).toHaveBeenCalledWith('video-key-1')
+  })
+
+  it('routes an empty-MIME container like .mkv to the video pipeline', async () => {
+    const b = mount()
+    openRow()
+    const hint = screen.getByText('drop an image here')
+    const section = hint.parentElement
+    if (section === null) throw new Error('missing background section')
+    const file = new File(['x'], 'clip.mkv', { type: '' })
+    fireEvent.drop(section, { dataTransfer: { files: [file] } })
+    await act(async () => { await Promise.resolve() })
+    expect(b.setVideo).toHaveBeenCalledWith('video-key-1')
+  })
+
+  it('tells the user when a picked file is not a video at all', async () => {
+    const b = mount()
+    openRow()
+    const input = document.querySelector('input[accept^="video/mp4"]')
+    if (!(input instanceof HTMLInputElement)) throw new Error('missing video input')
+    const file = new File(['x'], 'notes.txt', { type: 'text/plain' })
+    Object.defineProperty(input, 'files', { value: [file] })
+    await act(async () => { fireEvent.change(input); await Promise.resolve() })
+    expect(screen.getByText('That is not a video file')).toBeDefined()
+  })
+
+  it('never renders a blank hint when an error message key is missing', async () => {
+    const b = mount()
+    openRow()
+    const saved = COPY['background.videoError.type']
+    delete COPY['background.videoError.type']
+    try {
+      const input = document.querySelector('input[accept^="video/mp4"]')
+      if (!(input instanceof HTMLInputElement)) throw new Error('missing video input')
+      const file = new File(['x'], 'notes.txt', { type: 'text/plain' })
+      Object.defineProperty(input, 'files', { value: [file] })
+      await act(async () => { fireEvent.change(input); await Promise.resolve() })
+      // Falls back to the catch-all message instead of rendering nothing.
+      expect(screen.getByText('Could not read that video, try another one')).toBeDefined()
+    } finally {
+      COPY['background.videoError.type'] = saved
+    }
+  })
+
+  it('shows the video remove action once a video is set', () => {
+    const b = mount()
+    act(() => { b.store.actions.patch({ backgroundVideo: 'video-key-1' }) })
+    openRow()
+    expect(screen.getByRole('button', { name: 'Remove video' })).toBeDefined()
+    // The upload button flips to its video-specific replace label...
+    expect(screen.getByRole('button', { name: 'Replace video' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Upload video' })).toBeNull()
+    // ...and the image controls stay out of the way (image and video are exclusive).
+    expect(screen.queryByRole('button', { name: 'Replace image' })).toBeNull()
   })
 
   it('reset drives the injected resetAll', () => {
