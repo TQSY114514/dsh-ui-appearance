@@ -145,9 +145,14 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
 
   const {
-    backgroundImage, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
+    backgroundImage, backgroundVideo, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
     sidebarOpaque, emphasisAlpha,
   } = settings
+
+  // The wallpaper and the background video share one layer (#dsw-appearance-bg,
+  // `position: fixed; z-index: -1`), so both need the frame's own background
+  // token punched out to transparent, or that layer stays hidden under it.
+  const hasBackgroundMedia = backgroundImage !== '' || backgroundVideo !== ''
 
   const getRole = (role: AppearanceRole): { light: string; dark: string } => {
     const l = settings.light?.[role] || ''
@@ -359,15 +364,15 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-interactive-bg-hover-solid', controlButtonHover[0], controlButtonHover[1])
   }
 
-  if (backgroundImage !== '') {
+  if (hasBackgroundMedia) {
     emit('--dsw-alias-bg-base', 'transparent', 'transparent')
   }
 
-  const flipBaseLight = backgroundImage !== ''
+  const flipBaseLight = hasBackgroundMedia
     ? (imageDark ? '#151517' : undefined)
     : (bg.light !== '' && isDarkColor(bg.light) ? bg.light : undefined)
 
-  const flipBaseDark = backgroundImage !== ''
+  const flipBaseDark = hasBackgroundMedia
     ? (imageDark ? '#151517' : undefined)
     : (bg.dark !== '' && isDarkColor(bg.dark) ? bg.dark : undefined)
 
@@ -457,7 +462,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       : (flipDark !== undefined ? flipDark
       : (tokens[token]?.dark ?? DEFAULT_SURFACE_COLORS[token]?.dark ?? DARK_BASE)))
 
-    emit(token, withAlpha(baseL, a), withAlpha(baseD, a))
+    // A transparent base means "let the background layer show through" — it
+    // has no channel to bake an alpha into, and withAlpha() would emit an
+    // invalid `rgba(NaN, NaN, NaN, a)` that drops the token.
+    const bake = (base: string): string => (base === 'transparent' ? base : withAlpha(base, a))
+    emit(token, bake(baseL), bake(baseD))
   }
 
   const bakeAccent = (token: string, a: number): void => {
@@ -480,7 +489,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       bakeAlpha(token, explicitLight, explicitDark, flipL, flipD, alpha)
     }
 
-    translucent('--dsw-alias-bg-base', backgroundImage !== '' ? 'transparent' : bg.light, backgroundImage !== '' ? 'transparent' : bg.dark, undefined, undefined)
+    translucent('--dsw-alias-bg-base', hasBackgroundMedia ? 'transparent' : bg.light, hasBackgroundMedia ? 'transparent' : bg.dark, undefined, undefined)
     translucent('--dsw-alias-bg-layer-1', panel.light, panel.dark, flipLayer1[0], flipLayer1[1])
     translucent(
       '--dsw-alias-bg-layer-2',

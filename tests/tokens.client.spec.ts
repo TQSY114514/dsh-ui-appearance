@@ -411,6 +411,25 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
   })
 
+  it('makes the base canvas transparent when only a background video is set', () => {
+    // Image and video share one background layer, so the video alone must
+    // punch out the frame background too — otherwise the layer stays hidden.
+    const tokens = buildTokenOverrides(full({ backgroundVideo: 'video-key' }))
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
+    // No image analysis backs a video, so the surface family stays stock.
+    expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+  })
+
+  it('keeps the base canvas transparent under surface translucency', () => {
+    // Alpha-baking a transparent base used to emit `rgba(NaN, NaN, NaN, a)`,
+    // which drops the token and lets the opaque frame swallow the layer again.
+    const video = buildTokenOverrides(full({ backgroundVideo: 'video-key', surfaceAlpha: 0.6 }))
+    expect(video['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
+    const image = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', surfaceAlpha: 0.6 }))
+    expect(image['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
+  })
+
   it('an explicit text color wins over the flipped labels', () => {
     const tokens = buildTokenOverrides(full({ background: '#101418', text: '#111111' }))
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#111111', dark: '#111111' })
