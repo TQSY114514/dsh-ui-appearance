@@ -245,6 +245,7 @@ export function AppearanceCustomizerRow({
   applyPreset, applyColors, resetAll,
 }: AppearanceCustomizerComponentProps) {
   const settings = useStore(s => s.settings)
+  const videoPlaybackError = useStore(s => s.videoPlaybackError)
   const [open, setOpen] = useState(false)
   const [reading, setReading] = useState(false)
   const [readError, setReadError] = useState<'type' | 'size' | 'read' | null>(null)
@@ -645,11 +646,13 @@ export function AppearanceCustomizerRow({
                 ? urlErrorText(urlError, t)
                 : videoError !== null
                   ? localErrorText('background.videoError', videoError, t)
-                  : settings.backgroundVideo !== ''
-                    ? t('background.videoHint')
-                    : readError !== null
-                      ? localErrorText('background.readError', readError, t)
-                      : t('background.dropHint')}
+                  : videoPlaybackError
+                    ? t('background.videoUnsupported')
+                    : settings.backgroundVideo !== ''
+                      ? t('background.videoHint')
+                      : readError !== null
+                        ? localErrorText('background.readError', readError, t)
+                        : t('background.dropHint')}
             </div>
             <Slider
               label={t('background.opacity')}

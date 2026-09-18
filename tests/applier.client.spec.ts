@@ -197,4 +197,50 @@ describe('AppearanceApplier', () => {
     applier.dispose()
     expect(layer.querySelector('video')).toBeNull()
   })
+
+  it('reports a video that fails to decode and clears the layer', async () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const onVideoPlaybackError = vi.fn()
+    applier.onVideoPlaybackError = onVideoPlaybackError
+    const layer = document.getElementById(BG_LAYER_ID)!
+    applier.apply(full({ backgroundVideo: 'key-3' }))
+    videoMock.resolveLoad!(new Blob(['x'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    expect(layer.hasAttribute('data-video')).toBe(true)
+    expect(onVideoPlaybackError).not.toHaveBeenCalled()
+
+    // The browser rejects the codec: the layer drops and the row is told.
+    layer.querySelector('video')!.onerror!(new Event('error'))
+    expect(onVideoPlaybackError).toHaveBeenCalledTimes(1)
+    expect(onVideoPlaybackError).toHaveBeenCalledWith(true)
+    expect(layer.hasAttribute('data-video')).toBe(false)
+    applier.dispose()
+  })
+
+  it('clears the decode failure once a video decodes, and on removal', async () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const onVideoPlaybackError = vi.fn()
+    applier.onVideoPlaybackError = onVideoPlaybackError
+    const layer = document.getElementById(BG_LAYER_ID)!
+    applier.apply(full({ backgroundVideo: 'key-4' }))
+    videoMock.resolveLoad!(new Blob(['x'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    layer.querySelector('video')!.onerror!(new Event('error'))
+    expect(onVideoPlaybackError).toHaveBeenLastCalledWith(true)
+
+    // Swapping in a playable video recovers: decoding started, so clear it.
+    applier.apply(full({ backgroundVideo: 'key-5' }))
+    videoMock.resolveLoad!(new Blob(['y'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    layer.querySelector('video')!.onloadeddata!(new Event('loadeddata'))
+    expect(onVideoPlaybackError).toHaveBeenLastCalledWith(false)
+
+    // Removing the video reports the same, and never repeats a state.
+    const calls = onVideoPlaybackError.mock.calls.length
+    applier.apply(full())
+    expect(onVideoPlaybackError.mock.calls.length).toBe(calls)
+    applier.dispose()
+  })
 })

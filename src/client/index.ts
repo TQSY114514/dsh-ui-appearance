@@ -111,6 +111,9 @@ export function apply(ctx: ClientContext): void {
   let current: AppearanceSettings = readStoredSettings()
   let revision = 0
   let applier: AppearanceApplier | undefined
+  // Decode failures can fire during the initial apply, before the slot has
+  // bound the row's store; stash the latest state and replay it when bound.
+  let videoPlaybackError = false
   // Token override rebuilds (applier.apply) are the expensive part of a
   // commit. Drag-style writes fire on every pointermove / color-picker input,
   // so coalesce rebuilds onto the animation frame: at most one rebuild per
@@ -159,6 +162,13 @@ export function apply(ctx: ClientContext): void {
       // Environments without navigator.storage: nothing to persist anyway.
     }
     applier = new AppearanceApplier(ctx)
+    // The applier is the only place that learns a video failed to decode; push
+    // that onto the row's store so the background section can explain the
+    // blank background instead of staying silent.
+    applier.onVideoPlaybackError = failed => {
+      videoPlaybackError = failed
+      bound?.setVideoPlaybackError(failed)
+    }
     applier.apply(current)
     // One-shot migration of a legacy inline wallpaper into IndexedDB; the
     // applier shows the inline value until the swap lands.
@@ -344,6 +354,8 @@ export function apply(ctx: ClientContext): void {
     bound = actions
     // Push the initial section so the row renders the persisted values.
     publish()
+    // Replay a decode failure that landed before the row's store was bound.
+    if (videoPlaybackError) actions.setVideoPlaybackError(true)
     return {
       set, setModeRole, setModeInvert, setImage, setVideo,
       applyModePreset, applyModeColors, resetMode,

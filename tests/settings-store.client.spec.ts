@@ -6,7 +6,18 @@ import { createAppearanceRowStore } from '../src/client/settings-store.ts'
 describe('createAppearanceRowStore', () => {
   it('init shape: stock settings with revision at -1', () => {
     const store = createAppearanceRowStore().create()
-    expect(store.getSnapshot()).toEqual({ settings: DEFAULT_SETTINGS, revision: -1 })
+    expect(store.getSnapshot()).toEqual({ settings: DEFAULT_SETTINGS, revision: -1, videoPlaybackError: false })
+  })
+
+  it('setVideoPlaybackError records the applier-reported decode failure', () => {
+    const store = createAppearanceRowStore().create()
+    store.actions.setVideoPlaybackError(true)
+    expect(store.getSnapshot().videoPlaybackError).toBe(true)
+    // It is applier-owned state: a settings sync must not clear it.
+    store.actions.sync({ ...DEFAULT_SETTINGS, backgroundVideo: 'video-key' }, 0)
+    expect(store.getSnapshot().videoPlaybackError).toBe(true)
+    store.actions.setVideoPlaybackError(false)
+    expect(store.getSnapshot().videoPlaybackError).toBe(false)
   })
 
   it('sync mirrors the settings and advances the revision', () => {

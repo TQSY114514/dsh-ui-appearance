@@ -152,6 +152,15 @@ export class AppearanceApplier {
   private imageToken = ''
   private imageUrl: string | undefined
   private removeOverrides: (() => void) | undefined
+  private videoFailed = false
+
+  /**
+   * Notified when the background video stops being playable (unsupported
+   * codec, decode error) or becomes playable again. The row has no other way
+   * to learn that an uploaded video never reached the screen, so it surfaces
+   * this as a hint instead of leaving a silent, invisible background.
+   */
+  onVideoPlaybackError: ((failed: boolean) => void) | undefined
 
   /**
    * @param ctx - client context providing the theme service.
@@ -287,6 +296,7 @@ export class AppearanceApplier {
     this.teardownVideo()
     if (key === '') {
       this.layer.removeAttribute('data-video')
+      this.reportVideoError(false)
       return
     }
     const record = await getVideo(key)
@@ -294,22 +304,41 @@ export class AppearanceApplier {
       // Deleted while loading, or superseded by a newer apply.
       this.videoKey = ''
       this.layer.removeAttribute('data-video')
+      this.reportVideoError(false)
       return
     }
     const video = this.ensureVideo()
     this.videoUrl = URL.createObjectURL(record)
     video.src = this.videoUrl
-    video.play().catch(() => {
-      // Autoplay policy or unsupported codec: keep the layer fallback silent.
-    })
     // Unsupported codec (e.g. HEVC in an mp4): drop the video layer so the
-    // wallpaper fallback (if any) shows instead of a black frame.
+    // wallpaper fallback (if any) shows instead of a black frame, and tell the
+    // row — otherwise the failure is indistinguishable from "no background".
     video.onerror = (): void => {
       this.videoKey = ''
       this.layer.removeAttribute('data-video')
       this.teardownVideo()
+      this.reportVideoError(true)
     }
+    // Decoding started: the codec is supported after all (a swapped-in video
+    // may recover from a previous failure).
+    video.onloadeddata = (): void => { this.reportVideoError(false) }
     this.layer.setAttribute('data-video', '')
+    video.play().catch(() => {
+      // Autoplay policy or unsupported codec: keep the layer fallback silent.
+      // `onerror` owns the unsupported-codec report; a play() rejection on its
+      // own is not a decode failure and must not claim one.
+    })
+  }
+
+  /**
+   * Report a change in the background video's playability, at most once per
+   * state so a settings re-apply cannot spam the row's store.
+   * @param failed - whether the video is currently unplayable.
+   */
+  private reportVideoError(failed: boolean): void {
+    if (this.videoFailed === failed) return
+    this.videoFailed = failed
+    this.onVideoPlaybackError?.(failed)
   }
 
   /** Create the background video element once. */

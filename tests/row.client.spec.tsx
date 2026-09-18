@@ -39,6 +39,8 @@ const COPY: Record<string, string> = {
   'background.upload': 'Upload image',
   'background.remove': 'Remove image',
   'background.dropHint': 'drop an image here',
+  'background.videoHint': 'video plays muted in a loop',
+  'background.videoUnsupported': 'this browser cannot play that codec',
   'background.opacity': 'Image opacity',
   'background.blur': 'Background blur',
   'background.scrim': 'Background scrim',
@@ -193,6 +195,20 @@ describe('AppearanceCustomizerRow', () => {
     fireEvent.drop(section, { dataTransfer: { files: [file] } })
     await act(async () => { await Promise.resolve() })
     expect(b.setImage).toHaveBeenCalledWith({ url: 'img-key-1', imageDark: true })
+  })
+
+  it('explains a background video the browser refused to decode', () => {
+    const b = mount()
+    act(() => { b.store.actions.patch({ backgroundVideo: 'video-key' }) })
+    openRow()
+    // A stored video normally shows the generic hint...
+    expect(screen.getByText('video plays muted in a loop')).toBeDefined()
+    // ...which the applier's decode failure replaces.
+    act(() => { b.store.actions.setVideoPlaybackError(true) })
+    expect(screen.getByText('this browser cannot play that codec')).toBeDefined()
+    expect(screen.queryByText('video plays muted in a loop')).toBeNull()
+    act(() => { b.store.actions.setVideoPlaybackError(false) })
+    expect(screen.getByText('video plays muted in a loop')).toBeDefined()
   })
 
   it('reset drives the injected resetAll', () => {

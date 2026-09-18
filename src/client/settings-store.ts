@@ -15,12 +15,16 @@ export interface AppearanceRowState {
   settings: AppearanceSettings
   /** Host document revision; -1 until the first scope snapshot lands. */
   revision: number
+  /** The background video failed to decode/play in the applier (codec or
+   * autoplay); surfaced so the row can explain why nothing shows. */
+  videoPlaybackError: boolean
 }
 
 /** Declared action shape giving the exported factory a stable return type. */
 type AppearanceRowActions = {
   sync: (draft: AppearanceRowState, settings: AppearanceSettings, revision: number) => void
   patch: (draft: AppearanceRowState, partial: Partial<AppearanceSettings>) => void
+  setVideoPlaybackError: (draft: AppearanceRowState, failed: boolean) => void
 }
 
 /**
@@ -29,7 +33,7 @@ type AppearanceRowActions = {
  */
 export function createAppearanceRowStore(): EngineStoreHandle<AppearanceRowState, AppearanceRowActions> {
   return defineStore({
-    init: (): AppearanceRowState => ({ settings: { ...DEFAULT_SETTINGS }, revision: -1 }),
+    init: (): AppearanceRowState => ({ settings: { ...DEFAULT_SETTINGS }, revision: -1, videoPlaybackError: false }),
     actions: {
       sync: (d, settings, revision) => {
         if (revision <= d.revision) return
@@ -38,6 +42,9 @@ export function createAppearanceRowStore(): EngineStoreHandle<AppearanceRowState
       },
       patch: (d, partial) => {
         d.settings = { ...d.settings, ...partial }
+      },
+      setVideoPlaybackError: (d, failed) => {
+        d.videoPlaybackError = failed
       },
     },
   })
