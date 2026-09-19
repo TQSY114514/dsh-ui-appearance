@@ -39,10 +39,23 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 - **卸载必须可逆**：任何设置改动用完要能还原默认；持久化键与 CSS 变量不能污染宿主全局。
 - **`lib/` 是产物，不手改**：源码在 `src/`，编译输出 `lib/` 由构建生成；新导出必须同步补 `.d.ts`。
 - **CSS Modules**：组件样式用 `.module.css`，别用全局 class 名污染 Host 页面。
-- **视频走 IndexedDB**：视频文件不许进 localStorage（配额不够）；图片上传要压缩。
+- **媒体走 IndexedDB**：图片与视频（上限 200MB）全走 IndexedDB Blob 存储，不许进 localStorage（配额不够）；替换时同步清理旧记录。
 - **实时性**：所有调整实时生效、无需刷新、无需保存按钮——新增设置项要保持这个交互契约。
 - **UI 风格**：遵循 Host 的 `--dsw-*` 设计语言，视觉上融入而非突兀；见 `src/client/*.module.css` 既有写法。
 - **提交纪律**：CI 跑 build.yml（`tests/` 目录有测试），改动后本地先过构建与测试再提交。
+
+## Traps & hard-won lessons (踩坑备忘)
+
+- **背景层沉底与宿主打孔（Issue #10, #22）**：
+  - `#dsw-appearance-bg` 必须沉底在 `position: fixed; z-index: -1`，绝不能提升到 `z >= 0` 或对 `#root` 赋予 `position/z-index`（会导致宿主弹窗被第三方插件层级遮挡）。
+  - DSH 0.1.5+ 宿主框架自带 `--dsw-alias-bg-base` 不透明底色；任何背景媒体（图片或视频）生效时，必须在 `tokens.ts` 中通过统一的 `hasBackgroundMedia` 将 `--dsw-alias-bg-base` 打孔为 `transparent`，否则会被外层框架遮挡得干干净净。
+  - `transparent` 底色不能直接走 `withAlpha()`，必须前置短路返回 `transparent`，否则计算出 `rgba(NaN, NaN, NaN, a)` 会使 token 失效回落不透明。
+- **视频解码与错误状态闭环（Issue #26）**：
+  - 浏览器对不支持的编码（如 HEVC/H.265、部分 `.mov` 容器或特定音频轨）会触发 `<video>` 的 `onerror`，必须向上打通状态通道展示可自查提示，不可静默吞掉。
+  - 清理视频（`key === ''`）时必须无条件重置错误状态（`reportVideoError(false)`），否则删除视频或切回壁纸后错误提示会永久常驻。
+- **大文件存储与清理**：
+  - 图片与视频上限均为 200MB，走 IndexedDB Blob 引用（`dsh-appearance-blobs`），零额外堆内存复制，播放由 Chromium 原生流式硬解。
+  - 更换媒体必须清理 IndexedDB 旧记录，避免无感磁盘膨胀。
 
 ## Before changing X, read Y
 
