@@ -2,6 +2,24 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.11] - 2026-09-19
+
+### Fixed
+
+- **仅设置视频背景时视频不显示** ([#22](https://github.com/TQSY114514/dsh-ui-appearance/issues/22)):
+  - 修复主题 Token 覆盖计算时仅判定 `backgroundImage` 而漏判 `backgroundVideo` 的缺陷。在 DSH 0.1.5+ 环境下，仅设置视频时同样将底座 `--dsw-alias-bg-base` 设为 `transparent`，避免宿主外层框架遮挡底层视频。
+  - 修复 `transparent` 底色在 `surfaceAlpha < 1` 下经过 `withAlpha` 烘焙产生 `rgba(NaN, NaN, NaN, a)` 无效样式的隐患。
+  - 修复视频解码失败后删除视频（或切回图片壁纸）时警告提示不会消失的状态复位问题。
+
+### Added
+
+- **视频背景大小上限放宽至 200MB**:
+  - 视频存储采用 IndexedDB Blob 引用机制（不占用 localStorage 配额且零额外内存复制），播放基于 Chromium 原生流式硬解，放宽至 200MB 完美覆盖各类 1080p/4K 动态壁纸循环素材。
+  - 同步更新 URL 加载大小限制文案、扩展名识别（支持 `.mp4`, `.webm`, `.ogv`, `.ogg`, `.mov`, `.mkv`, `.m4v`）。
+- **视频解码与格式容错提示**:
+  - 当视频编码不受当前浏览器解码器支持（如 HEVC/H.265）时，展示友好提示文案。
+  - 支持拖拽视频文件设置背景，且优化了“更换视频”/“删除视频”的按钮交互。
+
 ## [0.1.10] - 2026-09-12
 
 ### Added

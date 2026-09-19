@@ -291,14 +291,16 @@ export class AppearanceApplier {
    * @param key - video record key, or '' to clear.
    */
   private async syncVideo(key: string): Promise<void> {
-    if (key === this.videoKey) return
-    this.videoKey = key
-    this.teardownVideo()
     if (key === '') {
+      this.videoKey = ''
+      this.teardownVideo()
       this.layer.removeAttribute('data-video')
       this.reportVideoError(false)
       return
     }
+    if (key === this.videoKey) return
+    this.videoKey = key
+    this.teardownVideo()
     const record = await getVideo(key)
     if (record === undefined || this.videoKey !== key) {
       // Deleted while loading, or superseded by a newer apply.

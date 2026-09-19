@@ -23,8 +23,8 @@ vi.mock('../src/client/image-store.ts', () => ({
 }))
 
 vi.mock('../src/client/video-store.ts', () => ({
-  ACCEPTED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/ogg', '.mp4', '.webm', '.mov', '.mkv', '.m4v'],
-  MAX_VIDEO_BYTES: 50 * 1024 * 1024,
+  ACCEPTED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/ogg', '.mp4', '.webm', '.ogv', '.ogg', '.mov', '.mkv', '.m4v'],
+  MAX_VIDEO_BYTES: 200 * 1024 * 1024,
   isVideoFile: (file: File): boolean =>
     file.type.startsWith('video/') || /\.(mp4|webm|ogv|ogg|mov|mkv|m4v)$/i.test(file.name),
   saveVideo: vi.fn(async () => 'video-key-1'),
@@ -225,6 +225,14 @@ describe('AppearanceCustomizerRow', () => {
     expect(screen.queryByText('video plays muted in a loop')).toBeNull()
     act(() => { b.store.actions.setVideoPlaybackError(false) })
     expect(screen.getByText('video plays muted in a loop')).toBeDefined()
+
+    // Removing the video hides the codec hint even if the flag lingered
+    act(() => {
+      b.store.actions.setVideoPlaybackError(true)
+      b.store.actions.patch({ backgroundVideo: '' })
+    })
+    expect(screen.queryByText('this browser cannot play that codec')).toBeNull()
+    expect(screen.getByText('drop an image here')).toBeDefined()
   })
 
   it('reads a dropped video through the injected setVideo', async () => {

@@ -122,7 +122,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
 - 深色壁纸或深色背景色自动触发表面家族协调翻转;显式设置的文字色仍然优先
 - 每个颜色角色单值双模式共用,派生色按当前模式自动推导
 - 图片不压缩、不限大小(200MB 防呆上限):原图直接存 IndexedDB,超过 4096px 等比缩边(重编码为 WebP,保 GIF 动画——未超限的 GIF 原样存储);旧版的 data URL 壁纸在升级后自动迁移进 IndexedDB;持久化数据加载时会按 schema 校验与钳制,手改坏 localStorage 也不会产生无效样式
-- 视频背景上限 50MB;建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸;更换视频会同步清理 IndexedDB 中的旧记录
+- 视频背景上限 200MB;建议使用 H.264(MP4)或 VP8/VP9(WebM)编码;不支持的编码(如 HEVC)会自动降级回壁纸;更换视频会同步清理 IndexedDB 中的旧记录
 - 代码的语法高亮文字色(shiki `--shiki-token-*`)是独立的语法语言配色,不随主色变化(与 IDE 惯例一致);主色为白色时强调字背景为白色半透明,在浅色表面上视觉上接近不可见,属正常物理结果
 - 气泡跟随主色,没有独立的气泡颜色设置:harness 把唯一的气泡背景渲染在用户消息上,AI 消息没有气泡(渲染事实,插件无法细分);主色未设置时气泡保持默认浅蓝白
 
@@ -141,7 +141,7 @@ dsh plugin --profile <name> add file:<克隆到的本地路径>
   - **层级遮挡已修复**：自 v0.1.5 起，壁纸图层已沉底至 `z-index: -1`，`#root` 不创建额外层叠上下文（Stacking Context），第三方顶层浮层（如 `dsh-better-sidebar` 等）与设置弹窗层级互不干扰（[#10](https://github.com/TQSY114514/dsh-ui-appearance/issues/10)）。
   - **样式覆盖排查**：若共存的其他插件使用了强行覆盖全局样式的规则，可能产生视觉竞争；排查时可先单独禁用其他 UI 类插件定位。
 - **Q: 壁纸或视频背景无法显示 / 加载失败？**
-  - **本地文件**：图片原画质存入 IndexedDB（超过 4096px 自动等比缩边，限内 GIF 保留动画）；视频上限 50MB（推荐 MP4 H.264 或 WebM VP8/VP9，不支持的编码会自动降级为壁纸）。
+  - **本地文件**：图片原画质存入 IndexedDB（超过 4096px 自动等比缩边，限内 GIF 保留动画）；视频上限 200MB（推荐 MP4 H.264 或 WebM VP8/VP9，不支持的编码会自动降级为壁纸）。
   - **网络 URL**：部分外链图床或视频站点开启了防盗链或缺少 CORS 跨域头，浏览器会阻止加载；建议下载后本地上传，或选用支持 CORS 的直链。
 
 ## 包结构
@@ -158,7 +158,7 @@ src/
     ├── color.ts / image.ts   # 色值工具 / 图片预处理(超 4096px 缩边,不降质)
     ├── blob-db.ts            # IndexedDB 底座(DB v2:图片+视频两 store)
     ├── image-store.ts        # IndexedDB 图片存储(键化引用)
-    ├── video-store.ts        # IndexedDB 视频存储(50MB 上限)
+    ├── video-store.ts        # IndexedDB 视频存储(200MB 上限)
     ├── color-scheme.ts       # 配色导出/导入(纯函数)
     ├── settings-store.ts     # 设置镜像 store
     ├── locales.ts            # 中英文案

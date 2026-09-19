@@ -650,7 +650,7 @@ export function AppearanceCustomizerRow({
                 ? urlErrorText(urlError, t)
                 : videoError !== null
                   ? localErrorText('background.videoError', videoError, t)
-                  : videoPlaybackError
+                  : videoPlaybackError && settings.backgroundVideo !== ''
                     ? t('background.videoUnsupported')
                     : settings.backgroundVideo !== ''
                       ? t('background.videoHint')

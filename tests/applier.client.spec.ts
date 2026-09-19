@@ -243,4 +243,22 @@ describe('AppearanceApplier', () => {
     expect(onVideoPlaybackError.mock.calls.length).toBe(calls)
     applier.dispose()
   })
+
+  it('clears the decode failure when a broken video is removed directly', async () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const onVideoPlaybackError = vi.fn()
+    applier.onVideoPlaybackError = onVideoPlaybackError
+    const layer = document.getElementById(BG_LAYER_ID)!
+    applier.apply(full({ backgroundVideo: 'key-fail' }))
+    videoMock.resolveLoad!(new Blob(['x'], { type: 'video/mp4' }))
+    await new Promise(resolve => { setTimeout(resolve, 0) })
+    layer.querySelector('video')!.onerror!(new Event('error'))
+    expect(onVideoPlaybackError).toHaveBeenLastCalledWith(true)
+
+    // Removing the video directly must notify false so the row clears the warning.
+    applier.apply(full({ backgroundVideo: '' }))
+    expect(onVideoPlaybackError).toHaveBeenLastCalledWith(false)
+    applier.dispose()
+  })
 })

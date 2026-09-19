@@ -12,7 +12,7 @@ import { MAX_VIDEO_BYTES } from './video-store.ts'
 export type UrlMediaKind = 'image' | 'video'
 
 /** Video extensions the URL classifier recognizes. */
-const VIDEO_EXT = /\.(mp4|webm|ogg|mov|m4v)([?#]|$)/i
+const VIDEO_EXT = /\.(mp4|webm|ogv|ogg|mov|mkv|m4v)([?#]|$)/i
 
 /** User-facing failure codes for remote loads. */
 export type UrlLoadError = 'network' | 'cors' | 'http' | 'type' | 'size'

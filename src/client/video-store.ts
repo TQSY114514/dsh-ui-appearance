@@ -6,8 +6,10 @@
  */
 import { newBlobKey, runBlobTx, VIDEO_STORE } from './blob-db.ts'
 
-/** Video upload cap (bytes); larger files are refused up front. */
-export const MAX_VIDEO_BYTES = 50 * 1024 * 1024
+/** Video upload cap (bytes); larger files are refused up front. Matches the
+ * image limit — videos are stored as Blob references in IndexedDB, so the
+ * cap guards sanity, not memory. */
+export const MAX_VIDEO_BYTES = 200 * 1024 * 1024
 
 /** MIME types plus extensions accepted by the video upload control. Some
  * containers (.mov, .mkv) arrive with an empty or uncommon MIME type
