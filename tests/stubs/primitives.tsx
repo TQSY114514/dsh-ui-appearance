@@ -22,7 +22,17 @@ export function DisclosureRow(props: DisclosureRowProps): ReactNode {
   )
 }
 
-/** No-op icon component (decorative in the row header). */
+/** No-op icon component (decorative in the row header, DSH <= 0.1.6). */
 export function IconPersonalizationOutline16(): ReactNode {
+  return createElement('span')
+}
+
+/** No-op icon component (decorative in the row header, DSH >= 0.1.7-rc.1). */
+export function IconPersonalizationOutlineRegular(): ReactNode {
+  return createElement('span')
+}
+
+/** No-op medium icon component (DSH >= 0.1.7-rc.1). */
+export function IconPersonalizationOutlineMedium(): ReactNode {
   return createElement('span')
 }

@@ -164,6 +164,9 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
     children?: ReactNode
   }): ReactNode
 
-  /** Personalization icon used by the row title. */
-  export function IconPersonalizationOutline16(props: Record<string, unknown>): ReactNode
+  /** Personalization icon used by the row title (DSH <= 0.1.6). */
+  export function IconPersonalizationOutline16(props?: Record<string, unknown>): ReactNode
+  /** Personalization icon used by the row title (DSH >= 0.1.7-rc.1). */
+  export function IconPersonalizationOutlineRegular(props?: Record<string, unknown>): ReactNode
+  export function IconPersonalizationOutlineMedium(props?: Record<string, unknown>): ReactNode
 }

@@ -117,10 +117,36 @@ body[data-dsw-sliding] * {
    attribute the applier sets per mode, so turning the toggle off / disabling
    the plugin restores the stock color exactly. The hashed class prefix
    (Sixlwa_) changes across host builds; the stable local name is 'bubble'. */
+/* User-message bubble legibility (Issue #27): the user bubble background is
+   painted with --dsw-specific-bubble (= accent), while inline file/skill/session
+   reference chips (.refChip in user-text.module.css) use
+   color: var(--dsw-alias-state-business-primary) (= also accent). Without
+   scoping, accent text on an accent bubble has a 1:1 contrast ratio and
+   becomes invisible regardless of whether accent auto-inversion is on.
+   Pointing the business/brand foreground tokens at --dsw-alias-label-primary
+   inside the bubble ensures reference chips always inherit the bubble's
+   readable foreground ink (either the user's text role or the auto-inverted
+   bubble ink below), while a subtle translucent pill + underline preserves
+   chip distinction. */
+#root [class*="_bubble"],
+#root [class*="bubble" i] {
+  --dsw-alias-state-business-primary: var(--dsw-alias-label-primary);
+  --dsw-alias-brand-primary: var(--dsw-alias-label-primary);
+}
+#root [class*="_bubble"] [class*="refChip"],
+#root [class*="bubble" i] [class*="refChip"] {
+  background: color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
+  padding: 1px 6px;
+  border-radius: 6px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 body[data-dsw-bubble-ink-light] #root [class*="_bubble"],
 body[data-dsw-bubble-ink-light] #root [class*="bubble" i] {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-light);
+  --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light);
+  --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-light);
 }
 body[data-dsw-bubble-ink-light] #root [class*="_bubble"] a,
 body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
@@ -131,6 +157,8 @@ body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"],
 body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-dark);
+  --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark);
+  --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-dark);
 }
 body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
 body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] a {

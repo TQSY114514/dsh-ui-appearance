@@ -261,4 +261,15 @@ describe('AppearanceApplier', () => {
     expect(onVideoPlaybackError).toHaveBeenLastCalledWith(false)
     applier.dispose()
   })
+
+  it('scopes business/brand primary tokens and refChip styling inside user bubbles (Issue #27)', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-alias-label-primary)')
+    expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light)')
+    expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark)')
+    expect(css).toContain('[class*="refChip"]')
+    applier.dispose()
+  })
 })

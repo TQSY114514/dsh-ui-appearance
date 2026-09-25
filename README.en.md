@@ -5,10 +5,12 @@
 The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring fine-grained panel/input/code opacity controls, frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com/p/TQSY114514/dsh-ui-appearance/)
-[![npm](https://img.shields.io/npm/v/dsh-ui-appearance)](https://www.npmjs.com/package/dsh-ui-appearance)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-ui-appearance?label=npm%20downloads)](https://www.npmjs.com/package/dsh-ui-appearance)
-[![CI](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml/badge.svg)](https://github.com/TQSY114514/dsh-ui-appearance/actions)
-[![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
+[![npm version](https://img.shields.io/npm/v/dsh-ui-appearance.svg?style=flat-square&color=cb3837&labelColor=161b22&logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-ui-appearance)
+[![downloads](https://img.shields.io/npm/dt/dsh-ui-appearance.svg?style=flat-square&color=3fb950&labelColor=161b22&label=downloads)](https://www.npmjs.com/package/dsh-ui-appearance)
+[![CI](https://img.shields.io/github/actions/workflow/status/TQSY114514/dsh-ui-appearance/build.yml?style=flat-square&label=ci&labelColor=161b22&logo=githubactions&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=8250df&labelColor=161b22&label=release)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
+[![license](https://img.shields.io/npm/l/dsh-ui-appearance.svg?style=flat-square&color=8b949e&labelColor=161b22)](./LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=dbab09&labelColor=161b22&logo=github&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/stargazers)
 
 > Zero core-code changes: everything goes through the official plugin mechanism (`ctx.theme.overrideTokens()` theme extension point and the `settings.general.item` slot). Uninstalling restores the stock UI completely.
 

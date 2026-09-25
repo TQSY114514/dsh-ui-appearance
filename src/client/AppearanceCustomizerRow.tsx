@@ -8,7 +8,10 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import clsx from 'clsx'
 import {
-  DisclosureRow, IconPersonalizationOutline16,
+  DisclosureRow,
+  IconPersonalizationOutline16,
+  IconPersonalizationOutlineMedium,
+  IconPersonalizationOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { APPEARANCE_ROLES, INVERTIBLE_ROLES, type AppearanceRole, type AppearanceSettings, type InvertibleRole, type ThemeMode } from '../appearance-settings.ts'
@@ -76,6 +79,28 @@ const STOCK_ROLE_COLORS: Record<ThemeMode, Record<AppearanceRole, string>> = {
     text: '#fafaf9',
     border: '#333338',
   },
+}
+
+/**
+ * Personalization icon adapter: DSH >= 0.1.7-rc.1 replaced size-suffixed
+ * icon exports (`IconPersonalizationOutline16`) with weight-suffixed ones
+ * (`IconPersonalizationOutlineRegular` / `IconPersonalizationOutlineMedium`).
+ * Resolve whichever the host provides and fall back to an inline SVG so the
+ * row never crashes under a future host icon rename.
+ */
+function PersonalizationIcon() {
+  const Icon = IconPersonalizationOutlineRegular
+    ?? IconPersonalizationOutlineMedium
+    ?? IconPersonalizationOutline16
+  if (typeof Icon === 'function') return <Icon size={16} />
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="8" cy="8" r="6" />
+      <circle cx="6" cy="6.5" r="0.8" fill="currentColor" />
+      <circle cx="10" cy="6.5" r="0.8" fill="currentColor" />
+      <circle cx="8" cy="10" r="0.8" fill="currentColor" />
+    </svg>
+  )
 }
 
 function SunIcon() {
@@ -487,7 +512,7 @@ export function AppearanceCustomizerRow({
   return (
     <div className={css.group}>
       <DisclosureRow
-        icon={<IconPersonalizationOutline16 />}
+        icon={<PersonalizationIcon />}
         title={t('row.title')}
         open={open}
         expandable
