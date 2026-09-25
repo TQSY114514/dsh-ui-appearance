@@ -2,6 +2,22 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.12] - 2026-09-25
+
+### Added
+
+- **兼容 DSH `0.1.7-rc.1+` 设置面板图标重命名** ([#28](https://github.com/TQSY114514/dsh-ui-appearance/issues/28)):
+  - 新增 `PersonalizationIcon` 适配层，自动按优先级解析 `IconPersonalizationOutlineRegular`（`>= 0.1.7-rc.1`）、`IconPersonalizationOutlineMedium` 与 `IconPersonalizationOutline16`（`<= 0.1.6`），并提供内联 SVG 兜底，解决升级 DSH `0.1.7-rc.1` 后因旧图标名 `undefined` 触发 `SlotErrorBoundary` 导致设置入口不可见的问题。
+
+### Fixed
+
+- **修复用户发言气泡内文件/技能引用标签（`.refChip`）同色不可读问题** ([#27](https://github.com/TQSY114514/dsh-ui-appearance/issues/27)):
+  - 在用户消息气泡作用域（`#root [class*="_bubble"]`）内将 `--dsw-alias-state-business-primary` 与 `--dsw-alias-brand-primary` 局部映射至气泡文字前景色（兼容主色自动反色与自定义文字色），并为 `.refChip` 增加 14% 透明度自适应胶囊底衬与下划线。
+
+### Changed
+
+- **文档**: README 徽章升级为 `flat-square` 深色方角风格，并将 npm 下载量徽章从月下载量（`dm`）切换为总下载量（`dt`）。
+
 ## [0.1.11] - 2026-09-19
 
 ### Fixed
