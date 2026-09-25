@@ -10,7 +10,6 @@ DeepSeek Harness 生态中首个支持多维度 UI 参数深度自定义的外�
 [![CI](https://img.shields.io/github/actions/workflow/status/TQSY114514/dsh-ui-appearance/build.yml?style=flat-square&label=ci&labelColor=161b22&logo=githubactions&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=8250df&labelColor=161b22&label=release)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
 [![license](https://img.shields.io/npm/l/dsh-ui-appearance.svg?style=flat-square&color=8b949e&labelColor=161b22)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=dbab09&labelColor=161b22&logo=github&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/stargazers)
 
 > 零核心代码改动:完全通过官方插件机制(`ctx.theme.overrideTokens()` 主题扩展点与 `settings.general.item` 插槽)实现;卸载后界面完整恢复默认。
 
