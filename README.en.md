@@ -10,7 +10,6 @@ The first appearance customization plugin in the DeepSeek Harness ecosystem supp
 [![CI](https://img.shields.io/github/actions/workflow/status/TQSY114514/dsh-ui-appearance/build.yml?style=flat-square&label=ci&labelColor=161b22&logo=githubactions&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=8250df&labelColor=161b22&label=release)](https://github.com/TQSY114514/dsh-ui-appearance/releases)
 [![license](https://img.shields.io/npm/l/dsh-ui-appearance.svg?style=flat-square&color=8b949e&labelColor=161b22)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/TQSY114514/dsh-ui-appearance.svg?style=flat-square&color=dbab09&labelColor=161b22&logo=github&logoColor=white)](https://github.com/TQSY114514/dsh-ui-appearance/stargazers)
 
 > Zero core-code changes: everything goes through the official plugin mechanism (`ctx.theme.overrideTokens()` theme extension point and the `settings.general.item` slot). Uninstalling restores the stock UI completely.
 
