@@ -191,6 +191,15 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
   --deliverable-fill: var(--dsw-alias-bg-module-platform) !important;
   --deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important;
 }
+/* Menu & popover surfaces (MenuSurface, jobs panel, permission presets, avatar menu):
+   DSH MenuSurface sets background: var(--dsw-menu-surface-fill) and
+   backdrop-filter: var(--dsw-menu-backdrop-filter). Guarantee that menu surfaces
+   always evaluate to the user's translucent menu tokens and follow glassBlur. */
+[data-menu-material],
+:is(#root, body) [data-menu-material],
+:is(#root, body) [class*="menu" i] {
+  --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
+}
 `
 
 /**
@@ -255,14 +264,18 @@ export class AppearanceApplier {
       '--dsw-appearance-blur',
       `${value.backgroundBlur + value.glassBlur}px`,
     )
-    // 毛玻璃 also drives the host's modal masks: dialogs/dropdowns dim the page
-    // through `.mask` elements whose backdrop-filter is `var(--dsw-mask-blur)`
-    // (stock: blur(2px)). Writing the token on body wins over the host's
-    // stylesheet definitions (body is the closer ancestor), so whatever a mask
-    // covers — text included — frosts with the slider. The slider owns the
-    // token across its whole range: 0 means blur(0px) (fully clear), NOT the
-    // stock 2px. dispose() removes the write so uninstall restores stock.
+    // 毛玻璃 also drives the host's modal masks and dropdown menu backdrop filters:
+    // dialogs/dropdowns dim the page through `.mask` elements whose backdrop-filter
+    // is `var(--dsw-mask-blur)` (stock: blur(2px)), and MenuSurface / JobListAction blur
+    // underlying content through `var(--dsw-menu-backdrop-filter)` (stock: blur(40px)).
+    // Writing both tokens on body wins over the host's stylesheet definitions (body is
+    // the closer ancestor), so all popovers and masks frost synchronously with the slider.
+    // 0 means blur(0px) / none (fully clear), NOT the stock fallbacks.
     body.style.setProperty('--dsw-mask-blur', `blur(${value.glassBlur}px)`)
+    body.style.setProperty(
+      '--dsw-menu-backdrop-filter',
+      value.glassBlur > 0 ? `blur(${value.glassBlur}px) saturate(150%)` : 'none',
+    )
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
     // Accent auto-inversion: scope the bubble text token to a contrast ink.
     // The stylesheet rules only match while the per-mode gate attribute is
@@ -437,6 +450,7 @@ export class AppearanceApplier {
     const body = document.body
     for (const name of BODY_VARIABLES) body.style.removeProperty(name)
     body.style.removeProperty('--dsw-mask-blur')
+    body.style.removeProperty('--dsw-menu-backdrop-filter')
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
     body.removeAttribute('data-dsw-sliding')

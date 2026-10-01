@@ -340,6 +340,8 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0.5)')
     expect(tokens['--dsw-specific-sidebar-nav-item-hover']!.light).toBe('rgba(241, 243, 245, 0.5)')
     expect(tokens['--dsw-specific-menu']).toBeDefined()
+    expect(tokens['--dsw-menu-surface-fill']).toBeDefined()
+    expect(tokens['--dsw-alias-fill-l1']).toBeDefined()
   })
 
   it('accent never overrides the brand-text ink token', () => {

@@ -151,12 +151,16 @@ describe('AppearanceApplier', () => {
     const applier = new AppearanceApplier(ctx)
     applier.apply(full({ glassBlur: 20, backgroundBlur: 0 }))
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(20px)')
+    expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('blur(20px) saturate(150%)')
     applier.apply(full({ glassBlur: 0, backgroundBlur: 0 }))
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
+    expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('none')
     applier.apply(full({ glassBlur: 6, backgroundBlur: 0 }))
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(6px)')
+    expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('blur(6px) saturate(150%)')
     applier.dispose()
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('')
+    expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('')
   })
 
   it('dispose removes the elements, body variables, and the blur', () => {
@@ -290,6 +294,15 @@ describe('AppearanceApplier', () => {
     expect(css).toContain('--changes-hover: var(--dsw-alias-interactive-bg-hover-solid) !important')
     expect(css).toContain('--deliverable-fill: var(--dsw-alias-bg-module-platform) !important')
     expect(css).toContain('--deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important')
+    applier.dispose()
+  })
+
+  it('remaps menu surface fill to follow specific-menu translucency', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('[data-menu-material]')
+    expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-specific-menu) !important')
     applier.dispose()
   })
 })

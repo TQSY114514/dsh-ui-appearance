@@ -98,6 +98,8 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-specific-sidebar-nav-item-active': { light: '#ebeef2', dark: '#43454a' }, // bluish-100 / bluish-750
   '--dsw-specific-sidebar-nav-item-hover': { light: '#f1f3f5', dark: '#2c2c2e' }, // bluish-75 / bluish-850
   '--dsw-specific-menu': { light: '#ffffff', dark: '#353638' }, // layer-3 / layer-3
+  '--dsw-menu-surface-fill': { light: '#ffffff', dark: '#353638' }, // used by MenuSurface popovers
+  '--dsw-alias-fill-l1': { light: '#f5f6f7', dark: '#353638' }, // used by ui-jobs
   // Composer + button (the round command trigger) and the jobs action's
   // hover fill; fill-l2 is referenced by ui-jobs but undefined in the theme
   // package — defining it here gives the job button its intended hover fill.
@@ -462,6 +464,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-bg-overlay', ov[0], ov[1])
       const menu = getVal(flipLayer3, '--dsw-specific-menu')
       emit('--dsw-specific-menu', menu[0], menu[1])
+      emit('--dsw-menu-surface-fill', menu[0], menu[1])
+      const fillL1 = getVal(flipMod, '--dsw-alias-fill-l1')
+      emit('--dsw-alias-fill-l1', fillL1[0], fillL1[1])
       const fillL2 = getVal(flipMod, '--dsw-alias-fill-l2')
       emit('--dsw-alias-fill-l2', fillL2[0], fillL2[1])
       const tip = getVal(flipMod, '--dsw-specific-tip')
@@ -590,6 +595,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
     bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
     translucent('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1])
+    translucent('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1])
+    translucent('--dsw-alias-fill-l1', undefined, undefined, flipMod[0], flipMod[1])
     translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])

@@ -2,6 +2,14 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.15] - 2026-10-01
+
+### Fixed
+
+- **浮层菜单与小面板（Agent 模式权限下拉框、左下角头像菜单、任务面板等）透明度与毛玻璃跟随调节**:
+  - **透明度支持**：修复 DSH 底层通用组件 `MenuSurface`（Agent 模式权限选项、用户头像菜单、模型下拉等）使用未接管的私有 Token `--dsw-menu-surface-fill`，导致其背景透明度始终被锁死在官方默认值（浅色 58%、深色 45%）的问题。现将 `--dsw-menu-surface-fill` 与任务面板 `--dsw-alias-fill-l1` 纳入表面体系与强制映射，使所有浮层面板完美跟随「表面透明度 (`surfaceAlpha`)」实时无级调节。
+  - **毛玻璃滤镜接管**：修复官方为浮层写死 `--dsw-menu-backdrop-filter: blur(40px) saturate(150%)` 导致小面板始终固定有 40px 模糊的问题。现已由「毛玻璃 (`glassBlur`)」滑块统一接管控制，设为 0px 时彻底关闭模糊，调大时平滑加深虚化，卸载时干净复原。
+
 ## [0.1.14] - 2026-10-01
 
 ### Fixed
