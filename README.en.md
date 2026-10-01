@@ -25,6 +25,12 @@ It also works out of the box on **[DSH Desktop](https://github.com/anywhere-labs
 |---|---|
 | ![Advanced mode](docs/screenshot-desktop-fancy.webp) | ![Compatible mode](docs/screenshot-desktop-compat.webp) |
 
+Latest official Desktop screenshot (community shots kept above):
+
+| Official Desktop (new advanced mode) |
+|---|
+| ![Official Desktop](docs/screenshot-desktop-official.png) |
+
 > The wallpaper in the screenshots is © MadYY ([source](docs/wallpaper-madYY.png)), shown for demonstration only — users upload their own images.
 
 ## Features

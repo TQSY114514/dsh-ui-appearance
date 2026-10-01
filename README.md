@@ -25,6 +25,12 @@ DeepSeek Harness 生态中首个支持多维度 UI 参数深度自定义的外�
 |---|---|
 | ![高级模式](docs/screenshot-desktop-fancy.webp) | ![兼容模式](docs/screenshot-desktop-compat.webp) |
 
+官方桌面端新版实拍(社区版截图保留在上方):
+
+| 官方桌面端(新版高级模式) |
+|---|
+| ![官方桌面端](docs/screenshot-desktop-official.png) |
+
 > 效果图中的壁纸素材 © MadYY([原图](docs/wallpaper-madYY.png)),仅作演示;用户上传自己的图片即可。
 
 ## 功能
