@@ -119,4 +119,14 @@ describe('sanitizeSettings', () => {
     expect(dual.dark.background).toBe('#1b1e2c')
     expect(dual.dark.preset).toBe('midnight')
   })
+
+  it('does not contaminate top-level role fields across modes when dual-mode source is present', () => {
+    const sanitized = sanitizeSettings({
+      light: { text: '#000000', preset: 'dawn' },
+      dark: { text: '', preset: 'default' },
+    })
+    expect(sanitized.light.text).toBe('#000000')
+    expect(sanitized.dark.text).toBe('')
+    expect(sanitized.text).toBe('')
+  })
 })

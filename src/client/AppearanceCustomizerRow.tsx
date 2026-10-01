@@ -135,22 +135,31 @@ function ColorField(props: {
   t: (key: AppearanceKey) => string
 }) {
   const { label, value, stock, onChange, invert, t } = props
-  const [draft, setDraft] = useState(value)
-  useEffect(() => { setDraft(value) }, [value])
+  const effectiveValue = value === '' ? stock : value
+  const [draft, setDraft] = useState(effectiveValue)
+  useEffect(() => { setDraft(effectiveValue) }, [effectiveValue])
   const commit = (): void => {
-    const hex = draft.trim()
-    if (hex === value) return
-    if (isHexColor(hex)) onChange(hex)
-    else setDraft(value)
+    const hex = draft.trim().toLowerCase()
+    if (hex === effectiveValue.toLowerCase()) return
+    if (hex === '' || hex === stock.toLowerCase()) {
+      onChange('')
+      setDraft(stock)
+      return
+    }
+    if (isHexColor(hex)) {
+      onChange(hex)
+    } else {
+      setDraft(effectiveValue)
+    }
   }
   return (
     <label className={css.colorField}>
-      <span className={css.colorSwatch} style={{ backgroundColor: value === '' ? stock : value }}>
+      <span className={css.colorSwatch} style={{ backgroundColor: effectiveValue }}>
         <input
           type="color"
           className={css.colorSwatchInput}
           aria-label={`${label} (color picker)`}
-          value={value === '' ? stock : value}
+          value={effectiveValue}
           onPointerDown={beginDragFreeze}
           onPointerCancel={endDragFreeze}
           onBlur={endDragFreeze}
@@ -161,6 +170,7 @@ function ColorField(props: {
         type="text"
         className={css.colorHex}
         aria-label={`${label} (hex)`}
+        placeholder={stock}
         value={draft}
         spellCheck={false}
         onChange={event => { setDraft(event.target.value) }}
@@ -546,6 +556,7 @@ export function AppearanceCustomizerRow({
               </button>
             </div>
           </div>
+          <div className={css.hint}>{t('mode.hint' as AppearanceKey)}</div>
 
           <div className={css.section}>
             <div className={css.sectionTitle}>{t('presets.title')}</div>
@@ -574,7 +585,7 @@ export function AppearanceCustomizerRow({
                   <ColorField
                     key={`${activeMode}-${role}`}
                     label={t(`color.${role}` as AppearanceKey)}
-                    value={currentModeTheme?.[role] ?? settings[role] ?? ''}
+                    value={currentModeTheme?.[role] ?? ''}
                     stock={STOCK_ROLE_COLORS[activeMode][role]}
                     onChange={hex => { changeRole(role, hex) }}
                     invert={invertible ? {

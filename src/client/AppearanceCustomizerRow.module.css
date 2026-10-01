@@ -115,6 +115,11 @@
   text-transform: lowercase;
 }
 
+.colorHex::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+  opacity: 0.75;
+}
+
 .invertToggle {
   flex: none;
   min-width: 24px;
@@ -351,7 +356,7 @@
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--dsw-alias-brand-primary);
-  color: #ffffff;
+  color: var(--dsw-alias-label-primary-foreground, #ffffff);
   font-weight: 600;
 }
 

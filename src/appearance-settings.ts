@@ -282,14 +282,16 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
     }
   }
 
-  // 4. If top-level fields were not in source, mirror them from active/dark mode
+  // 4. If top-level fields were not in source, keep them clean when dual-mode is present,
+  // or mirror for legacy flat source.
+  const hasDualSource = source.light !== undefined || source.dark !== undefined
   for (const role of APPEARANCE_ROLES) {
     if (source[role] === undefined) {
-      result[role] = result.dark[role] || result.light[role]
+      result[role] = hasDualSource ? '' : (result.dark[role] || result.light[role])
     }
   }
   if (source.preset === undefined) {
-    result.preset = result.dark.preset || result.light.preset
+    result.preset = hasDualSource ? '' : (result.dark.preset || result.light.preset)
   }
 
   const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo']

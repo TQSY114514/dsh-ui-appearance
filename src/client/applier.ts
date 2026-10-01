@@ -85,7 +85,7 @@ const SHEET = `
 #${BG_LAYER_ID}[data-video] {
   background-image: none;
 }
-body[data-ds-dark-theme] #${BG_LAYER_ID} {
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #${BG_LAYER_ID} {
   background-image:
     linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
     var(--dsw-appearance-bg-image, none);
@@ -153,15 +153,19 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
   color: inherit;
   text-decoration: underline;
 }
-body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"],
-body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] {
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"],
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i],
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="_bubble"],
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="bubble" i] {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-dark);
 }
-body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
-body[data-ds-dark-theme][data-dsw-bubble-ink-dark] #root [class*="bubble" i] a {
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a,
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a {
   color: inherit;
   text-decoration: underline;
 }

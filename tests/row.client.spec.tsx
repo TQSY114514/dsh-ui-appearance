@@ -38,6 +38,7 @@ const COPY: Record<string, string> = {
   'mode.light': 'Light Mode',
   'mode.dark': 'Dark Mode',
   'mode.active': 'Active',
+  'mode.hint': 'Customize light and dark palettes',
   'presets.title': 'Presets',
   'preset.default': 'Default',
   'preset.midnight': 'Midnight',
@@ -159,13 +160,21 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.setModeRole).toHaveBeenCalledWith('light', 'accent', '#ff0000')
   })
 
-  it('shows the stock blue for an empty accent in both the swatch and picker', () => {
+  it('shows the stock color for unset roles in swatch, picker, and hex text box', () => {
     const b = mount()
-    act(() => { b.store.actions.patch({ accent: '' }) })
+    act(() => { b.store.actions.patch({ accent: '', background: '' }) })
     openRow()
-    const accent = document.querySelector('input[type="color"]') as HTMLInputElement
-    expect(accent.value).toBe('#4176e6')
-    expect(accent.parentElement?.getAttribute('style')).toBe('background-color: rgb(65, 118, 230);')
+    const colorPickers = document.querySelectorAll('input[type="color"]') as NodeListOf<HTMLInputElement>
+    const hexInputs = document.querySelectorAll('input[type="text"]') as NodeListOf<HTMLInputElement>
+    // Accent role (index 0)
+    expect(colorPickers[0]?.value).toBe('#4176e6')
+    expect(colorPickers[0]?.parentElement?.getAttribute('style')).toBe('background-color: rgb(65, 118, 230);')
+    expect(hexInputs[0]?.value).toBe('#4176e6')
+    expect(hexInputs[0]?.placeholder).toBe('#4176e6')
+    // Background role (index 1) in light mode is #ffffff
+    expect(colorPickers[1]?.value).toBe('#ffffff')
+    expect(hexInputs[1]?.value).toBe('#ffffff')
+    expect(hexInputs[1]?.placeholder).toBe('#ffffff')
   })
 
   it('a hex text commit normalizes three-digit input', () => {
@@ -176,6 +185,25 @@ describe('AppearanceCustomizerRow', () => {
     fireEvent.change(hex as HTMLInputElement, { target: { value: '#F0A' } })
     fireEvent.keyDown(hex as HTMLInputElement, { key: 'Enter' })
     expect(b.setModeRole).toHaveBeenCalledWith('light', 'accent', '#ff00aa')
+  })
+
+  it('clearing hex input or entering the stock color resets the role to stock', () => {
+    const b = mount()
+    openRow()
+    const hex = document.querySelector('input[type="text"]') as HTMLInputElement
+    // Clear the box and commit with Enter
+    fireEvent.change(hex, { target: { value: '' } })
+    fireEvent.keyDown(hex, { key: 'Enter' })
+    expect(b.setModeRole).toHaveBeenCalledWith('light', 'accent', '')
+  })
+
+  it('an invalid hex commit reverts the text box to the effective value', () => {
+    mount()
+    openRow()
+    const hex = document.querySelector('input[type="text"]') as HTMLInputElement
+    fireEvent.change(hex, { target: { value: 'not-a-color' } })
+    fireEvent.keyDown(hex, { key: 'Enter' })
+    expect(hex.value).toBe('#4176e6')
   })
 
   it('sliders write their settings fields', () => {

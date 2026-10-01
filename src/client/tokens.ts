@@ -157,7 +157,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const getRole = (role: AppearanceRole): { light: string; dark: string } => {
     const l = settings.light?.[role] || ''
     const d = settings.dark?.[role] || ''
-    const legacy = settings[role] || ''
+    // If either mode explicitly customized this role, the modes are strictly decoupled:
+    // leaving a role empty in one mode means "keep the stock token for that mode",
+    // never leak the other mode's color via the legacy mirror field.
+    const hasPerModeConfig = l !== '' || d !== ''
+    const legacy = !hasPerModeConfig ? (settings[role] || '') : ''
     return {
       light: l !== '' ? l : legacy,
       dark: d !== '' ? d : legacy,
@@ -288,11 +292,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-label-primary', textL, textD)
 
       const secL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.38) : '#61666b'
-      const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.38) : '#d6d3d1'
+      const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.16) : '#d6d3d1'
       emit('--dsw-alias-label-secondary', secL, secD)
 
       const terL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.58) : '#9ea3a8'
-      const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.58) : '#808285'
+      const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.53) : '#808285'
       emit('--dsw-alias-label-tertiary', terL, terD)
     }
     // The on-accent ink pair is emitted whenever the text role is customized
@@ -326,6 +330,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const invInkD = inkD !== '' ? onInk(labelD) : (prevInk?.dark ?? DARK_INK)
     emit('--dsw-alias-label-primary-inverted', invInkL, invInkD)
     emit('--dsw-alias-label-primary-foreground', invInkL, invInkD)
+
+    // Re-derive secondary and tertiary tokens so sub-labels remain legible
+    // when background inversion flips label-primary.
+    const secL = inkL !== '' ? (inkL === LIGHT_INK ? '#d6d3d1' : '#61666b') : (tokens['--dsw-alias-label-secondary']?.light ?? '#61666b')
+    const secD = inkD !== '' ? (inkD === LIGHT_INK ? '#d6d3d1' : '#61666b') : (tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
+    emit('--dsw-alias-label-secondary', secL, secD)
+
+    const terL = inkL !== '' ? (inkL === LIGHT_INK ? '#808285' : '#9ea3a8') : (tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8')
+    const terD = inkD !== '' ? (inkD === LIGHT_INK ? '#808285' : '#9ea3a8') : (tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
+    emit('--dsw-alias-label-tertiary', terL, terD)
   }
 
   const border = getRole('border')
@@ -378,20 +392,37 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   let flipLayer1: [string | undefined, string | undefined] = [undefined, undefined]
   let flipLayer2: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipLayer3: [string | undefined, string | undefined] = [undefined, undefined]
   let flipSidebar: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipInput: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipMod: [string | undefined, string | undefined] = [undefined, undefined]
+  let flipOverlay: [string | undefined, string | undefined] = [undefined, undefined]
   let flipButtonElevated: [string | undefined, string | undefined] = [undefined, undefined]
   let flipButtonFloating: [string | undefined, string | undefined] = [undefined, undefined]
   let flipButtonFloatingHover: [string | undefined, string | undefined] = [undefined, undefined]
 
   if (flipBaseLight !== undefined || flipBaseDark !== undefined) {
     const calcFlip = (base: string | undefined): {
-      l1: string; l2: string; side: string; btnElev: string; btnFloat: string; btnHover: string
+      l1: string
+      l2: string
+      l3: string
+      side: string
+      input: string
+      mod: string
+      overlay: string
+      btnElev: string
+      btnFloat: string
+      btnHover: string
     } | undefined => {
       if (base === undefined) return undefined
       return {
         l1: mixHex(base, LIGHT_BASE, 0.06),
         l2: mixHex(base, LIGHT_BASE, 0.12),
+        l3: mixHex(base, LIGHT_BASE, 0.18),
         side: mixHex(base, LIGHT_BASE, 0.03),
+        input: mixHex(base, LIGHT_BASE, 0.12),
+        mod: mixHex(base, LIGHT_BASE, 0.18),
+        overlay: mixHex(base, LIGHT_BASE, 0.35),
         btnElev: 'rgb(67, 69, 74)',
         btnFloat: 'rgb(44, 44, 46)',
         btnHover: 'rgb(53, 54, 56)',
@@ -401,7 +432,11 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const fd = calcFlip(flipBaseDark)
     flipLayer1 = [fl?.l1, fd?.l1]
     flipLayer2 = [fl?.l2, fd?.l2]
+    flipLayer3 = [fl?.l3, fd?.l3]
     flipSidebar = [fl?.side, fd?.side]
+    flipInput = [fl?.input, fd?.input]
+    flipMod = [fl?.mod, fd?.mod]
+    flipOverlay = [fl?.overlay, fd?.overlay]
     flipButtonElevated = [fl?.btnElev, fd?.btnElev]
     flipButtonFloating = [fl?.btnFloat, fd?.btnFloat]
     flipButtonFloatingHover = [fl?.btnHover, fd?.btnHover]
@@ -415,18 +450,41 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-bg-layer-1', l1[0], l1[1])
       const l2 = getVal(flipLayer2, '--dsw-alias-bg-layer-2')
       emit('--dsw-alias-bg-layer-2', l2[0], l2[1])
+      const l3 = getVal(flipLayer3, '--dsw-alias-bg-layer-3')
+      emit('--dsw-alias-bg-layer-3', l3[0], l3[1])
       const side = getVal(flipSidebar, '--dsw-specific-sidebar-fill')
       emit('--dsw-specific-sidebar-fill', side[0], side[1])
+      const mod = getVal(flipMod, '--dsw-alias-bg-module-platform')
+      emit('--dsw-alias-bg-module-platform', mod[0], mod[1])
+      const multi = getVal(flipLayer2, '--dsw-alias-bg-multi-select')
+      emit('--dsw-alias-bg-multi-select', multi[0], multi[1])
+      const ov = getVal(flipOverlay, '--dsw-alias-bg-overlay')
+      emit('--dsw-alias-bg-overlay', ov[0], ov[1])
+      const menu = getVal(flipLayer3, '--dsw-specific-menu')
+      emit('--dsw-specific-menu', menu[0], menu[1])
+      const fillL2 = getVal(flipMod, '--dsw-alias-fill-l2')
+      emit('--dsw-alias-fill-l2', fillL2[0], fillL2[1])
+      const tip = getVal(flipMod, '--dsw-specific-tip')
+      emit('--dsw-specific-tip', tip[0], tip[1])
+
+      if (input.light === '' && fl !== undefined) {
+        emit('--dsw-specific-login-input', fl.input, tokens['--dsw-specific-login-input']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].dark)
+      }
+      if (input.dark === '' && fd !== undefined) {
+        emit('--dsw-specific-login-input', tokens['--dsw-specific-login-input']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].light, fd.input)
+      }
 
       if (text.light === '' && fl !== undefined) {
         emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
         emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
+        emit('--dsw-alias-label-tertiary', '#808285', tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
         emit('--dsw-alias-label-primary-inverted', DARK_INK, tokens['--dsw-alias-label-primary-inverted']?.dark ?? DARK_INK)
         emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
       }
       if (text.dark === '' && fd !== undefined) {
         emit('--dsw-alias-label-primary', tokens['--dsw-alias-label-primary']?.light ?? '#0f1115', '#fafaf9')
         emit('--dsw-alias-label-secondary', tokens['--dsw-alias-label-secondary']?.light ?? '#61666b', '#d6d3d1')
+        emit('--dsw-alias-label-tertiary', tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8', '#808285')
         emit('--dsw-alias-label-primary-inverted', tokens['--dsw-alias-label-primary-inverted']?.light ?? LIGHT_INK, DARK_INK)
         emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? LIGHT_INK, DARK_INK)
       }
@@ -473,9 +531,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit(token, withAlpha(lightAccent, a), withAlpha(darkAccent, a))
   }
 
-  bakeAlpha('--dsw-specific-input-major', input.light, input.dark, undefined, undefined, inputAlpha)
-  bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, undefined, undefined, codeAlpha)
-  bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, undefined, undefined, codeAlpha)
+  bakeAlpha('--dsw-specific-input-major', input.light, input.dark, flipInput[0], flipInput[1], inputAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, flipSidebar[0], flipSidebar[1], codeAlpha)
+  bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, flipLayer2[0], flipLayer2[1], codeAlpha)
 
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
@@ -498,10 +556,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       flipLayer2[0],
       flipLayer2[1],
     )
-    translucent('--dsw-alias-bg-layer-3', undefined, undefined, undefined, undefined)
-    translucent('--dsw-alias-bg-overlay', undefined, undefined, undefined, undefined)
-    translucent('--dsw-alias-bg-module-platform', undefined, undefined, undefined, undefined)
-    translucent('--dsw-alias-bg-multi-select', undefined, undefined, undefined, undefined)
+    translucent('--dsw-alias-bg-layer-3', undefined, undefined, flipLayer3[0], flipLayer3[1])
+    translucent('--dsw-alias-bg-overlay', undefined, undefined, flipOverlay[0], flipOverlay[1])
+    translucent('--dsw-alias-bg-module-platform', undefined, undefined, flipMod[0], flipMod[1])
+    translucent('--dsw-alias-bg-multi-select', undefined, undefined, flipLayer2[0], flipLayer2[1])
 
     if (!sidebarOpaque) {
       translucent(
@@ -531,10 +589,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
     bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
-    translucent('--dsw-specific-menu', undefined, undefined, undefined, undefined)
-    translucent('--dsw-alias-fill-l2', undefined, undefined, undefined, undefined)
+    translucent('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1])
+    translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
-    translucent('--dsw-specific-tip', undefined, undefined, undefined, undefined)
+    translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
 
     const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
     const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'

@@ -144,6 +144,31 @@ describe('buildTokenOverrides', () => {
     expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
     expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
     expect(perMode['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
+    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#61666b' })
+    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#808285', dark: '#9ea3a8' })
+  })
+
+  it('independent text customization per mode does not leak into the other mode', () => {
+    // When only light mode text is customized (e.g. dawn preset or dark text in light mode),
+    // dark mode must NOT inherit the dark text and must keep its stock light ink and readable secondary steps.
+    const lightOnly = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, text: '#292524' },
+      dark: { ...DEFAULT_DARK_THEME, text: '' },
+    }))
+    expect(lightOnly['--dsw-alias-label-primary']?.light).toBe('#292524')
+    expect(lightOnly['--dsw-alias-label-primary']?.dark).toBe('#fafaf9')
+    expect(lightOnly['--dsw-alias-label-secondary']?.dark).toBe('#d6d3d1')
+    expect(lightOnly['--dsw-alias-label-tertiary']?.dark).toBe('#808285')
+
+    // When only dark mode text is customized, light mode keeps its stock dark ink.
+    const darkOnly = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, text: '' },
+      dark: { ...DEFAULT_DARK_THEME, text: '#e6e9f4' },
+    }))
+    expect(darkOnly['--dsw-alias-label-primary']?.light).toBe('#0f1115')
+    expect(darkOnly['--dsw-alias-label-primary']?.dark).toBe('#e6e9f4')
+    expect(darkOnly['--dsw-alias-label-secondary']?.light).toBe('#61666b')
+    expect(darkOnly['--dsw-alias-label-tertiary']?.light).toBe('#9ea3a8')
   })
 
   it('bubbleInk returns a contrasting ink per mode, or null when inversion is off', () => {
@@ -403,6 +428,11 @@ describe('buildTokenOverrides', () => {
     const layer1 = tokens['--dsw-alias-bg-layer-1']!
     expect(layer1.light).not.toBe('#151517')
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // Input, platform module, and code block surfaces flip dark to prevent white-on-white text in default palette
+    expect(tokens['--dsw-specific-input-major']!.light).not.toBe('rgba(255, 255, 255, 1)')
+    expect(tokens['--dsw-alias-bg-module-platform']!.light).toBeDefined()
+    expect(tokens['--dsw-alias-bg-layer-3']!.light).toBeDefined()
+    expect(tokens['--dsw-alias-markdown-code-block']!.light).not.toBe('rgba(249, 250, 251, 1)')
   })
 
   it('a bright image (no imageDark) flips nothing beyond the transparent base', () => {

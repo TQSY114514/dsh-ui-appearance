@@ -2,6 +2,21 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.13] - 2026-10-01
+
+### Fixed
+
+- **默认预设主题色号显示与交互修复** ([Discussion #30](https://github.com/TQSY114514/dsh-ui-appearance/discussions/30)):
+  - 修复默认主题（`default` 预设）下色号文本框因初始值为空字符串而展示为空白的问题。现自动显示当前深/浅色模式下的原生基准色号（如浅色背景 `#ffffff`、深色背景 `#151517`、品牌主色 `#4176e6` 等），与其它主题预设行为保持一致。
+  - 增加 `placeholder={stock}` 兜底及样式；当用户清空输入框或输入默认色号时，自动重置为空字符原生基准，避免产生冗余自定义覆写。
+- **暗色壁纸自适应翻转下的子表面白底白字问题** ([Discussion #30](https://github.com/TQSY114514/dsh-ui-appearance/discussions/30)):
+  - 补全 `calcFlip` 中对子表面（输入框 `input`、平台模块 `mod`、层级3 `l3`、浮层 `overlay`、提示 `tip` 等）的反转计算，并接入 `bakeAlpha` 与 `translucent`，确保暗色壁纸自适应翻转下文字与输入框表面对比度正确。
+
+### Added
+
+- **外观模式切换说明** ([Discussion #30](https://github.com/TQSY114514/dsh-ui-appearance/discussions/30)):
+  - 在浅色/深色模式分段切换器下方新增引导说明文案，说明该切换器用于分别配置浅色和深色配方，而非更改客户端全局深浅色主题。
+
 ## [0.1.12] - 2026-09-25
 
 ### Added
