@@ -164,10 +164,32 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
 }
 :is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
 :is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a,
-:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
-:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a {
+:is(body[data-dsw-bubble-ink-dark], html[data-ds-dark-theme] body[data-dsw-bubble-ink-dark], html[data-theme="dark"] body[data-dsw-bubble-ink-dark]) #root [class*="bubble" i] a {
   color: inherit;
   text-decoration: underline;
+}
+/* Solid tags legibility (Issue: Agent Presets "新任务默认"):
+   DSH's stock Tag component pairs background: var(--dsw-alias-label-primary)
+   with color: var(--dsw-alias-bg-layer-3). Because bg-layer-3 is a surface
+   token that becomes translucent when surfaceAlpha < 1 (and completely
+   transparent at surfaceAlpha: 0), the text in solid tags becomes invisible
+   against the opaque label-primary pill. Enforce the high-contrast inverted
+   label ink on all solid tags. */
+:is(#root, body) [data-tone='solid'] {
+  color: var(--dsw-alias-label-primary-inverted) !important;
+}
+/* Deliverables & changed-files cards (translucency support):
+   DSH hardcodes --changes-fill / --deliverable-fill to static opaque neutrals
+   (--dsw-static-neutral-50/850), making the "已修改 X 个文件" header and file
+   chips remain opaque blocks when translucent panels are active.
+   Remap them to alias module/hover tokens so they follow surfaceAlpha. */
+:is(html, body) :is([class*="card" i], [class*="root" i], [class*="file" i], [class*="header" i], [class*="deliverable" i], [class*="changes" i]),
+:is(html, body) [class*="kuvljq"],
+:is(html, body) [class*="flL80G"] {
+  --changes-fill: var(--dsw-alias-bg-module-platform) !important;
+  --changes-hover: var(--dsw-alias-interactive-bg-hover-solid) !important;
+  --deliverable-fill: var(--dsw-alias-bg-module-platform) !important;
+  --deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important;
 }
 `
 

@@ -272,4 +272,24 @@ describe('AppearanceApplier', () => {
     expect(css).toContain('[class*="refChip"]')
     applier.dispose()
   })
+
+  it('enforces inverted label ink on solid tags so Agent Presets default tag stays readable', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain("[data-tone='solid']")
+    expect(css).toContain('color: var(--dsw-alias-label-primary-inverted) !important')
+    applier.dispose()
+  })
+
+  it('remaps deliverables and changed-files tokens to follow surfaceAlpha translucency', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('--changes-fill: var(--dsw-alias-bg-module-platform) !important')
+    expect(css).toContain('--changes-hover: var(--dsw-alias-interactive-bg-hover-solid) !important')
+    expect(css).toContain('--deliverable-fill: var(--dsw-alias-bg-module-platform) !important')
+    expect(css).toContain('--deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important')
+    applier.dispose()
+  })
 })

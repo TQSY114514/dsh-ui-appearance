@@ -2,6 +2,17 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.14] - 2026-10-01
+
+### Fixed
+
+- **实心标签（如 Agent 预设“新任务默认”）在低透明度下文字隐形问题**:
+  - 修复 DSH 官方 `Tag` 组件在 `data-tone="solid"` 下使用表面 Token `--dsw-alias-bg-layer-3` 作为文字颜色导致的隐形问题。当用户调低表面透明度（`surfaceAlpha < 1`）时，文字随之透明化（在透明度为 0% 时完全透明隐形），导致实心标签只剩底色看不清文字。
+  - 通过注入 `:is(#root, body) [data-tone='solid'] { color: var(--dsw-alias-label-primary-inverted) !important; }`，强制使用恒定高对比度且不透明的反转文字墨水色，确保无论表面透明度如何调整均始终清晰可读。
+- **任务产出物与“已修改 X 个文件”卡片支持跟随表面透明度（`surfaceAlpha`）**:
+  - DSH 官方 deliverables 组件写死了静态不透明 Token（`--changes-fill` / `--deliverable-fill` 为 `--dsw-static-neutral-50/850`），导致开启半透明时卡片标题和产出物文件项依然呈现为不透明实心方块。
+  - 现已将其映射至受控的半透明别名 Token（`--dsw-alias-bg-module-platform` 与 `--dsw-alias-interactive-bg-hover-solid`），使完成任务后的文件改动栏与产出物卡片实时同步半透明与悬浮反馈。
+
 ## [0.1.13] - 2026-10-01
 
 ### Fixed
