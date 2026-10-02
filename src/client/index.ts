@@ -366,7 +366,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.general.item', () => ctx.slots.register({
     name: 'settings.general.item',
     id: 'appearance-custom',
-    order: 20,
+    order: 1000,
     store,
     locale: SETTINGS_NS,
     inject: injected,

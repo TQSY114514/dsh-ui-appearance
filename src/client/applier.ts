@@ -78,6 +78,7 @@ const SHEET = `
   height: 100%;
   object-fit: cover;
   display: none;
+  opacity: var(--dsw-appearance-bg-opacity, 1);
 }
 #${BG_LAYER_ID}[data-video] video {
   display: block;
@@ -89,6 +90,25 @@ const SHEET = `
   background-image:
     linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
     var(--dsw-appearance-bg-image, none);
+}
+/* Windows desktop host frame punch-out (Issue #31):
+   In DSH 0.2.0 desktop on Windows, [data-windows-titlebar] adds an opaque
+   "background: var(--dsw-specific-sidebar-fill)" to the three-column outer frame
+   (.BynINW_frame) and its titlebar drag strip (:before). Because this outer frame
+   encloses the entire viewport, its opaque sidebar-fill completely covers the
+   #dsw-appearance-bg layer, preventing the wallpaper from showing on the main
+   chat area until surfaceAlpha reduces the sidebar fill's opacity.
+   On macOS the host natively sets "[data-platform=darwin] .BynINW_frame { background: 0 0 }".
+   When background media is active (data-dsw-has-bg), punch out the Windows frame
+   and its drag strip to transparent so the wallpaper reveals through the main canvas,
+   aligning Windows desktop behavior with Web and macOS. */
+html[data-dsw-has-bg][data-windows-titlebar] [class*="_frame"],
+html[data-dsw-has-bg] [data-windows-titlebar] [class*="_frame"] {
+  background: transparent !important;
+}
+html[data-dsw-has-bg][data-windows-titlebar] [class*="_frame"]:before,
+html[data-dsw-has-bg] [data-windows-titlebar] [class*="_frame"]:before {
+  background: transparent !important;
 }
 #root ::selection {
   background: var(--dsw-alias-brand-primary);
@@ -253,6 +273,17 @@ export class AppearanceApplier {
       : undefined
     oldRemove?.()
     const body = document.body
+    // Windows desktop host frame punch-out (Issue #31):
+    // DSH 0.2.0 desktop on Windows sets `[data-windows-titlebar] .BynINW_frame { background: var(--dsw-specific-sidebar-fill) }`
+    // which encloses the entire viewport with opaque sidebar color, blocking the wallpaper on the main canvas.
+    // Setting `data-dsw-has-bg` on <html> triggers the transparent frame rule when wallpaper/video is active,
+    // aligning Windows desktop behavior with Web and macOS.
+    const hasMedia = value.backgroundImage !== '' || value.backgroundVideo !== ''
+    if (hasMedia) {
+      document.documentElement.setAttribute('data-dsw-has-bg', '')
+    } else {
+      document.documentElement.removeAttribute('data-dsw-has-bg')
+    }
     // The wallpaper rides a CSS variable like every other knob; the value is
     // a record key (or legacy inline data URL) and resolves asynchronously.
     void this.syncImage(value.backgroundImage)
@@ -454,5 +485,8 @@ export class AppearanceApplier {
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
     body.removeAttribute('data-dsw-sliding')
+    // Compositor anchor cleanup: remove the html attribute so the host's natural
+    // background resumes after the plugin is unloaded.
+    document.documentElement.removeAttribute('data-dsw-has-bg')
   }
 }

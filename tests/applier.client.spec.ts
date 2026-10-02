@@ -305,4 +305,33 @@ describe('AppearanceApplier', () => {
     expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-specific-menu) !important')
     applier.dispose()
   })
+
+  it('punches out Windows desktop host frame when background media is active (Issue #31)', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('html[data-dsw-has-bg][data-windows-titlebar] [class*="_frame"]')
+    expect(css).toContain('background: transparent !important')
+
+    // No media by default: data-dsw-has-bg must NOT be set
+    applier.apply(full({ backgroundImage: '', backgroundVideo: '' }))
+    expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(false)
+
+    // With wallpaper: data-dsw-has-bg is set
+    applier.apply(full({ backgroundImage: 'data:image/png;base64,AAAA' }))
+    expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(true)
+
+    // Clear media: attribute is removed
+    applier.apply(full({ backgroundImage: '', backgroundVideo: '' }))
+    expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(false)
+
+    // With video: data-dsw-has-bg is set
+    applier.apply(full({ backgroundVideo: 'some-video' }))
+    expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(true)
+
+    // Disposal removes attribute
+    applier.dispose()
+    expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(false)
+  })
 })
+
