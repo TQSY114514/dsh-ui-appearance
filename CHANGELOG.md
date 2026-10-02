@@ -2,6 +2,18 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.17] - 2026-10-02
+
+### Fixed
+
+- **Windows 官方桌面端（DSH 0.2.0+）背景被外层框架遮挡及受面板不透明度干扰** ([#31](https://github.com/TQSY114514/dsh-ui-appearance/issues/31)):
+  - **根本原因**：官方桌面端针对 Windows 自定义标题栏（`[data-windows-titlebar]`）将包裹全屏的外层三栏框架 `.BynINW_frame` 及其标题栏拖拽条 `:before` 硬编码为 `background: var(--dsw-specific-sidebar-fill)`。当表面不透明度（`surfaceAlpha`）为 100% 时，该不透明底色完整覆盖了底层壁纸（导致主聊天区全灰）；而调低表面透明度时，因外层框架变半透明才透出壁纸，造成“背景图片随面板不透明度忽亮忽暗”的错觉。
+  - **修复方案**：在背景媒体激活时（`data-dsw-has-bg`），自动对 Windows 桌面端框架层（`[data-windows-titlebar] [class*="_frame"]`）及其顶部拖拽条进行透明打孔，使其行为与 macOS（官方自带 `background: 0 0`）和 Web 端保持一致。主聊天区域在表面不透明度 100% 下清晰完整展示背景图，调节面板透明度时仅侧边栏和面板自身改变透明度，不再干扰主区域壁纸。卸载或清空背景时自动恢复默认样式。
+
+### Changed
+
+- **设置项顺序调整**：将常规设置中“外观定制”入口插槽的 `order` 调整为 `1000`，确保其在官方新增设置项后始终保持在“常规设置”的最底部。
+
 ## [0.1.16] - 2026-10-01
 
 ### Fixed
