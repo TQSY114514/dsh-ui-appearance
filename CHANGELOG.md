@@ -2,6 +2,14 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.19] - 2026-10-07
+
+### Fixed
+
+- **设置面板主题颜色选项角色名称文本丢失（回归修复）**:
+  - **根本原因**：在早前优化原生取色器拖拽体验（commit `69c37f3`）时，`ColorField` 组件模板内不慎遗漏了 `<span className={css.colorLabel}>{label}</span>`，导致颜色网格中仅展示色块与十六进制输入框，缺少“强调色”、“背景”、“面板”、“文字”、“输入框”、“边框”等角色名称提示。
+  - **修复方案**：恢复 `ColorField` 内的 `.colorLabel` 角色名称展示，并在组件测试中增加渲染断言以防止后续回归。
+
 ## [0.1.18] - 2026-10-07
 
 ### Fixed

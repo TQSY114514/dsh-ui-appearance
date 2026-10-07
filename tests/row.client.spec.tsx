@@ -167,6 +167,8 @@ describe('AppearanceCustomizerRow', () => {
     const colorPickers = document.querySelectorAll('input[type="color"]') as NodeListOf<HTMLInputElement>
     const hexInputs = document.querySelectorAll('input[type="text"]') as NodeListOf<HTMLInputElement>
     // Accent role (index 0)
+    expect(screen.getByText('Accent')).toBeDefined()
+    expect(screen.getByText('Background color')).toBeDefined()
     expect(colorPickers[0]?.value).toBe('#4176e6')
     expect(colorPickers[0]?.parentElement?.getAttribute('style')).toBe('background-color: rgb(65, 118, 230);')
     expect(hexInputs[0]?.value).toBe('#4176e6')

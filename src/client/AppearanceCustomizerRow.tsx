@@ -154,6 +154,7 @@ function ColorField(props: {
   }
   return (
     <label className={css.colorField}>
+      <span className={css.colorLabel}>{label}</span>
       <span className={css.colorSwatch} style={{ backgroundColor: effectiveValue }}>
         <input
           type="color"
