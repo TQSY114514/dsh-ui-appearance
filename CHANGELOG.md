@@ -2,6 +2,13 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.21] - 2026-10-07
+
+### Security
+
+- **安全补丁（Dependabot GHSA-68fv-2mgg-jv7q）**:
+  - 覆盖锁定测试子依赖中的 `source-map-js` 至安全版本 `>= 1.2.2`，消除潜在的事件循环阻塞风险，通过 `pnpm audit` 零漏洞审查。
+
 ## [0.1.20] - 2026-10-07
 
 ### Fixed
