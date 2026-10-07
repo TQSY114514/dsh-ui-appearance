@@ -19,8 +19,8 @@ export const EMPHASIS_ALPHA_MIN = 0
  * The color roles the customizer exposes. Each role maps to one or more
  * `--dsw-alias-*` tokens; an empty string means "keep the stock token".
  * Bubble roles were removed: the harness renders its only bubble background
- * on user messages (assistant turns have none), so bubbles now follow the
- * accent color instead of owning separate settings.
+ * on user messages (assistant turns have none), so bubbles follow the
+ * panel surface instead of owning separate settings or being forced to accent.
  */
 export const APPEARANCE_ROLES = [
   'accent',

@@ -31,33 +31,57 @@ describe('buildTokenOverrides', () => {
     expect(hover.light).not.toBe(hover.dark)
   })
 
-  it('maps background to the base and derived layer tokens', () => {
+  it('maps background to the base token; panels and layers remain independent', () => {
     const tokens = buildTokenOverrides(full({ background: '#8899aa' }))
     expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#8899aa', dark: '#8899aa' })
-    expect(tokens['--dsw-alias-bg-layer-1']!.light).not.toBe(tokens['--dsw-alias-bg-layer-1']!.dark)
-    // Derived sidebar fill exists when panel is unset.
-    expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
+    expect(tokens['--dsw-alias-bg-layer-1']).toBeUndefined()
+    expect(tokens['--dsw-specific-sidebar-fill']).toBeUndefined()
+    expect(tokens['--dsw-specific-bubble']).toBeUndefined()
   })
 
-  it('panel wins the layer-1 and sidebar tokens', () => {
+  it('panel sets layer-1 and sidebar tokens independently from background', () => {
     const tokens = buildTokenOverrides(full({ background: '#8899aa', panel: '#203040' }))
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#8899aa', dark: '#8899aa' })
     expect(tokens['--dsw-alias-bg-layer-1']).toEqual({ light: '#203040', dark: '#203040' })
     expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
   })
 
-  it('maps text and border roles to their token groups; bubbles follow the accent', () => {
+  it('maps text and border roles to their token groups; bubbles follow the panel, not accent', () => {
     const tokens = buildTokenOverrides(full({
-      text: '#111111', border: '#333333', accent: '#3a4674',
+      text: '#111111', border: '#333333', accent: '#3a4674', panel: '#203040',
     }))
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#111111', dark: '#111111' })
     expect(tokens['--dsw-alias-label-secondary']).toBeDefined()
     expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#333333', dark: '#333333' })
-    // Bubbles follow the accent hue (no dedicated bubble roles anymore).
-    expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#3a4674', dark: '#3a4674' })
-    expect(tokens['--dsw-specific-bubble-highlight']).toEqual({ light: '#3a4674', dark: '#3a4674' })
-    // The bubbles follow the default blue accent.
+    // Bubbles follow the panel surface, decoupled from accent.
+    expect(tokens['--dsw-specific-bubble']).toEqual({ light: '#203040', dark: '#203040' })
+    expect(tokens['--dsw-specific-bubble-highlight']).toBeDefined()
+    // When panel is unset and accent is set, bubbles do NOT follow accent.
+    const accentOnly = buildTokenOverrides(full({ accent: '#3a4674' }))
+    expect(accentOnly['--dsw-specific-bubble']).toBeUndefined()
+    // Default (no custom panel or bg) keeps bubble tokens unset so stock theme takes effect.
     const none = buildTokenOverrides(full({}))
-    expect(none['--dsw-specific-bubble']).toEqual({ light: '#4176e6', dark: '#4176e6' })
+    expect(none['--dsw-specific-bubble']).toBeUndefined()
+  })
+
+  it('bubble tokens strictly follow panel and decouple from accent under solid and translucent modes', () => {
+    // 1. Changing accent alone must not affect bubble tokens
+    const accentOnly = buildTokenOverrides(full({ accent: '#e11d48' }))
+    expect(accentOnly['--dsw-alias-brand-primary']).toEqual({ light: '#e11d48', dark: '#e11d48' })
+    expect(accentOnly['--dsw-specific-bubble']).toBeUndefined()
+
+    // 2. Setting panel customizes bubble tokens
+    const withPanel = buildTokenOverrides(full({ accent: '#e11d48', panel: '#2a3b4c' }))
+    expect(withPanel['--dsw-specific-bubble']).toEqual({ light: '#2a3b4c', dark: '#2a3b4c' })
+
+    // 3. Changing accent with panel set keeps bubble at panel color
+    const changedAccent = buildTokenOverrides(full({ accent: '#10b981', panel: '#2a3b4c' }))
+    expect(changedAccent['--dsw-specific-bubble']).toEqual({ light: '#2a3b4c', dark: '#2a3b4c' })
+    expect(changedAccent['--dsw-alias-brand-primary']).toEqual({ light: '#10b981', dark: '#10b981' })
+
+    // 4. Translucency bakes panel into bubble, not accent
+    const translucent = buildTokenOverrides(full({ accent: '#10b981', panel: '#2a3b4c', surfaceAlpha: 0.5 }))
+    expect(translucent['--dsw-specific-bubble']?.light).toBe('rgba(42, 59, 76, 0.5)')
   })
 
   it('re-derives the on-ink pair when the text color is overridden', () => {
@@ -145,10 +169,10 @@ describe('buildTokenOverrides', () => {
     expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
     expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
     expect(perMode['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
-    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#4e4f52' })
-    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#808285', dark: '#6b6c6f' })
-    expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#808285', dark: '#6b6c6f' })
-    expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d6d3d1', dark: '#3a3c3f' })
+    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d5d5d5', dark: '#4e4f52' })
+    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#818181', dark: '#6b6c6f' })
+    expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#818181', dark: '#6b6c6f' })
+    expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d1d1d0', dark: '#3a3c3f' })
   })
 
   it('independent text customization per mode does not leak into the other mode', () => {
@@ -175,22 +199,22 @@ describe('buildTokenOverrides', () => {
   })
 
   it('bubbleInk returns a contrasting ink per mode, or null when inversion is off', () => {
-    // Default: accent inversion on in both modes, default brand-blue accent yields light ink (#fafaf9).
-    expect(bubbleInk(full())).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    // A dark accent in light mode flips the ink light; a light accent dark.
-    const dark = full({ accent: '#111111', light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' } })
-    const bright = full({ accent: '#ffffff', light: { ...DEFAULT_LIGHT_THEME, accent: '#ffffff' } })
-    expect(bubbleInk(dark).light).toBe('#fafaf9')
-    expect(bubbleInk(bright).light).toBe('#0f1115')
-    // Issue #18 scenario: user's dark blue (#355eb6) gives white text; pale blue (#749aec) gives dark text.
-    const issue18Dark = full({ light: { ...DEFAULT_LIGHT_THEME, accent: '#355eb6' } })
-    const issue18Pale = full({ light: { ...DEFAULT_LIGHT_THEME, accent: '#749aec' } })
-    expect(bubbleInk(issue18Dark).light).toBe('#fafaf9')
-    expect(bubbleInk(issue18Pale).light).toBe('#0f1115')
-    // Per-mode independence: dark accent light mode, light accent dark mode.
+    // Default: light mode stock bubble (#edf3fe) yields dark ink (#0f1115); dark mode stock (#2c2c2e) yields light ink (#fafaf9).
+    expect(bubbleInk(full())).toEqual({ light: '#0f1115', dark: '#fafaf9' })
+    // A dark panel in light mode flips the ink light; a light panel in dark mode flips dark.
+    const darkPanel = full({ panel: '#111111', light: { ...DEFAULT_LIGHT_THEME, panel: '#111111' } })
+    const brightPanel = full({ panel: '#ffffff', dark: { ...DEFAULT_DARK_THEME, panel: '#ffffff' } })
+    expect(bubbleInk(darkPanel).light).toBe('#fafaf9')
+    expect(bubbleInk(brightPanel).dark).toBe('#0f1115')
+    // Scenario: user's dark blue panel (#355eb6) gives white text; pale blue (#749aec) gives dark text.
+    const darkSurf = full({ light: { ...DEFAULT_LIGHT_THEME, panel: '#355eb6' } })
+    const paleSurf = full({ light: { ...DEFAULT_LIGHT_THEME, panel: '#749aec' } })
+    expect(bubbleInk(darkSurf).light).toBe('#fafaf9')
+    expect(bubbleInk(paleSurf).light).toBe('#0f1115')
+    // Per-mode independence: dark panel light mode, light panel dark mode.
     const mixed = full({
-      light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' },
-      dark: { ...DEFAULT_DARK_THEME, accent: '#ffffff' },
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#111111' },
+      dark: { ...DEFAULT_DARK_THEME, panel: '#ffffff' },
     })
     expect(bubbleInk(mixed)).toEqual({ light: '#fafaf9', dark: '#0f1115' })
     // Turning inversion off for a mode returns null (bubble keeps stock text).
@@ -247,11 +271,14 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-bg-base']!.dark).toBe('rgba(21, 21, 23, 0.6)')
   })
 
-  it('translucent surfaces follow the dark-flip derived colors', () => {
-    const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.5 }))
-    // #101418 is dark -> flip lifts layer-1 to mix(#101418, white, 0.06) = rgb(30, 34, 38).
-    expect(tokens['--dsw-alias-bg-layer-1']!.light).toBe('rgba(30, 34, 38, 0.5)')
-    expect(tokens['--dsw-specific-sidebar-fill']).toBeDefined()
+  it('translucent surfaces follow panel color, leaving background decoupled', () => {
+    const bgOnly = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.5 }))
+    expect(bgOnly['--dsw-alias-bg-base']!.light).toBe('rgba(16, 20, 24, 0.5)')
+    expect(bgOnly['--dsw-alias-bg-layer-1']!.light).toBe('rgba(255, 255, 255, 0.5)')
+
+    const withPanel = buildTokenOverrides(full({ background: '#101418', panel: '#203040', surfaceAlpha: 0.5 }))
+    expect(withPanel['--dsw-alias-bg-base']!.light).toBe('rgba(16, 20, 24, 0.5)')
+    expect(withPanel['--dsw-alias-bg-layer-1']!.light).toBe('rgba(32, 48, 64, 0.5)')
   })
 
   it('layer-2 (settings panel root) follows the panel color under translucency', () => {
@@ -358,36 +385,20 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
   })
 
-  it('a dark user background flips the whole surface family together', () => {
+  it('a dark user background alone does not flip panels or controls (background and panel are decoupled)', () => {
     const tokens = buildTokenOverrides(full({ background: '#101418' }))
-    // Layers lift from the dark base so cards stay distinguishable.
-    const layer1 = tokens['--dsw-alias-bg-layer-1']!
-    expect(layer1.light).toBe(layer1.dark)
-    expect(layer1.light).not.toBe('#101418')
-    // Labels flip light so text on the dark base stays readable, carrying
-    // their on-ink counterpart so the harness badge stays visible.
-    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    expect(tokens['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#d6d3d1' })
-    expect(tokens['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    // Buttons follow the darkened surface instead of staying white.
-    expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: 'rgb(67, 69, 74)', dark: 'rgb(67, 69, 74)' })
-    expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
-    // The "+" trigger and its hover join the flipped family.
-    expect(tokens['--dsw-specific-selector']).toEqual({ light: 'rgb(44, 44, 46)', dark: 'rgb(44, 44, 46)' })
-    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: 'rgb(53, 54, 56)', dark: 'rgb(53, 54, 56)' })
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#101418', dark: '#101418' })
+    expect(tokens['--dsw-alias-bg-layer-1']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+    expect(tokens['--dsw-specific-selector']).toBeUndefined()
   })
 
-  it('a light user background leaves the labels alone but tints the controls', () => {
+  it('a light user background does not tint the controls; controls follow panel', () => {
     const tokens = buildTokenOverrides(full({ background: '#d0d0d0' }))
-    // A light background must not trigger the dark flip or flip the labels.
+    expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#d0d0d0', dark: '#d0d0d0' })
     expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
-    // ...but the new-session button and floating actions follow the surface
-    // instead of staying stock-white. mix(#d0d0d0, #ffffff, 0.06).
-    expect(tokens['--dsw-alias-button-elevated-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
-    expect(tokens['--dsw-alias-button-floating-fill']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
-    // The composer "+" trigger follows the surface instead of staying white.
-    expect(tokens['--dsw-specific-selector']).toEqual({ light: '#d3d3d3', dark: '#d3d3d3' })
-    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: '#d6d6d6', dark: '#d6d6d6' })
+    expect(tokens['--dsw-alias-button-elevated-fill']).toBeUndefined()
+    expect(tokens['--dsw-specific-selector']).toBeUndefined()
   })
 
   it('neutral controls follow the panel color when a panel is set', () => {
@@ -465,10 +476,10 @@ describe('buildTokenOverrides', () => {
     expect(image['--dsw-alias-bg-base']).toEqual({ light: 'transparent', dark: 'transparent' })
   })
 
-  it('an explicit text color wins over the flipped labels', () => {
-    const tokens = buildTokenOverrides(full({ background: '#101418', text: '#111111' }))
+  it('an explicit text color wins over the dark wallpaper flipped labels', () => {
+    const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true, text: '#111111' }))
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#111111', dark: '#111111' })
-    // Buttons still follow the darkened surface.
+    // Buttons follow the dark wallpaper surface.
     expect(tokens['--dsw-alias-button-elevated-fill']).toBeDefined()
   })
 
@@ -495,7 +506,7 @@ describe('buildTokenOverrides', () => {
     }))
     expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#d97706', dark: '#7c9cff' })
     expect(tokens['--dsw-alias-bg-base']).toEqual({ light: '#fbfaf8', dark: '#1b1e2c' })
-    expect(tokens['--dsw-alias-bg-layer-1']).toEqual({ light: '#f4f1ea', dark: '#292c39' })
+    expect(tokens['--dsw-alias-bg-layer-1']).toEqual({ light: '#f4f1ea', dark: '#232737' })
     expect(tokens['--dsw-specific-input-major']).toEqual({ light: 'rgba(255, 255, 255, 1)', dark: 'rgba(32, 36, 53, 1)' })
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#292524', dark: '#e6e9f4' })
     expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#e7e5e4', dark: '#343a52' })

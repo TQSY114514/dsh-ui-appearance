@@ -23,6 +23,8 @@ export const STYLE_ID = 'dsw-appearance-styles'
 const BODY_VARIABLES = [
   '--dsw-appearance-bg-image',
   '--dsw-appearance-bg-opacity',
+  '--dsw-appearance-bg-base-light',
+  '--dsw-appearance-bg-base-dark',
   '--dsw-appearance-blur',
   '--dsw-appearance-scrim',
   '--dsw-appearance-bubble-ink-light',
@@ -49,12 +51,11 @@ const BODY_VARIABLES = [
  * visually equivalent here — the only thing behind #root is this layer — and
  * leaves fixed positioning alone.
  *
- * The readability scrim rides inside the layer's own background-image stack:
- * a uniform veil whose alpha is `var(--dsw-appearance-scrim)` — the browser
- * re-rasterizes the layer live as the slider moves, no JS wiring needed.
- * The veil hue follows the base theme (white-ish in light mode, near-black in
- * dark mode). Selection and focus rings follow the user's accent through the
- * overridden brand tokens.
+ * Three-layer composition:
+ * 1. Base canvas: holds the user's customized background color (or mode fallback).
+ * 2. Media layer (::before / video): paints wallpaper with opacity and blur.
+ *    Lowering opacity smoothly blends the media into the base canvas color.
+ * 3. Scrim layer (::after): applies the uniform readability veil on top of media.
  */
 const SHEET = `
 #${BG_LAYER_ID} {
@@ -62,14 +63,24 @@ const SHEET = `
   inset: -48px;
   z-index: -1;
   pointer-events: none;
+  background-color: var(--dsw-appearance-bg-base-light, #ffffff);
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #${BG_LAYER_ID} {
+  background-color: var(--dsw-appearance-bg-base-dark, #151517);
+}
+#${BG_LAYER_ID}::before {
+  content: "";
+  position: absolute;
+  inset: 0;
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%, rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%),
-    var(--dsw-appearance-bg-image, none);
+  background-image: var(--dsw-appearance-bg-image, none);
   opacity: var(--dsw-appearance-bg-opacity, 1);
   filter: blur(var(--dsw-appearance-blur, 0px));
+}
+#${BG_LAYER_ID}[data-video]::before {
+  display: none;
 }
 #${BG_LAYER_ID} video {
   position: absolute;
@@ -79,17 +90,26 @@ const SHEET = `
   object-fit: cover;
   display: none;
   opacity: var(--dsw-appearance-bg-opacity, 1);
+  filter: blur(var(--dsw-appearance-blur, 0px));
 }
 #${BG_LAYER_ID}[data-video] video {
   display: block;
 }
-#${BG_LAYER_ID}[data-video] {
-  background-image: none;
+#${BG_LAYER_ID}::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 0%,
+    rgba(255, 255, 255, var(--dsw-appearance-scrim, 0)) 100%
+  );
 }
-:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #${BG_LAYER_ID} {
-  background-image:
-    linear-gradient(rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%, rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%),
-    var(--dsw-appearance-bg-image, none);
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #${BG_LAYER_ID}::after {
+  background: linear-gradient(
+    rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 0%,
+    rgba(8, 10, 18, var(--dsw-appearance-scrim, 0)) 100%
+  );
 }
 /* Windows desktop host frame punch-out (Issue #31):
    In DSH 0.2.0 desktop on Windows, [data-windows-titlebar] adds an opaque
@@ -288,6 +308,11 @@ export class AppearanceApplier {
     // a record key (or legacy inline data URL) and resolves asynchronously.
     void this.syncImage(value.backgroundImage)
     body.style.setProperty('--dsw-appearance-bg-opacity', String(value.backgroundOpacity))
+    const defaultLightBase = value.imageDark ? '#151517' : '#ffffff'
+    const bgLight = value.light?.background || value.background || defaultLightBase
+    const bgDark = value.dark?.background || value.background || '#151517'
+    body.style.setProperty('--dsw-appearance-bg-base-light', bgLight)
+    body.style.setProperty('--dsw-appearance-bg-base-dark', bgDark)
     // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
     // slider deepens the blur of the wallpaper that the translucent surfaces
     // reveal. The panels themselves are never touched.

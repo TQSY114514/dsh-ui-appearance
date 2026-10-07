@@ -64,6 +64,8 @@ describe('AppearanceApplier', () => {
     const body = document.body
     expect(body.style.getPropertyValue('--dsw-appearance-bg-image')).toBe('url("data:image/png;base64,AAAA")')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-opacity')).toBe('0.5')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('#ffffff')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('#151517')
     // 毛玻璃 rides the same wallpaper-layer filter as 背景模糊 (summed).
     expect(body.style.getPropertyValue('--dsw-appearance-blur')).toBe('20px')
     // …and amplifies the host modal masks so covered content frosts too.
@@ -77,17 +79,17 @@ describe('AppearanceApplier', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     // Default settings have accent inversion ON in both modes.
-    applier.apply(full({ accent: '#111111' }))
+    applier.apply(full({ panel: '#111111' }))
     const body = document.body
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
     expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
-    // Dark accent → light ink in both modes.
+    // Dark panel → light ink in both modes.
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
     // Turn inversion off in light mode only: light gate retracts, dark stays.
     applier.apply(full({
-      light: { ...DEFAULT_SETTINGS.light, accent: '#111111', invert: { ...DEFAULT_SETTINGS.light.invert, accent: false, background: false } },
-      dark: { ...DEFAULT_SETTINGS.dark, accent: '#111111' },
+      light: { ...DEFAULT_SETTINGS.light, panel: '#111111', invert: { ...DEFAULT_SETTINGS.light.invert, accent: false, background: false } },
+      dark: { ...DEFAULT_SETTINGS.dark, panel: '#111111' },
     }))
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
@@ -118,7 +120,7 @@ describe('AppearanceApplier', () => {
     const body = document.body
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
     expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
 
     // Disabling accent invert retracts the attribute and variable:
@@ -332,6 +334,43 @@ describe('AppearanceApplier', () => {
     // Disposal removes attribute
     applier.dispose()
     expect(document.documentElement.hasAttribute('data-dsw-has-bg')).toBe(false)
+  })
+
+  it('manages 3-layer background base colors and fallbacks', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const body = document.body
+
+    // 1. Explicit background colors in light/dark palettes
+    applier.apply(full({
+      light: { ...DEFAULT_SETTINGS.light, background: '#f0f4f8' },
+      dark: { ...DEFAULT_SETTINGS.dark, background: '#12161a' },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('#f0f4f8')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('#12161a')
+
+    // 2. Default background fallback: #ffffff for light, #151517 for dark
+    applier.apply(full())
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('#ffffff')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('#151517')
+
+    // 3. When imageDark is true, light fallback darkens to #151517
+    applier.apply(full({ imageDark: true }))
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('#151517')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('#151517')
+
+    // 4. CSS sheet contains 3-layer structure (base layer, ::before media layer, ::after scrim)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('#dsw-appearance-bg::before')
+    expect(css).toContain('#dsw-appearance-bg::after')
+    expect(css).toContain('opacity: var(--dsw-appearance-bg-opacity, 1)')
+    expect(css).toContain('--dsw-appearance-bg-base-light')
+    expect(css).toContain('--dsw-appearance-bg-base-dark')
+
+    // 5. Clean disposal
+    applier.dispose()
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('')
   })
 })
 

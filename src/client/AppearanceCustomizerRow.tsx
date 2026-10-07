@@ -704,6 +704,7 @@ export function AppearanceCustomizerRow({
               format={value => `${Math.round(value * 100)}%`}
               onChange={value => { set('backgroundOpacity', value) }}
             />
+            <div className={css.hint}>{t('background.opacityHint')}</div>
             <Slider
               label={t('background.blur')}
               value={settings.backgroundBlur}

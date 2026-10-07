@@ -107,15 +107,16 @@ function deriveStepForLabel(
  * @returns per-mode ink hex, or null when inversion is off for that mode.
  */
 export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
-  const accentFor = (mode: 'light' | 'dark'): string => {
-    const per = settings[mode]?.accent || ''
-    if (per !== '') return per
-    const legacy = settings.accent || ''
-    return legacy !== '' ? legacy : '#4176e6'
+  const inkFor = (mode: 'light' | 'dark'): string | null => {
+    if (!settings[mode]?.invert?.accent) return null
+    const surf = settings[mode]?.panel || (mode === 'light' ? settings.panel : '')
+      || settings[mode]?.background || (mode === 'light' ? settings.background : '')
+      || DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode]
+    return onInk(surf)
   }
   return {
-    light: settings.light?.invert?.accent ? onInk(accentFor('light')) : null,
-    dark: settings.dark?.invert?.accent ? onInk(accentFor('dark')) : null,
+    light: inkFor('light'),
+    dark: inkFor('dark'),
   }
 }
 
@@ -244,9 +245,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     )
   }
 
-  emit('--dsw-specific-bubble', lightAccent, darkAccent)
-  emit('--dsw-specific-bubble-highlight', lightAccent, darkAccent)
-
   const bg = getRole('background')
   const panel = getRole('panel')
 
@@ -254,58 +252,40 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const lightBase = bg.light !== '' ? bg.light : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'].light
     const darkBase = bg.dark !== '' ? bg.dark : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'].dark
     emit('--dsw-alias-bg-base', lightBase, darkBase)
-
-    const l1l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light
-    const l1d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark
-    emit('--dsw-alias-bg-layer-1', l1l, l1d)
-
-    const l2l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].light
-    const l2d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].dark
-    emit('--dsw-alias-bg-layer-2', l2l, l2d)
-
-    const l3l = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].light
-    const l3d = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].dark
-    emit('--dsw-alias-bg-layer-3', l3l, l3d)
-
-    const modl = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].light
-    const modd = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].dark
-    emit('--dsw-alias-bg-module-platform', modl, modd)
-
-    const ovl = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.18) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].light
-    const ovd = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.18) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].dark
-    emit('--dsw-alias-bg-overlay', ovl, ovd)
-
-    if (panel.light === '' && panel.dark === '') {
-      const sideL = bg.light !== '' ? mixHex(bg.light, LIGHT_BASE, 0.05) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].light
-      const sideD = bg.dark !== '' ? mixHex(bg.dark, DARK_BASE, 0.05) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].dark
-      emit('--dsw-specific-sidebar-fill', sideL, sideD)
-    }
   }
 
   if (panel.light !== '' || panel.dark !== '') {
-    const l1l = panel.light !== '' ? panel.light : (tokens['--dsw-alias-bg-layer-1']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light)
-    const l1d = panel.dark !== '' ? panel.dark : (tokens['--dsw-alias-bg-layer-1']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark)
+    const l1l = panel.light !== '' ? panel.light : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].light
+    const l1d = panel.dark !== '' ? panel.dark : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-1'].dark
     emit('--dsw-alias-bg-layer-1', l1l, l1d)
 
-    const l2l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.08) : (tokens['--dsw-alias-bg-layer-2']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].light)
-    const l2d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.08) : (tokens['--dsw-alias-bg-layer-2']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].dark)
+    const l2l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].light
+    const l2d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.08) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-2'].dark
     emit('--dsw-alias-bg-layer-2', l2l, l2d)
 
-    const l3l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.14) : (tokens['--dsw-alias-bg-layer-3']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].light)
-    const l3d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.14) : (tokens['--dsw-alias-bg-layer-3']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].dark)
+    const l3l = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].light
+    const l3d = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.14) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-layer-3'].dark
     emit('--dsw-alias-bg-layer-3', l3l, l3d)
 
-    const ovl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.1) : (tokens['--dsw-alias-bg-overlay']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].light)
-    const ovd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.1) : (tokens['--dsw-alias-bg-overlay']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].dark)
+    const ovl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.1) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].light
+    const ovd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.1) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-overlay'].dark
     emit('--dsw-alias-bg-overlay', ovl, ovd)
 
-    const modl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.06) : (tokens['--dsw-alias-bg-module-platform']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].light)
-    const modd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.06) : (tokens['--dsw-alias-bg-module-platform']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].dark)
+    const modl = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].light
+    const modd = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.06) : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-module-platform'].dark
     emit('--dsw-alias-bg-module-platform', modl, modd)
 
-    const sideL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.04) : (tokens['--dsw-specific-sidebar-fill']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].light)
-    const sideD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.04) : (tokens['--dsw-specific-sidebar-fill']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].dark)
+    const sideL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].light
+    const sideD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.04) : DEFAULT_SURFACE_COLORS['--dsw-specific-sidebar-fill'].dark
     emit('--dsw-specific-sidebar-fill', sideL, sideD)
+
+    const bubL = panel.light !== '' ? panel.light : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'].light
+    const bubD = panel.dark !== '' ? panel.dark : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'].dark
+    emit('--dsw-specific-bubble', bubL, bubD)
+
+    const bubHlL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.12) : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble-highlight'].light
+    const bubHlD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.12) : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble-highlight'].dark
+    emit('--dsw-specific-bubble-highlight', bubHlL, bubHlD)
   }
 
   const input = getRole('input')
@@ -323,8 +303,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const textSet = text.light !== '' || text.dark !== ''
   const textL = text.light !== '' ? text.light : '#0f1115'
   const textD = text.dark !== '' ? text.dark : '#fafaf9'
-  const surfL = panel.light !== '' ? panel.light : (bg.light !== '' ? bg.light : '#ffffff')
-  const surfD = panel.dark !== '' ? panel.dark : (bg.dark !== '' ? bg.dark : '#151517')
+  const surfL = panel.light !== '' ? panel.light : '#ffffff'
+  const surfD = panel.dark !== '' ? panel.dark : '#151517'
 
   // Per-mode invert flags. `invert.accent` makes the foreground text painted
   // on accent surfaces (bubble, selection, accent buttons) auto-contrast with
@@ -425,8 +405,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-border-l3', l3l, l3d)
   }
 
-  const controlBaseLight = panel.light !== '' ? panel.light : bg.light
-  const controlBaseDark = panel.dark !== '' ? panel.dark : bg.dark
+  const controlBaseLight = panel.light
+  const controlBaseDark = panel.dark
   let controlButtonFill: [string, string] | undefined
   let controlButtonHover: [string, string] | undefined
   let controlNavActive: [string, string] | undefined
@@ -453,13 +433,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-bg-base', 'transparent', 'transparent')
   }
 
-  const flipBaseLight = hasBackgroundMedia
-    ? (imageDark ? '#151517' : undefined)
-    : (bg.light !== '' && isDarkColor(bg.light) ? bg.light : undefined)
-
-  const flipBaseDark = hasBackgroundMedia
-    ? (imageDark ? '#151517' : undefined)
-    : (bg.dark !== '' && isDarkColor(bg.dark) ? bg.dark : undefined)
+  const flipBaseLight = hasBackgroundMedia ? (imageDark ? '#151517' : undefined) : undefined
+  const flipBaseDark = hasBackgroundMedia ? (imageDark ? '#151517' : undefined) : undefined
 
   let flipLayer1: [string | undefined, string | undefined] = [undefined, undefined]
   let flipLayer2: [string | undefined, string | undefined] = [undefined, undefined]
@@ -514,8 +489,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
     if (fl !== undefined || fd !== undefined) {
       const getVal = (v: [string | undefined, string | undefined], fallbackToken: string): [string, string] => [
-        v[0] ?? tokens[fallbackToken]?.light ?? DEFAULT_SURFACE_COLORS[fallbackToken].light,
-        v[1] ?? tokens[fallbackToken]?.dark ?? DEFAULT_SURFACE_COLORS[fallbackToken].dark,
+        tokens[fallbackToken]?.light ?? v[0] ?? DEFAULT_SURFACE_COLORS[fallbackToken].light,
+        tokens[fallbackToken]?.dark ?? v[1] ?? DEFAULT_SURFACE_COLORS[fallbackToken].dark,
       ]
       const l1 = getVal(flipLayer1, '--dsw-alias-bg-layer-1')
       emit('--dsw-alias-bg-layer-1', l1[0], l1[1])
@@ -540,6 +515,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-fill-l2', fillL2[0], fillL2[1])
       const tip = getVal(flipMod, '--dsw-specific-tip')
       emit('--dsw-specific-tip', tip[0], tip[1])
+      const bub = getVal(flipLayer2, '--dsw-specific-bubble')
+      emit('--dsw-specific-bubble', bub[0], bub[1])
+      const bubHl = getVal(flipLayer3, '--dsw-specific-bubble-highlight')
+      emit('--dsw-specific-bubble-highlight', bubHl[0], bubHl[1])
 
       if (input.light === '' && fl !== undefined) {
         emit('--dsw-specific-login-input', fl.input, tokens['--dsw-specific-login-input']?.dark ?? DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].dark)
@@ -642,15 +621,27 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     if (!sidebarOpaque) {
       translucent(
         '--dsw-specific-sidebar-fill',
-        panel.light || bg.light || undefined,
-        panel.dark || bg.dark || undefined,
+        panel.light || undefined,
+        panel.dark || undefined,
         flipSidebar[0],
         flipSidebar[1],
       )
     }
 
-    translucent('--dsw-specific-bubble', lightAccent, darkAccent, undefined, undefined)
-    translucent('--dsw-specific-bubble-highlight', lightAccent, darkAccent, undefined, undefined)
+    translucent(
+      '--dsw-specific-bubble',
+      panel.light || undefined,
+      panel.dark || undefined,
+      flipLayer2[0],
+      flipLayer2[1],
+    )
+    translucent(
+      '--dsw-specific-bubble-highlight',
+      panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.12) : undefined,
+      panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.12) : undefined,
+      flipLayer3[0],
+      flipLayer3[1],
+    )
 
     const bakeControlTranslucent = (
       token: string,
