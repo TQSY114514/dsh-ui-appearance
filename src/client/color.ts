@@ -115,3 +115,17 @@ export function relativeLuminance(value: string): number {
 export function isDarkColor(value: string): boolean {
   return relativeLuminance(value) < 0.18
 }
+
+/**
+ * Compute the WCAG 2.1 contrast ratio between two hex colors, ranging from 1 to 21.
+ * @param colorA - first `#rgb` or `#rrggbb` string.
+ * @param colorB - second `#rgb` or `#rrggbb` string.
+ * @returns contrast ratio (e.g., 4.5 for 4.5:1).
+ */
+export function contrastRatio(colorA: string, colorB: string): number {
+  const lumA = relativeLuminance(colorA)
+  const lumB = relativeLuminance(colorB)
+  const hi = Math.max(lumA, lumB)
+  const lo = Math.min(lumA, lumB)
+  return (hi + 0.05) / (lo + 0.05)
+}

@@ -4,6 +4,7 @@ import { DEFAULT_DARK_THEME, DEFAULT_INVERT, DEFAULT_LIGHT_THEME, DEFAULT_SETTIN
 import {
   APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
 } from '../src/client/tokens.ts'
+import { contrastRatio } from '../src/client/color.ts'
 
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
 
@@ -144,8 +145,10 @@ describe('buildTokenOverrides', () => {
     expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
     expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
     expect(perMode['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
-    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#61666b' })
-    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#808285', dark: '#9ea3a8' })
+    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d6d3d1', dark: '#4e4f52' })
+    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#808285', dark: '#6b6c6f' })
+    expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#808285', dark: '#6b6c6f' })
+    expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d6d3d1', dark: '#3a3c3f' })
   })
 
   it('independent text customization per mode does not leak into the other mode', () => {
@@ -497,7 +500,32 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#292524', dark: '#e6e9f4' })
     expect(tokens['--dsw-alias-border-l1']).toEqual({ light: '#e7e5e4', dark: '#343a52' })
   })
+
+  it('guarantees WCAG AA (>= 4.5:1) contrast for tertiary text and placeholder caption (Issue #33)', () => {
+    // Pure black text in light mode
+    const blackText = buildTokenOverrides(full({ text: '#000000' }))
+    const secL = blackText['--dsw-alias-label-secondary']!.light
+    const terL = blackText['--dsw-alias-label-tertiary']!.light
+    const capL = blackText['--dsw-alias-label-caption']!.light
+    const menuL = blackText['--dsw-alias-menu-icon']!.light
+
+    // Secondary must satisfy 7:1
+    expect(contrastRatio(secL, '#ffffff')).toBeGreaterThanOrEqual(7.0)
+    // Tertiary and caption must satisfy AA 4.5:1 (previously capped at 3.03:1)
+    expect(contrastRatio(terL, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(capL, '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    // Menu icon must satisfy 7:1
+    expect(contrastRatio(menuL, '#ffffff')).toBeGreaterThanOrEqual(7.0)
+
+    // Dark mode with light panel: menu-icon must remain readable (>= 7:1) instead of blending in
+    const lightPanelInDark = buildTokenOverrides(full({
+      dark: { ...DEFAULT_DARK_THEME, panel: '#e5e7eb', text: '#111827' },
+    }))
+    const menuD = lightPanelInDark['--dsw-alias-menu-icon']!.dark
+    expect(contrastRatio(menuD, '#e5e7eb')).toBeGreaterThanOrEqual(7.0)
+  })
 })
+
 
 describe('preset catalog', () => {
   it('every named preset defines all six role colors; default defines none', () => {

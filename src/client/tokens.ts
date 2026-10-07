@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { isDarkColor, mixHex, relativeLuminance, withAlpha } from './color.ts'
+import { contrastRatio, isDarkColor, mixHex, relativeLuminance, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
 export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from '../appearance-settings.ts'
@@ -41,12 +41,55 @@ const onInk = (label: string): string => {
   // A modest offset of 0.5 favors light ink on rich colored surfaces while
   // preserving dark ink for light backgrounds (#749aec, #ffffff) and neutral
   // mid-tones (#808080).
-  const contrast = (ink: string): number => {
-    const a = relativeLuminance(label)
-    const b = relativeLuminance(ink)
-    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+  return contrastRatio(label, LIGHT_INK) >= contrastRatio(label, DARK_INK) - 0.5 ? LIGHT_INK : DARK_INK
+}
+
+/**
+ * Pick the largest mix weight toward `base` that satisfies the target WCAG contrast
+ * ratio against `surf` using binary search in `[0, stockWeight]`.
+ * Falls back to `text` itself if `text` on `surf` already fails the target.
+ */
+function a11yLabelStep(
+  text: string,
+  base: string,
+  surf: string,
+  targetRatio: number,
+  stockWeight: number,
+): string {
+  if (text === '' || surf === '') return ''
+  if (contrastRatio(text, surf) < targetRatio) return text
+  if (contrastRatio(mixHex(text, base, stockWeight), surf) >= targetRatio) {
+    return mixHex(text, base, stockWeight)
   }
-  return contrast(LIGHT_INK) >= contrast(DARK_INK) - 0.5 ? LIGHT_INK : DARK_INK
+  let lo = 0
+  let hi = stockWeight
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2
+    if (contrastRatio(mixHex(text, base, mid), surf) >= targetRatio) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+  return mixHex(text, base, lo)
+}
+
+/**
+ * Derive a readable label or icon step from a base label on a surface.
+ * Automatically chooses the mix base (white for dark text, near-black for light text)
+ * and the appropriate stock weight (light vs dark mode stock).
+ */
+function deriveStepForLabel(
+  label: string,
+  surf: string,
+  targetRatio: number,
+  lightStock: number,
+  darkStock: number,
+): string {
+  const isDark = isDarkColor(label)
+  const base = isDark ? LIGHT_BASE : DARK_BASE
+  const stock = isDark ? lightStock : darkStock
+  return a11yLabelStep(label, base, surf, targetRatio, stock)
 }
 
 /**
@@ -280,6 +323,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const textSet = text.light !== '' || text.dark !== ''
   const textL = text.light !== '' ? text.light : '#0f1115'
   const textD = text.dark !== '' ? text.dark : '#fafaf9'
+  const surfL = panel.light !== '' ? panel.light : (bg.light !== '' ? bg.light : '#ffffff')
+  const surfD = panel.dark !== '' ? panel.dark : (bg.dark !== '' ? bg.dark : '#151517')
 
   // Per-mode invert flags. `invert.accent` makes the foreground text painted
   // on accent surfaces (bubble, selection, accent buttons) auto-contrast with
@@ -293,13 +338,21 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     if (textSet) {
       emit('--dsw-alias-label-primary', textL, textD)
 
-      const secL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.38) : '#61666b'
-      const secD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.16) : '#d6d3d1'
+      const secL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.38) : '#61666b'
+      const secD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.16) : '#d6d3d1'
       emit('--dsw-alias-label-secondary', secL, secD)
 
-      const terL = text.light !== '' ? mixHex(text.light, LIGHT_BASE, 0.58) : '#9ea3a8'
-      const terD = text.dark !== '' ? mixHex(text.dark, DARK_BASE, 0.53) : '#808285'
+      const terL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
+      const terD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
       emit('--dsw-alias-label-tertiary', terL, terD)
+
+      const capL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
+      const capD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
+      emit('--dsw-alias-label-caption', capL, capD)
+
+      const menuL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.18) : a11yLabelStep('#0f1115', LIGHT_BASE, surfL, 7, 0.18)
+      const menuD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.18) : a11yLabelStep('#fafaf9', DARK_BASE, surfD, 7, 0.18)
+      emit('--dsw-alias-menu-icon', menuL, menuD)
     }
     // The on-accent ink pair is emitted whenever the text role is customized
     // OR accent inversion is on, so the bubble/selection/accent-button text
@@ -333,15 +386,31 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-label-primary-inverted', invInkL, invInkD)
     emit('--dsw-alias-label-primary-foreground', invInkL, invInkD)
 
-    // Re-derive secondary and tertiary tokens so sub-labels remain legible
-    // when background inversion flips label-primary.
-    const secL = inkL !== '' ? (inkL === LIGHT_INK ? '#d6d3d1' : '#61666b') : (tokens['--dsw-alias-label-secondary']?.light ?? '#61666b')
-    const secD = inkD !== '' ? (inkD === LIGHT_INK ? '#d6d3d1' : '#61666b') : (tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
-    emit('--dsw-alias-label-secondary', secL, secD)
+    // Re-derive secondary, tertiary, caption and menu-icon tokens so sub-labels remain legible
+    // and meet WCAG contrast when background inversion flips label-primary.
+    const invSurfL = inkL !== '' ? bg.light : surfL
+    const invSurfD = inkD !== '' ? bg.dark : surfD
 
-    const terL = inkL !== '' ? (inkL === LIGHT_INK ? '#808285' : '#9ea3a8') : (tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8')
-    const terD = inkD !== '' ? (inkD === LIGHT_INK ? '#808285' : '#9ea3a8') : (tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
-    emit('--dsw-alias-label-tertiary', terL, terD)
+    emit(
+      '--dsw-alias-label-secondary',
+      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 7, 0.38, 0.16) : (tokens['--dsw-alias-label-secondary']?.light ?? deriveStepForLabel(labelL, invSurfL, 7, 0.38, 0.16)),
+      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 7, 0.38, 0.16) : (tokens['--dsw-alias-label-secondary']?.dark ?? deriveStepForLabel(labelD, invSurfD, 7, 0.38, 0.16)),
+    )
+    emit(
+      '--dsw-alias-label-tertiary',
+      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-tertiary']?.light ?? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53)),
+      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-tertiary']?.dark ?? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53)),
+    )
+    emit(
+      '--dsw-alias-label-caption',
+      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-caption']?.light ?? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53)),
+      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-caption']?.dark ?? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53)),
+    )
+    emit(
+      '--dsw-alias-menu-icon',
+      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 7, 0.18, 0.18) : (tokens['--dsw-alias-menu-icon']?.light ?? deriveStepForLabel(labelL, invSurfL, 7, 0.18, 0.18)),
+      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 7, 0.18, 0.18) : (tokens['--dsw-alias-menu-icon']?.dark ?? deriveStepForLabel(labelD, invSurfD, 7, 0.18, 0.18)),
+    )
   }
 
   const border = getRole('border')
@@ -483,6 +552,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
         emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-tertiary', '#808285', tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
+        emit('--dsw-alias-label-caption', '#808285', tokens['--dsw-alias-label-caption']?.dark ?? '#808285')
+        emit('--dsw-alias-menu-icon', '#d6d3d1', tokens['--dsw-alias-menu-icon']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', DARK_INK, tokens['--dsw-alias-label-primary-inverted']?.dark ?? DARK_INK)
         emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
       }
@@ -490,6 +561,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         emit('--dsw-alias-label-primary', tokens['--dsw-alias-label-primary']?.light ?? '#0f1115', '#fafaf9')
         emit('--dsw-alias-label-secondary', tokens['--dsw-alias-label-secondary']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-tertiary', tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8', '#808285')
+        emit('--dsw-alias-label-caption', tokens['--dsw-alias-label-caption']?.light ?? '#9ea3a8', '#808285')
+        emit('--dsw-alias-menu-icon', tokens['--dsw-alias-menu-icon']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', tokens['--dsw-alias-label-primary-inverted']?.light ?? LIGHT_INK, DARK_INK)
         emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? LIGHT_INK, DARK_INK)
       }

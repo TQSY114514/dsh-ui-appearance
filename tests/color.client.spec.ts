@@ -1,6 +1,6 @@
 /** Pure hex color helpers. */
 import { describe, expect, it } from 'vitest'
-import { formatHex, isHexColor, mixHex, parseHex, withAlpha } from '../src/client/color.ts'
+import { formatHex, isHexColor, mixHex, parseHex, withAlpha, contrastRatio } from '../src/client/color.ts'
 
 describe('isHexColor', () => {
   it('accepts 3- and 6-digit hex with or without leading hash formality', () => {
@@ -58,3 +58,19 @@ describe('withAlpha', () => {
     expect(withAlpha('#00f', 1)).toBe('rgba(0, 0, 255, 1)')
   })
 })
+
+describe('contrastRatio', () => {
+  it('calculates WCAG contrast between black and white as 21', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeCloseTo(21, 1)
+    expect(contrastRatio('#ffffff', '#000000')).toBeCloseTo(21, 1)
+  })
+
+  it('calculates contrast between identical colors as 1', () => {
+    expect(contrastRatio('#123456', '#123456')).toBeCloseTo(1, 4)
+  })
+
+  it('handles shorthand hex correctly', () => {
+    expect(contrastRatio('#000', '#fff')).toBeCloseTo(21, 1)
+  })
+})
+
