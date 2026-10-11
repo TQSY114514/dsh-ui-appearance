@@ -78,6 +78,7 @@ export function mixHex(value: string, base: string, weight: number): string {
  * @returns the rgba() CSS color.
  */
 export function withAlpha(value: string, alpha: number): string {
+  if (value === 'transparent') return 'transparent'
   const { r, g, b } = parseHex(value)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }

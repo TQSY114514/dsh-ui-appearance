@@ -133,6 +133,21 @@ describe('derivePalette', () => {
     // text color stays in control.
     expect(palette).not.toHaveProperty('text')
   })
+
+  it('derives a coordinated light family when isDark is false', () => {
+    const palette = derivePalette('#0284c7', false)
+    expect(palette.background).toMatch(/^#[0-9a-f]{6}$/)
+    expect(palette.input).toBe('#ffffff')
+    const light = (hex: string): number => {
+      const r = Number.parseInt(hex.slice(1, 3), 16) / 255
+      const g = Number.parseInt(hex.slice(3, 5), 16) / 255
+      const b = Number.parseInt(hex.slice(5, 7), 16) / 255
+      return (Math.max(r, g, b) + Math.min(r, g, b)) / 2
+    }
+    // Light mode surfaces must have high lightness (> 0.85)
+    expect(light(palette.background)).toBeGreaterThan(0.9)
+    expect(light(palette.panel)).toBeGreaterThan(0.9)
+  })
 })
 
 describe('prepareImage', () => {

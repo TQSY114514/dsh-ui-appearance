@@ -216,22 +216,30 @@ export interface DerivedPalette {
 }
 
 /**
- * Derive a coordinated dark palette from one accent color: the background
- * family steps through lightness (background → panel → input), so the
- * surfaces share the wallpaper hue without all being the same color. The
- * text role is deliberately left alone — the user's text color stays in
- * control.
+ * Derive a coordinated palette from one accent color for dark or light mode:
+ * the background family steps through lightness, so the surfaces share the
+ * wallpaper hue without all being the same color. The text role is
+ * deliberately left alone — the user's text color stays in control.
  * @param accentHex - the sampled accent (`#rrggbb`).
+ * @param isDark - whether to derive a dark or light mode palette (default true).
  * @returns the derived role colors.
  */
-export function derivePalette(accentHex: string): DerivedPalette {
+export function derivePalette(accentHex: string, isDark: boolean = true): DerivedPalette {
   const [h, s] = rgbToHsl(...hexToRgb(accentHex))
   const hex = (sat: number, light: number): string => hslToHex([h, sat, light])
+  if (isDark) {
+    return {
+      background: hex(s * 0.35, 0.1),
+      panel: hex(s * 0.35, 0.16),
+      input: hex(s * 0.35, 0.21),
+      border: hex(s * 0.25, 0.34),
+    }
+  }
   return {
-    background: hex(s * 0.35, 0.1),
-    panel: hex(s * 0.35, 0.16),
-    input: hex(s * 0.35, 0.21),
-    border: hex(s * 0.25, 0.34),
+    background: hex(s * 0.15, 0.98),
+    panel: hex(s * 0.20, 0.94),
+    input: '#ffffff',
+    border: hex(s * 0.20, 0.88),
   }
 }
 

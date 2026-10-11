@@ -55,7 +55,14 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
   - 清理视频（`key === ''`）时必须无条件重置错误状态（`reportVideoError(false)`），否则删除视频或切回壁纸后错误提示会永久常驻。
 - **大文件存储与清理**：
   - 图片与视频上限均为 200MB，走 IndexedDB Blob 引用（`dsh-appearance-blobs`），零额外堆内存复制，播放由 Chromium 原生流式硬解。
-  - 更换媒体必须清理 IndexedDB 旧记录，避免无感磁盘膨胀。
+  - 更换媒体或重置全部设置（`resetAll`）时必须显式清理 IndexedDB 旧记录（`deleteImage` / `deleteVideo`），绝不能只把 settings 字段置空，避免无感磁盘膨胀与孤儿 Blob 滞留。
+- **交互悬停与半透明烘焙闭环（Hover 机制）**：
+  - **不透明模式（`surfaceAlpha === 1`）**：组件悬停保持为静态 hex 色（如 `#f1f3f5` / `#353638` 或 panel 派生的轻微高亮阶），不引入 `rgba`，保持纯色界面的实心质感。
+  - **半透明模式（`surfaceAlpha < 1`）**：所有交互悬停（`--dsw-alias-interactive-bg-hover`、`--dsw-alias-interactive-bg-hover-solid` 及按钮悬停）必须通过 `withAlpha(color, surfaceAlpha/inputAlpha)` 烘焙对应的 alpha。
+  - **绝不能在半透明下留静态 hex**：若半透明下悬停态留有实心 hex，鼠标滑过按钮会瞬间闪烁成死白/死黑的实心水泥块（hover snapped opaque regression）。悬停只负责微调明暗（10%~15%），透明度必须严格继承以保证背景壁纸透出。
+- **壁纸色板深浅模式自适应（`derivePalette`）**：
+  - 自动提取壁纸主色派生周边角色（背景、面板、输入框、边框）时，必须传入壁纸明暗标志 `isDark`。
+  - 暗色壁纸生成低亮度暗调阶梯（`0.10` / `0.16` / `0.21`）；浅色壁纸必须生成高亮度浅调阶梯（`0.98` / `0.94` / `#ffffff`），严禁把暗夜色板写入浅色模式导致黑底黑字对比度崩溃。
 
 ## Before changing X, read Y
 

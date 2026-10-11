@@ -57,6 +57,10 @@ describe('withAlpha', () => {
     expect(withAlpha('#ff0000', 0.5)).toBe('rgba(255, 0, 0, 0.5)')
     expect(withAlpha('#00f', 1)).toBe('rgba(0, 0, 255, 1)')
   })
+
+  it('short-circuits transparent without calculating NaN', () => {
+    expect(withAlpha('transparent', 0.5)).toBe('transparent')
+  })
 })
 
 describe('contrastRatio', () => {

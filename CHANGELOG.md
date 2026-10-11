@@ -2,6 +2,24 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.22] - 2026-10-11
+
+### Fixed
+
+- **交互悬停（Hover）与半透明机制闭环**:
+  - 统一收敛中性控件悬停 Token 至 `--dsw-alias-interactive-bg-hover` 及 `-solid`，在半透明模式下同频烘焙透明度，解决半透明下悬停闪烁成实心白块/黑块（`hover snapped opaque`）的问题。
+  - 修复暗色壁纸翻转模式下侧边栏悬停误填普通按钮静止色的状态倒挂缺陷。
+- **浅色壁纸提取色板深浅模式自适应**:
+  - 修复 `derivePalette` 在浅色壁纸下依然生成低亮度暗色阶（导致浅色模式被污染成深黑底色）的严重问题；根据壁纸明暗标志 `isDark` 区分生成高亮度浅调阶梯（背景 ~0.98、面板 ~0.94、输入框纯白）或低亮度暗调阶梯。
+- **全局重置（resetAll）清理 IndexedDB 孤儿媒体**:
+  - 解决点击“恢复全部默认”时仅清空配置字段而未调用 `deleteImage` / `deleteVideo` 导致大文件永久驻留 IndexedDB 的磁盘泄漏问题。
+- **UI 交互与底层防御**:
+  - 为设置面板重置模式调用补充可选链保护，防止未传入时抛错白屏。
+  - 为配色导出成功文案增加 2.5s 自动消失定时器及组件卸载清理。
+  - 为底层 `withAlpha` 补充对 `transparent` 的前置短路保护，防止生成 `rgba(NaN, NaN, NaN, a)` 破坏样式。
+- **死代码清理**:
+  - 移除多语言字典中未使用的 `surface.preview` 残留键，修正注释漂移。
+
 ## [0.1.21] - 2026-10-07
 
 ### Security

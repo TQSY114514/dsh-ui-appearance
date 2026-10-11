@@ -151,6 +151,7 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-alias-fill-l2': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
   // Solid interactive hover (the composer + button hover, chips, etc.) rides
   // the translucency too so hovers never snap back to an opaque chip.
+  '--dsw-alias-interactive-bg-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
   '--dsw-alias-interactive-bg-hover-solid': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
   // Task surfaces in the conversation area (todo panel, queue dock, goal
   // bar) ride the translucency with the other panels.
@@ -426,6 +427,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-specific-sidebar-nav-item-active', controlNavActive[0], controlNavActive[1])
     emit('--dsw-specific-sidebar-nav-item-hover', controlNavHover[0], controlNavHover[1])
     emit('--dsw-specific-selector', controlButtonFill[0], controlButtonFill[1])
+    emit('--dsw-alias-interactive-bg-hover', controlButtonHover[0], controlButtonHover[1])
     emit('--dsw-alias-interactive-bg-hover-solid', controlButtonHover[0], controlButtonHover[1])
   }
 
@@ -553,8 +555,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       const btnHover = getVal(flipButtonFloatingHover, '--dsw-alias-button-floating-hover')
       emit('--dsw-alias-button-floating-hover', btnHover[0], btnHover[1])
       emit('--dsw-specific-sidebar-nav-item-active', btnElev[0], btnElev[1])
-      emit('--dsw-specific-sidebar-nav-item-hover', btnFloat[0], btnFloat[1])
+      emit('--dsw-specific-sidebar-nav-item-hover', btnHover[0], btnHover[1])
       emit('--dsw-specific-selector', btnFloat[0], btnFloat[1])
+      emit('--dsw-alias-interactive-bg-hover', btnHover[0], btnHover[1])
       emit('--dsw-alias-interactive-bg-hover-solid', btnHover[0], btnHover[1])
     }
   }
@@ -657,11 +660,12 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
     bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
-    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloating)
+    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloatingHover)
     translucent('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1])
     translucent('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1])
     translucent('--dsw-alias-fill-l1', undefined, undefined, flipMod[0], flipMod[1])
     translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
+    bakeControlTranslucent('--dsw-alias-interactive-bg-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
 

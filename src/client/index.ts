@@ -340,6 +340,14 @@ export function apply(ctx: ClientContext): void {
     applyModeColors('dark', colors)
   }
   const resetAll = (): void => {
+    const oldImage = current.backgroundImage
+    if (oldImage !== '' && !oldImage.startsWith('data:')) {
+      void deleteImage(oldImage)
+    }
+    const oldVideo = current.backgroundVideo
+    if (oldVideo !== '') {
+      void deleteVideo(oldVideo)
+    }
     current = {
       ...DEFAULT_SETTINGS,
       preset: 'default',

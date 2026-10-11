@@ -1,5 +1,5 @@
 /**
- * Color scheme export/import: a portable JSON carrier for the eight color
+ * Color scheme export/import: a portable JSON carrier for the six color
  * roles. Pure functions — no DOM, no storage — so the format is unit-testable
  * and shared by the settings row.
  */

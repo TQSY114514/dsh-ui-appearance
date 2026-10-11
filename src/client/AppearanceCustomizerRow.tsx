@@ -297,8 +297,13 @@ export function AppearanceCustomizerRow({
   const [schemeDraft, setSchemeDraft] = useState('')
   const [schemeError, setSchemeError] = useState(false)
   const [exported, setExported] = useState(false)
+  const exportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const videoRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => () => {
+    if (exportTimerRef.current !== null) clearTimeout(exportTimerRef.current)
+  }, [])
 
   const detectHostDark = (): boolean => {
     if (typeof document === 'undefined') return false
@@ -348,7 +353,7 @@ export function AppearanceCustomizerRow({
     } else {
       set('accent', accentHex)
     }
-    const palette = derivePalette(accentHex)
+    const palette = derivePalette(accentHex, isDark)
     for (const [role, hex] of Object.entries(palette)) {
       if ((targetTheme?.[role as AppearanceRole] ?? settings[role as AppearanceRole]) === '') {
         if (setModeRole) setModeRole(targetMode, role as AppearanceRole, hex)
@@ -483,10 +488,18 @@ export function AppearanceCustomizerRow({
     }
   }
   const doExport = async (): Promise<void> => {
+    if (exportTimerRef.current !== null) {
+      clearTimeout(exportTimerRef.current)
+      exportTimerRef.current = null
+    }
     setExported(false)
     try {
       await navigator.clipboard.writeText(exportColorScheme(settings))
       setExported(true)
+      exportTimerRef.current = setTimeout(() => {
+        setExported(false)
+        exportTimerRef.current = null
+      }, 2500)
     } catch {
       setSchemeError(true)
     }
@@ -828,7 +841,7 @@ export function AppearanceCustomizerRow({
           </div>
 
           <div className={css.footer}>
-            <button type="button" className={css.ghostButton} onClick={() => { resetMode(activeMode) }}>
+            <button type="button" className={css.ghostButton} onClick={() => { resetMode?.(activeMode) }}>
               {t('actions.resetMode')}
             </button>
             <button type="button" className={css.ghostButton} onClick={resetAll}>
