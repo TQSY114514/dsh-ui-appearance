@@ -35,17 +35,19 @@ Latest official Desktop screenshot (community shots kept above):
 
 ## Features
 
-**Theme colors** — 6 color roles: accent, background, panel, input, text, border. Each role has a color picker and HEX input; text selection and the keyboard focus ring follow the accent automatically; message bubbles follow the accent too (keeping its hue when translucent); the top-left logo wordmark ("harness") follows the accent as well.
+**Independent Dual-Mode Appearance** — Segmented tabs for "Light Mode" and "Dark Mode" at the top of the settings panel to configure 6 color roles and distinct presets independently. Dynamically adapts to host theme changes and the system `prefers-color-scheme`. Integrates a WCAG 2.1 auto-contrast algorithm (`a11yLabelStep`) to guarantee secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$, completely eliminating washed-out text on light mode and invisible icons on dark mode.
 
-**Wallpaper background** — Click to upload or drag in an image (JPG / PNG / WebP / GIF), or **paste an image/video URL to load it in one click** (auto-routed by extension; works with CORS-friendly hosts); the original quality is kept and stored in IndexedDB as a full-UI wallpaper (images over 4096px are scaled down proportionally, no quality drop). Brightness is sampled on upload (dark wallpapers lift the surface family) and the **dominant hue is auto-derived as the accent color**, so wallpaper and UI tones stay in harmony. **Video backgrounds** (MP4 / WebM, muted loop, mutually exclusive with images) are also supported; both images and videos live in IndexedDB, keeping localStorage quota free.
+**Theme Colors** — 6 core color roles: accent, background, panel, input, text, border. Each role features a native color picker and precise HEX input; text selection, keyboard focus rings, the top-left "harness" logo, and message bubbles seamlessly adapt to the accent color.
 
-**Glassmorphism & translucency** — Panel opacity and glass-blur sliders let the sidebar, settings panel, chat area, task panels, cards and buttons melt into the wallpaper instead of sitting as solid blocks; the sidebar can stay opaque on its own. **Input and code blocks have independent opacity knobs** (100% = follow the panel opacity). Emphasized text chips (`pnpm-lock.yaml`, `lib/`) keep a low-alpha accent tint — emphasis via hue, not solid fill — with an "emphasis tint" slider (0% = fully transparent) for independent tuning.
+**Wallpaper & Video Backgrounds (Up to 200MB)** — Upload or drag in images (JPG / PNG / WebP / GIF), or **paste a URL to load in one click** (auto-routed by extension; works with CORS-friendly hosts). Stored directly as IndexedDB Blobs (zero heap memory duplication, free from localStorage quota; images over 4096px are proportionally downscaled, GIF animations preserved). Brightness is sampled on upload to auto-derive an harmonious accent palette. Supports hardware-accelerated **dynamic video backgrounds** (MP4 / WebM, muted loop playback, up to 200MB).
 
-**Background ambience** — Three independent sliders: background opacity (how strong the wallpaper is), background blur (pushes it into the distance), and a scrim that auto-tints with the light/dark scheme to keep text on the image readable.
+**Glassmorphism & Translucency** — Dual sliders for panel opacity and frosted glass blur allow the sidebar, settings, chat, and task cards to melt into the background. **Input and code blocks feature independent opacity controls**; inline code chips preserve low-alpha accent hue with a dedicated "emphasis tint" slider. Neutral interactive controls and buttons bake alpha synchronously on hover, preventing sudden opaque snapping (`hover snapped opaque`).
 
-**Presets to start from** — Default / Midnight / Ocean / Forest / Rose / Monochrome; apply one click and keep fine-tuning, never locked in.
+**Three-Layer Background Architecture** — An innovative 3-layer rendering system: canvas base layer (custom solid background color) + media layer (wallpaper/video with independent blur and opacity) + anti-glare scrim layer (adaptive veil protecting text readability). Lowering media opacity blends smoothly into your custom background color without white flash.
 
-**Scheme sharing** — Export your palette as JSON (copied to clipboard), paste to import; sharing a theme is one snippet of text.
+**Dedicated Dual-Mode Presets** — 5 curated light presets (Dawn, Sky, Mint, Sakura, Clay) + 6 classic dark presets (Default, Midnight, Ocean, Forest, Rose, Monochrome); apply with one click and fine-tune freely.
+
+**Scheme Sharing** — Export your palette as JSON directly to the clipboard; paste to import. Share and discover community schemes in GitHub Discussions!
 
 Every change applies live — no refresh, no save button.
 
@@ -114,42 +116,47 @@ Settings panel at a glance:
 
 | Capability | Mechanism |
 |---|---|
-| Colors | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens; light/dark switches re-apply automatically, derived colors are computed per mode |
-| Background layer | A dedicated fixed-position layer above the page background and below the content, driven by CSS variables |
-| Glassmorphism | The background layer is blurred as a whole (`filter: blur`, background blur + glass sliders summed); `#root` is untouched, so no `backdrop-filter` containing-block side effects |
-| Translucency | Surface tokens are baked to `rgba()` per mode (role color → dark-flip derived → stock surface table), no `color-mix` dependency, works in every browser; coverage includes the settings panel (`bg-layer-2`), task panels/queue dock/goal bar (`specific-tip`), inline code and code blocks (`markdown-*`), the command (plus) button hovers (`selector` / `interactive-bg-hover-solid`), and the primary action button hovers (`button-info-hover` / `button-primary-hover` follow the input opacity, so hovers never snap back to solid) |
-| Emphasis & translucency | Primary buttons and emphasized text (`markdown-inline-code`) go translucent but keep the brand hue: buttons at accent × input opacity (hovers included), text chips at accent × 0–45% (default 22%, matching the harness's own reference-chip alpha) — emphasis via hue, not solid fill |
-| Bubble color | Dedicated bubble settings were removed: the harness renders its only bubble background on user messages (assistant turns have none), so bubbles follow the accent (at panel opacity); stock pale blue when no accent is set |
-| Persistence | Browser localStorage (the harness settings gateway only allows browser writes for product namespaces), schema-validated and clamped on load |
+| **Colors & Contrast** | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens with dual-mode independence. Built-in WCAG 2.1 dynamic contrast algorithm (`a11yLabelStep`) ensures secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$, completely eliminating washed-out text on light mode and invisible icons on dark mode |
+| **Three-Layer Background** | Three decoupled layers (base canvas + media layer + anti-glare scrim), pushed to `position: fixed; z-index: -1`. When wallpaper/video is active, the official host base (`--dsw-alias-bg-base`) is **punched to transparent**, leaving `#root` free of `position`/`z-index` to eliminate stacking context traps and keep dialogs always on top |
+| **Glass & Anti-Bleed** | Layer-wide blur filter (`filter: blur`, background blur + glass sliders summed) combined with `inset: -48px` to eliminate translucent vignetting at screen edges; no `backdrop-filter` containing-block side effects |
+| **Hover Feedback Closure** | Neutral control and button hover tokens (`--dsw-alias-interactive-bg-hover` and `-solid`) bake opacity synchronously under translucent mode, fine-tuning lightness (10%~15%) while strictly revealing background to prevent sudden opaque snapping (`hover snapped opaque`) |
+| **Native Video Streaming** | Hardware-accelerated Chromium native streaming with muted loop playback. Videos are stored directly as IndexedDB Blobs (up to 200MB) without Base64 encoding and with zero extra heap duplication |
+| **Persistence & Garbage Collection** | Settings saved in browser `localStorage` (key `dsh-ui-appearance.settings`) with instantaneous cross-tab sync; media stored in `IndexedDB`. Replacing media or resetting to stock immediately performs Blob garbage collection (`deleteImage` / `deleteVideo`) to prevent orphaned files |
 
 ## Compatibility & limitations
 
-- Works with [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop): usable in both advanced mode (native desktop layout) and compatible mode (stock upstream Web client) (screenshots under Screenshots); Desktop profiles are separate from the WebUI — install into the profile Desktop activates (see Installation)
-- Translucency is baked as plain `rgba()`; the sliders stay smooth at all values. Glass and background blur merge into one blur of the background layer (the sum of both sliders) — no `backdrop-filter`, so fixed-position elements never change their containing block; low-end devices can set the blur back to 0.
-- Dark wallpapers or dark background colors trigger a coordinated surface-family flip; an explicitly set text color still wins.
-- Each color role is a single value shared by both modes; derived colors are computed per mode automatically.
-- Images: no compression, no size limit (200 MB sanity cap) — originals are stored in IndexedDB directly; images over 4096px are rescaled proportionally (re-encoded as WebP; GIF animation survives when within the bound). Legacy data-URL wallpapers migrate into IndexedDB automatically on upgrade. Persisted data is validated and clamped against the schema on load, so hand-edited or stale localStorage can never produce invalid styles.
-- Video backgrounds: 50 MB cap; H.264 (MP4) or VP8/VP9 (WebM) recommended; unsupported codecs (e.g. HEVC) degrade back to the wallpaper automatically; replacing a video cleans up the old IndexedDB record.
-- Syntax-highlight text colors (shiki `--shiki-token-*`) are a separate syntax-language palette and do not follow the accent (IDE convention); with a white accent, chip backgrounds are white and translucent, visually near-invisible on light surfaces — normal physics, not a bug.
-- Bubbles follow the accent and have no dedicated color setting: the harness renders its only bubble background on user messages, and assistant turns have no bubble at all (a rendering fact the plugin cannot split); bubbles stay stock pale blue when no accent is set.
+- **Works Across Platforms**: Full support for WebUI and [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) (both advanced and compatible modes); includes an automated punch-through patch for Windows custom titlebar frames (`.BynINW_frame`, [#31](https://github.com/TQSY114514/dsh-ui-appearance/issues/31)).
+- **Dual-Mode Independent Palettes**: Saves two independent sets of 6-color palettes and presets for Light and Dark modes, smoothly adapting to system and host color schemes.
+- **Performance & Low-End Optimization**: Translucency is pre-baked as CSS `rgba()`; sliders remain smooth. Glass blur is consolidated into a single background layer filter; low-end devices can set blur sliders to 0 for instant rendering.
+- **Large Media Support**: Original images are stored losslessly in IndexedDB (auto-scaled proportionally above 4096px as WebP, GIF animations preserved within bounds); video ceiling expanded to 200MB with drag-and-drop and URL loading.
+- **Syntax Highlighting & Bubbles**: Code syntax highlighting (Shiki) follows independent syntax language rules; user message bubbles blend into the accent color while AI responses remain transparent.
 
 ## FAQ
 
-- **Q: Customizer panel does not appear in DSH settings after installation/update?**
+- **Q: Customizer panel does not appear in DSH settings after installation or update?**
   - **Check Profile**: Verify the plugin is installed to the active profile (DSH Desktop defaults to `desktop`, WebUI defaults to `web`; run `dsh plugin list` to check).
   - **Build & Restart**: When installing from source, ensure `pnpm prepare` was run to compile `lib/` before restarting DSH services (e.g. `dsh web`).
   - **Clear Cache**: Hard-refresh via `Ctrl + F5` (`Cmd + Shift + R` on macOS) to purge old bundle caches.
-- **Q: Where are my appearance configurations saved? How to migrate/backup?**
-  - Settings are saved in browser `localStorage` (key `dsh-ui-appearance.settings`), while original wallpaper images and videos reside in `IndexedDB`.
-  - **Backup & Migrate**: Under the "Color Schemes" section in the panel, click "Export Scheme" to copy JSON. On another browser or machine, paste and click "Import" to restore instantly.
+
+- **Q: Why does the UI still show a solid background with no wallpaper/video visible?**
+  - **Punch-through Occlusion**: The background layer sits at `z-index: -1`, revealing itself by setting `--dsw-alias-bg-base` to `transparent`. If an opaque **third-party skin** is active (e.g. themes hardcoding solid colors onto `body` or `#root`), the transparent punch-hole is blocked. Deactivate third-party opaque skins or reduce their opacity.
+  - **Windows Desktop Custom Frame**: Upgrade to the latest plugin version; automated punch-through for Windows desktop titlebar frames is built-in ([#31](https://github.com/TQSY114514/dsh-ui-appearance/issues/31)).
+
+- **Q: Video background shows black screen or fails to play?**
+  - **Codec Compatibility**: Chromium natively supports hardware decoding for **H.264 (MP4)** and **VP8 / VP9 (WebM)**. If the video uses unsupported codecs (such as HEVC / H.265, certain `.mov` containers, or specific audio tracks), decoding will fail. Please re-encode with tools like HandBrake or FFmpeg to standard H.264 MP4 before uploading.
+
+- **Q: Pasting an image or video URL fails to load?**
+  - **CORS & Hotlink Protection**: Due to browser security sandboxes, remote URLs must allow cross-origin requests (CORS headers) without strict hotlink protection. For restricted links, download the file locally and drag it in (stored directly in IndexedDB with zero network dependency).
+
+- **Q: Does resetting settings or frequently changing videos bloat the disk?**
+  - **Not at all**. The plugin implements strict lifecycle garbage collection: replacing media or clicking "Reset All" immediately triggers `deleteImage` and `deleteVideo` to purge old Blobs from IndexedDB, preventing orphan file buildup.
+
+- **Q: Where are my appearance configurations saved? How to backup and sync across devices?**
+  - Settings are saved in browser `localStorage`, while images and videos live in `IndexedDB`.
+  - **Backup & Migrate**: Under the "Color Schemes" section in the panel, click "Export Scheme" to copy JSON. Paste and click "Import" on any other device or browser to restore instantly. Welcome to share your creative presets in GitHub Discussions!
+
 - **Q: Does uninstalling the plugin leave stale styles or break the stock DSH UI?**
-  - Not at all. Built strictly on official `ctx.theme.overrideTokens()` and settings slots with zero core code changes. Running `dsh plugin remove dsh-ui-appearance` fully reclaims all injected tokens, stylesheets, and background layers, cleanly restoring stock UI.
-- **Q: Are there conflicts when running alongside third-party plugins (e.g. sidebars, overlays)?**
-  - **Stacking issues resolved**: Starting from v0.1.5, the background layer is pushed to `z-index: -1` and `#root` creates no stacking context, ensuring third-party top-level panels (such as `dsh-better-sidebar`) and the settings dialog layer properly without interference ([#10](https://github.com/TQSY114514/dsh-ui-appearance/issues/10)).
-  - **Style override check**: If another plugin injects hardcoded global CSS overrides, styles may clash. Temporarily disable other UI plugins to isolate the issue.
-- **Q: Wallpaper or video background fails to load?**
-  - **Local Files**: Originals stored in IndexedDB (auto-scaled above 4096px, GIF animation preserved); videos capped at 50 MB (MP4 H.264 / WebM VP8/VP9 recommended, unsupported codecs fallback to wallpaper).
-  - **Remote URLs**: Certain CDNs enforce hotlink protection or omit CORS headers, which browser security blocks. Download and upload locally, or use CORS-friendly direct links.
+  - **Completely clean**. The plugin adheres strictly to the "Zero core modification, 100% reversible" manifesto. Executing `dsh plugin remove dsh-ui-appearance` unregisters all token overrides, removes `#dsw-appearance-bg` and dynamic stylesheets, and restores the stock UI with pixel-perfect fidelity.
 
 ## Package layout
 
@@ -160,12 +167,12 @@ src/
 ├── appearance-settings.ts    # Settings types & defaults
 └── client/
     ├── index.ts              # apply(): localStorage persistence, slot registration
-    ├── applier.ts            # DOM applier (token overrides, background layer, glass)
-    ├── tokens.ts             # Color roles → token mapping, presets, translucent baking
-├── color.ts / image.ts   # Color utilities / image preparation (>4096px edge rescale, no quality drop)
-├── blob-db.ts            # IndexedDB base (DB v2: image + video stores)
-├── image-store.ts        # IndexedDB image storage (keyed reference)
-├── video-store.ts        # IndexedDB video storage (50 MB cap)
+    ├── applier.ts            # DOM applier (token overrides, 3-layer background, glass)
+    ├── tokens.ts             # Color roles → token mapping, dual-mode presets, alpha baking
+    ├── color.ts / image.ts   # Color utilities / image preparation (>4096px rescale, lossless)
+    ├── blob-db.ts            # IndexedDB base (DB v2: image + video stores)
+    ├── image-store.ts        # IndexedDB image storage (keyed reference & GC)
+    ├── video-store.ts        # IndexedDB video storage (200MB cap & GC)
     ├── color-scheme.ts       # Scheme export/import (pure functions)
     ├── settings-store.ts     # Settings mirror store
     ├── locales.ts            # zh/en copy
@@ -178,7 +185,7 @@ vitest.config.ts              # Standalone test config (aliases to tests/stubs)
 lib/                          # Build output
 ```
 
-All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. 120 vitest tests green (runnable standalone in this repo); CI build and artifact assertions green.
+All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **164 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
 
 ## License
 
