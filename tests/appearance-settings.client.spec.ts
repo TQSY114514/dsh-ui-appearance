@@ -38,6 +38,7 @@ describe('sanitizeSettings', () => {
       backgroundOpacity: 5, scrim: -1, surfaceAlpha: Number.NaN,
       backgroundBlur: 999, glassBlur: -3, emphasisAlpha: 9,
       inputAlpha: 5, codeAlpha: -1,
+      sidebarAlpha: 2, modalAlpha: -0.5,
     })
     expect(sanitized.backgroundOpacity).toBe(1)
     expect(sanitized.scrim).toBe(0)
@@ -47,6 +48,8 @@ describe('sanitizeSettings', () => {
     expect(sanitized.emphasisAlpha).toBe(EMPHASIS_ALPHA_MAX)
     expect(sanitized.inputAlpha).toBe(1)
     expect(sanitized.codeAlpha).toBe(0)
+    expect(sanitized.sidebarAlpha).toBe(1)
+    expect(sanitized.modalAlpha).toBe(0)
   })
 
   it('rejects non-number numerics instead of feeding them into CSS', () => {
@@ -59,13 +62,24 @@ describe('sanitizeSettings', () => {
     expect(sanitized.backgroundOpacity).toBe(DEFAULT_SETTINGS.backgroundOpacity)
   })
 
-  it('coerces legacy 1/0 booleans to real booleans', () => {
+  it('coerces legacy 1/0 booleans and reconciles sidebarAlpha and modalAlpha', () => {
     const sanitized = sanitizeSettings({
       ...DEFAULT_SETTINGS,
       sidebarOpaque: 1, imageDark: 0,
     })
     expect(sanitized.sidebarOpaque).toBe(true)
+    expect(sanitized.sidebarAlpha).toBe(1)
+    expect(sanitized.modalAlpha).toBe(1)
     expect(sanitized.imageDark).toBe(false)
+
+    // Legacy record with sidebarOpaque: false and surfaceAlpha: 0.6 migrates sidebarAlpha
+    const legacyTranslucent = sanitizeSettings({
+      surfaceAlpha: 0.6,
+      sidebarOpaque: false,
+    })
+    expect(legacyTranslucent.sidebarAlpha).toBe(0.6)
+    expect(legacyTranslucent.sidebarOpaque).toBe(false)
+    expect(legacyTranslucent.modalAlpha).toBe(1)
   })
 
   it('drops unknown fields and keeps known strings', () => {

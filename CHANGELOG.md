@@ -2,6 +2,29 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.23] - 2026-10-16
+
+### Added
+
+- **侧边栏独立透明度控制（`sidebarAlpha`）** ([#37](https://github.com/TQSY114514/dsh-ui-appearance/issues/37)):
+  - 将侧边栏透明度从主面板（`surfaceAlpha`）中解耦，提供 0%~100% 连续可调滑块，平滑过渡；
+  - 完美兼容历史数据，自动与旧版 `sidebarOpaque` 布尔状态相互双向映射转换。
+- **设置面板与弹窗独立透明度控制（`modalAlpha`）** ([#37](https://github.com/TQSY114514/dsh-ui-appearance/issues/37)):
+  - 彻底解决主面板调为半透明/全透明时设置弹窗同步变透明导致内容几乎不可读的问题；
+  - 新增独立的“设置与弹窗不透明度”滑块，通过 CSS 作用域对原生弹窗（Modal）及设置面板（`[data-shortcut-modal="settings"]`）进行局部图层隔离。
+
+### Fixed
+
+- **面板 100% 实心模式下菜单与设置面板死锁全透明（CSS Cyclic Reference Deadlock）**:
+  - 修复宿主 `--dsw-specific-menu: var(--dsw-menu-surface-fill)` 与插件样式 `--dsw-menu-surface-fill: var(--dsw-specific-menu) !important` 在未发射 `--dsw-specific-menu` 实体值时形成的 CSS 变量死锁循环引用，提供静态实心 Hex 兜底发射，杜绝面板拉满时变全透明。
+- **侧边栏当前任务与选中态在面板 100% 时塌陷全透明**:
+  - 解决 DSH 宿主在侧边栏会话列表项（`.hIlkoa_sessionRow.hIlkoa_selected` 与 `._2H3hWW_panelRow._2H3hWW_panelActive`）使用 `--dsw-alias-interactive-bg-hover` 在实心模式下因未发射而回落至官方 6% 透明度导致“隐形”的缺陷；
+  - 在 `tokens.ts` 为交互悬停补充实心 Hex 兜底，并在侧边栏容器内精准映射到侧边栏导航 token（`--dsw-specific-sidebar-nav-item-active` / `-hover`），使当前任务正确归属侧边栏独立透明度控制。
+- **强调字浓度（`emphasisAlpha`）在面板 100% 时失效变色**:
+  - 将行内强调代码（`--dsw-alias-markdown-inline-code`）的生成移出 `surfaceAlpha < 1` 限制，使强调字浓度滑块在面板处于任何透明度下均持续独立生效。
+- **侧边栏滑块 0/100 离散跳跃缺陷**:
+  - 移除滑块拖动中对 `sidebarOpaque` 触发的竞态同步重置，恢复平滑连续滑动调节体验。
+
 ## [0.1.22] - 2026-10-11
 
 ### Fixed

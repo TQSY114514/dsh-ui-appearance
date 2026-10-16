@@ -187,4 +187,19 @@ describe('apply write path (localStorage)', () => {
     expect(storedSettings()?.backgroundVideo).toBe('')
     expect(del).not.toHaveBeenCalled()
   })
+
+  it('setting sidebarAlpha keeps sidebarOpaque in sync and preserves intermediate values', () => {
+    const { store, face } = mount()
+    face.set('sidebarAlpha', 0.5)
+    expect(storedSettings()?.sidebarAlpha).toBe(0.5)
+    expect(storedSettings()?.sidebarOpaque).toBe(false)
+    expect(store.getSnapshot().settings.sidebarAlpha).toBe(0.5)
+    expect(store.getSnapshot().settings.sidebarOpaque).toBe(false)
+
+    face.set('sidebarAlpha', 1)
+    expect(storedSettings()?.sidebarAlpha).toBe(1)
+    expect(storedSettings()?.sidebarOpaque).toBe(true)
+    expect(store.getSnapshot().settings.sidebarAlpha).toBe(1)
+    expect(store.getSnapshot().settings.sidebarOpaque).toBe(true)
+  })
 })

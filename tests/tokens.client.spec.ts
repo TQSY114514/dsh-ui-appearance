@@ -226,7 +226,7 @@ describe('buildTokenOverrides', () => {
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
-    const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.6 }))
+    const tokens = buildTokenOverrides(full({ background: '#101418', surfaceAlpha: 0.6, sidebarAlpha: 0.6 }))
     const base = tokens['--dsw-alias-bg-base']!
     // A role color is baked as plain rgba per mode.
     expect(base.light).toBe('rgba(16, 20, 24, 0.6)')
@@ -249,8 +249,35 @@ describe('buildTokenOverrides', () => {
         expect(value.light).toBe('rgba(249, 250, 251, 1)')
         continue
       }
+      if (name.startsWith('--dsw-alias-markdown-inline-code')) {
+        expect(value.light).toBe('rgba(65, 118, 230, 0.22)')
+        continue
+      }
       expect(value.light).not.toContain('rgba(')
     }
+  })
+
+  it('emits solid menu tokens at full opacity so cyclic fallback is prevented', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1 }))
+    expect(tokens['--dsw-specific-menu']).toEqual({ light: '#ffffff', dark: '#353638' })
+    expect(tokens['--dsw-menu-surface-fill']).toEqual({ light: '#ffffff', dark: '#353638' })
+  })
+
+  it('emits solid interactive hover tokens at full opacity (AGENTS.md hover mechanism)', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1 }))
+    expect(tokens['--dsw-alias-interactive-bg-hover']).toEqual({ light: '#f1f3f5', dark: '#353638' })
+    expect(tokens['--dsw-alias-interactive-bg-hover-solid']).toEqual({ light: '#f1f3f5', dark: '#353638' })
+  })
+
+  it('custom panel color drives solid menu tokens at full opacity', () => {
+    const tokens = buildTokenOverrides(full({
+      surfaceAlpha: 1,
+      panel: '#f0e0d0',
+      light: { accent: '', background: '', panel: '#f0e0d0', input: '', text: '', border: '', preset: '', invert: {} },
+    }))
+    expect(tokens['--dsw-specific-menu']?.light).not.toBe('#ffffff')
+    expect(tokens['--dsw-menu-surface-fill']?.light).toBe(tokens['--dsw-specific-menu']?.light)
+    expect(tokens['--dsw-specific-menu']?.light).not.toContain('rgba(')
   })
 
   it('translucency with every role color empty falls back to the stock palette', () => {
@@ -350,23 +377,37 @@ describe('buildTokenOverrides', () => {
   })
 
   it('independent knobs survive a fully opaque panel (regression: 100% panel reset the input)', () => {
-    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 0.8, codeAlpha: 0.5 }))
-    // The panel at 100% must not disable the independent input/code baking.
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 0.8, codeAlpha: 0.5, emphasisAlpha: 0.4 }))
+    // The panel at 100% must not disable the independent input/code/emphasis baking.
     expect(tokens['--dsw-specific-input-major']!.light).toBe('rgba(255, 255, 255, 0.8)')
     expect(tokens['--dsw-alias-markdown-code-block']!.light).toBe('rgba(249, 250, 251, 0.5)')
+    expect(tokens['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.4)')
   })
 
   it('the sidebar can opt out of the surface translucency', () => {
-    const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
+    const translucent = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarAlpha: 0.5 }))
     expect(translucent['--dsw-specific-sidebar-fill']).toBeDefined()
-    const opaque = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarOpaque: true }))
+    const opaque = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarAlpha: 1, sidebarOpaque: true }))
     expect(opaque['--dsw-specific-sidebar-fill']).toBeUndefined()
     // Everything else still follows.
     expect(opaque['--dsw-alias-bg-base']).toBeDefined()
   })
 
+  it('sidebar opacity is independent of surface opacity', () => {
+    // Transparent sidebar (0%) with opaque surfaces (100%) - Issue #37
+    const transparentSidebar = buildTokenOverrides(full({ surfaceAlpha: 1, sidebarAlpha: 0 }))
+    expect(transparentSidebar['--dsw-specific-sidebar-fill']!.light).toBe('rgba(249, 250, 251, 0)')
+    expect(transparentSidebar['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0)')
+
+    // Opaque sidebar (100%) with translucent surfaces (50%)
+    const opaqueSidebar = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarAlpha: 1 }))
+    expect(opaqueSidebar['--dsw-specific-sidebar-fill']).toBeUndefined()
+    expect(opaqueSidebar['--dsw-specific-sidebar-nav-item-active']).toBeUndefined()
+    expect(opaqueSidebar['--dsw-alias-bg-layer-1']).toBeDefined()
+  })
+
   it('settings surfaces (selected nav tab, menus) follow the translucency too', () => {
-    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5 }))
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.5, sidebarAlpha: 0.5 }))
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(235, 238, 242, 0.5)')
     expect(tokens['--dsw-specific-sidebar-nav-item-hover']!.light).toBe('rgba(241, 243, 245, 0.5)')
     expect(tokens['--dsw-specific-menu']).toBeDefined()
@@ -420,7 +461,7 @@ describe('buildTokenOverrides', () => {
   })
 
   it('translucent neutral controls bake the panel-derived fills', () => {
-    const tokens = buildTokenOverrides(full({ panel: '#9a2323', surfaceAlpha: 0.6 }))
+    const tokens = buildTokenOverrides(full({ panel: '#9a2323', surfaceAlpha: 0.6, sidebarAlpha: 0.6 }))
     expect(tokens['--dsw-alias-button-elevated-fill']!.light).toBe('rgba(160, 48, 48, 0.6)')
     expect(tokens['--dsw-specific-sidebar-nav-item-active']!.light).toBe('rgba(141, 34, 34, 0.6)')
     // The hover bakes at the surface alpha; the "+" trigger rides the input

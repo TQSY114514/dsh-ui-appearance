@@ -71,8 +71,29 @@ describe('AppearanceApplier', () => {
     // …and amplifies the host modal masks so covered content frosts too.
     expect(body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(8px)')
     expect(body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('0.4')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-light')).toBe('#ffffff')
     applier.dispose()
     expect(remove).toHaveBeenCalled()
+  })
+
+  it('writes modal variables for dialogs and settings panels and cleans them up on dispose', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    // Default modalAlpha is 1 (fully opaque hex for readability - Issue #37)
+    applier.apply(full({ modalAlpha: 1 }))
+    const body = document.body
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-light')).toBe('#ffffff')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('#2c2c2e')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-nav-active-light')).toBe('#ebeef2')
+
+    // modalAlpha below 1 bakes translucent rgba
+    applier.apply(full({ modalAlpha: 0.8 }))
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-light')).toBe('rgba(255, 255, 255, 0.8)')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('rgba(44, 44, 46, 0.8)')
+
+    applier.dispose()
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-light')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('')
   })
 
   it('arms the bubble-ink gate per mode and retracts it when inversion is off', () => {
@@ -305,6 +326,16 @@ describe('AppearanceApplier', () => {
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
     expect(css).toContain('[data-menu-material]')
     expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-specific-menu) !important')
+    applier.dispose()
+  })
+
+  it('remaps interactive hover inside sidebar to sidebar nav active/hover tokens', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain(':is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i])')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-active)')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover)')
     applier.dispose()
   })
 

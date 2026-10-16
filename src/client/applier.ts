@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
 import { buildTokenOverrides, bubbleInk, OVERRIDE_SOURCE } from './tokens.ts'
+import { mixHex, withAlpha } from './color.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
 
@@ -29,6 +30,20 @@ const BODY_VARIABLES = [
   '--dsw-appearance-scrim',
   '--dsw-appearance-bubble-ink-light',
   '--dsw-appearance-bubble-ink-dark',
+  '--dsw-appearance-modal-l1-light',
+  '--dsw-appearance-modal-l1-dark',
+  '--dsw-appearance-modal-l2-light',
+  '--dsw-appearance-modal-l2-dark',
+  '--dsw-appearance-modal-l3-light',
+  '--dsw-appearance-modal-l3-dark',
+  '--dsw-appearance-modal-overlay-light',
+  '--dsw-appearance-modal-overlay-dark',
+  '--dsw-appearance-modal-mod-light',
+  '--dsw-appearance-modal-mod-dark',
+  '--dsw-appearance-modal-nav-active-light',
+  '--dsw-appearance-modal-nav-active-dark',
+  '--dsw-appearance-modal-nav-hover-light',
+  '--dsw-appearance-modal-nav-hover-dark',
 ] as const
 
 /**
@@ -240,6 +255,63 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
 :is(#root, body) [class*="menu" i] {
   --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
 }
+/* Modals & Settings Dialog (Issue #37: independent modalAlpha):
+   Settings panel (.wCInkW_panel / [data-shortcut-modal="settings"]) and native
+   modals (Modal.module.css .dialog / [role="dialog"]) use --dsw-alias-bg-layer-2.
+   When surfaceAlpha is 0%, baking bg-layer-2 globally turns the settings dialog
+   100% transparent and unreadable over wallpaper and chat text.
+   Scope modal layer tokens and active navigation tabs to modalAlpha values.
+   Excludes backdrop masks / overlays (.overlay, .mask) so the dimming mask stays untouched. */
+:is(#root, body) :is(
+  [role="dialog"],
+  [aria-modal="true"],
+  [class*="_dialog"],
+  [class*="dialog" i],
+  [data-shortcut-modal="settings"],
+  [data-shortcut-modal="settings"] [class*="_panel"],
+  [data-shortcut-modal="settings"] [class*="panel" i]
+):not([class*="overlay" i]):not([class*="mask" i]) {
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-modal-l1-light);
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-modal-l2-light);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-modal-l3-light);
+  --dsw-alias-bg-overlay: var(--dsw-appearance-modal-overlay-light);
+  --dsw-alias-bg-module-platform: var(--dsw-appearance-modal-mod-light);
+  --dsw-specific-sidebar-nav-item-active: var(--dsw-appearance-modal-nav-active-light);
+  --dsw-specific-sidebar-nav-item-hover: var(--dsw-appearance-modal-nav-hover-light);
+  background: var(--dsw-appearance-modal-l2-light) !important;
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(
+  [role="dialog"],
+  [aria-modal="true"],
+  [class*="_dialog"],
+  [class*="dialog" i],
+  [data-shortcut-modal="settings"],
+  [data-shortcut-modal="settings"] [class*="_panel"],
+  [data-shortcut-modal="settings"] [class*="panel" i]
+):not([class*="overlay" i]):not([class*="mask" i]) {
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-modal-l1-dark);
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-modal-l2-dark);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-modal-l3-dark);
+  --dsw-alias-bg-overlay: var(--dsw-appearance-modal-overlay-dark);
+  --dsw-alias-bg-module-platform: var(--dsw-appearance-modal-mod-dark);
+  --dsw-specific-sidebar-nav-item-active: var(--dsw-appearance-modal-nav-active-dark);
+  --dsw-specific-sidebar-nav-item-hover: var(--dsw-appearance-modal-nav-hover-dark);
+  background: var(--dsw-appearance-modal-l2-dark) !important;
+}
+/* Sidebar session row & navigation active/hover states:
+   DSH styles .hIlkoa_sessionRow.hIlkoa_selected and ._2H3hWW_panelRow._2H3hWW_panelActive
+   with "background: var(--dsw-alias-interactive-bg-hover)".
+   In the sidebar column (.BynINW_sidebarCol / [class*="sidebarCol" i]), map
+   --dsw-alias-interactive-bg-hover to --dsw-specific-sidebar-nav-item-active for selected
+   items, and --dsw-specific-sidebar-nav-item-hover for hover states.
+   This guarantees the sidebar current task properly follows sidebarAlpha and panel colors,
+   and never collapses to transparent or falls back to host's 6% opacity! */
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) {
+  --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-active);
+}
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class*="_sessionRow"], [class*="sessionRow" i], [class*="_panelRow"], [class*="panelRow" i], button):hover:not(:is([class*="_selected"], [class*="selected" i], [class*="_panelActive"], [class*="panelActive" i])) {
+  --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover);
+}
 `
 
 /**
@@ -333,6 +405,50 @@ export class AppearanceApplier {
       value.glassBlur > 0 ? `blur(${value.glassBlur}px) saturate(150%)` : 'none',
     )
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
+
+    // Modals & Settings Dialog (Issue #37: independent modalAlpha):
+    const modalAlpha = typeof value.modalAlpha === 'number' ? value.modalAlpha : 1
+    const panelLight = value.light?.panel || value.panel || ''
+    const panelDark = value.dark?.panel || value.dark?.background || value.panel || ''
+
+    const isFlip = (value.backgroundImage !== '' || value.backgroundVideo !== '') && value.imageDark
+
+    const baseL1Light = panelLight !== '' ? panelLight : (isFlip ? '#242426' : '#ffffff')
+    const baseL2Light = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.08) : (isFlip ? '#343437' : '#ffffff')
+    const baseL3Light = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.14) : (isFlip ? '#434347' : '#ffffff')
+    const baseOvLight = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.1) : (isFlip ? '#6e6e73' : '#e9ecf2')
+    const baseModLight = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.06) : (isFlip ? '#434347' : '#f5f6f7')
+    const baseNavActiveLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.10) : (isFlip ? 'rgb(67, 69, 74)' : '#ebeef2')
+    const baseNavHoverLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.05) : (isFlip ? 'rgb(53, 54, 56)' : '#f1f3f5')
+
+    const baseL1Dark = panelDark !== '' ? panelDark : '#232324'
+    const baseL2Dark = panelDark !== '' ? mixHex(panelDark, '#151517', 0.08) : '#2c2c2e'
+    const baseL3Dark = panelDark !== '' ? mixHex(panelDark, '#151517', 0.14) : '#353638'
+    const baseOvDark = panelDark !== '' ? mixHex(panelDark, '#151517', 0.1) : '#61666b'
+    const baseModDark = panelDark !== '' ? mixHex(panelDark, '#151517', 0.06) : '#353638'
+    const baseNavActiveDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.10) : '#43454a'
+    const baseNavHoverDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.05) : '#2c2c2e'
+
+    const bakeModal = (hexOrRgb: string, alpha: number): string => {
+      if (alpha >= 1) return hexOrRgb
+      return withAlpha(hexOrRgb, alpha)
+    }
+
+    body.style.setProperty('--dsw-appearance-modal-l1-light', bakeModal(baseL1Light, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-l1-dark', bakeModal(baseL1Dark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-l2-light', bakeModal(baseL2Light, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-l2-dark', bakeModal(baseL2Dark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-l3-light', bakeModal(baseL3Light, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-l3-dark', bakeModal(baseL3Dark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-overlay-light', bakeModal(baseOvLight, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-overlay-dark', bakeModal(baseOvDark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-mod-light', bakeModal(baseModLight, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-mod-dark', bakeModal(baseModDark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-nav-active-light', bakeModal(baseNavActiveLight, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-nav-active-dark', bakeModal(baseNavActiveDark, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-nav-hover-light', bakeModal(baseNavHoverLight, modalAlpha))
+    body.style.setProperty('--dsw-appearance-modal-nav-hover-dark', bakeModal(baseNavHoverDark, modalAlpha))
+
     // Accent auto-inversion: scope the bubble text token to a contrast ink.
     // The stylesheet rules only match while the per-mode gate attribute is
     // present, so a null ink (toggle off) retracts the override entirely.

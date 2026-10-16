@@ -64,6 +64,8 @@ const COPY: Record<string, string> = {
   'background.scrimHint': 'Raise the scrim to keep text readable',
   'surface.title': 'Interface',
   'surface.opacity': 'Panel opacity',
+  'surface.sidebarOpacity': 'Sidebar opacity',
+  'surface.modalOpacity': 'Settings & modal opacity',
   'surface.glass': 'Glass blur',
   'surface.hint': 'Lower panel opacity',
   'scheme.title': 'Color scheme',
@@ -218,6 +220,10 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('backgroundBlur', 10)
     fireEvent.change(sliders[2]!, { target: { value: '0.4' } })
     expect(b.set).toHaveBeenCalledWith('scrim', 0.4)
+    fireEvent.change(sliders[4]!, { target: { value: '0.7' } })
+    expect(b.set).toHaveBeenCalledWith('sidebarAlpha', 0.7)
+    fireEvent.change(sliders[5]!, { target: { value: '0.85' } })
+    expect(b.set).toHaveBeenCalledWith('modalAlpha', 0.85)
   })
 
   it('shows the preview and remove action once an image is set', () => {

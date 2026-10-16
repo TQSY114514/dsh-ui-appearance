@@ -224,6 +224,12 @@ export function apply(ctx: ClientContext): void {
       const presetId = typeof value === 'string' ? value : ''
       patch.light = { ...patch.light, preset: presetId }
       patch.dark = { ...patch.dark, preset: presetId }
+    } else if (field === 'sidebarAlpha') {
+      const alpha = typeof value === 'number' ? value : 1
+      patch.sidebarOpaque = alpha === 1
+    } else if (field === 'sidebarOpaque') {
+      const opaque = !!value
+      patch.sidebarAlpha = opaque ? 1 : patch.surfaceAlpha
     }
     current = patch
     commit()

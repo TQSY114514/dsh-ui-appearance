@@ -113,11 +113,15 @@ export interface AppearanceSettings extends AppearanceColors {
   scrim: number
   /** UI surface opacity, 0..1 (1 = fully opaque surfaces). */
   surfaceAlpha: number
+  /** Sidebar opacity, 0..1; 1 = fully opaque sidebar. */
+  sidebarAlpha: number
+  /** Modal dialog & settings panel opacity, 0..1; 1 = fully opaque modals. */
+  modalAlpha: number
   /** Composer input opacity, 0..1; 1 = follow surfaceAlpha. */
   inputAlpha: number
   /** Code block / inline code opacity, 0..1; 1 = follow surfaceAlpha. */
   codeAlpha: number
-  /** Keep the sidebar fill opaque even when surfaceAlpha is below 1. */
+  /** Keep the sidebar fill opaque even when surfaceAlpha is below 1 (legacy mirror: sidebarAlpha === 1). */
   sidebarOpaque: boolean
   /** Glass blur in px added to the wallpaper blur, 0..20 (0 = no extra blur). */
   glassBlur: number
@@ -147,9 +151,11 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   backgroundBlur: 0,
   scrim: 0,
   surfaceAlpha: 1,
+  sidebarAlpha: 1,
+  modalAlpha: 1,
   inputAlpha: 1,
   codeAlpha: 1,
-  sidebarOpaque: false,
+  sidebarOpaque: true,
   glassBlur: 0,
   emphasisAlpha: 0.22,
 }
@@ -160,6 +166,8 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
   backgroundBlur: { min: 0, max: BACKGROUND_BLUR_MAX },
   scrim: { min: 0, max: 1 },
   surfaceAlpha: { min: 0, max: 1 },
+  sidebarAlpha: { min: 0, max: 1 },
+  modalAlpha: { min: 0, max: 1 },
   inputAlpha: { min: 0, max: 1 },
   codeAlpha: { min: 0, max: 1 },
   glassBlur: { min: 0, max: GLASS_BLUR_MAX },
@@ -312,5 +320,28 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
     else if (value === 0) result[field] = false
     else if (value === 1) result[field] = true
   }
+
+  // Reconciliation for sidebarAlpha and sidebarOpaque (backward compatibility):
+  if (typeof source.sidebarAlpha === 'number' && Number.isFinite(source.sidebarAlpha)) {
+    result.sidebarAlpha = Math.min(1, Math.max(0, source.sidebarAlpha))
+    result.sidebarOpaque = result.sidebarAlpha === 1
+  } else if (source.sidebarOpaque === true) {
+    result.sidebarAlpha = 1
+    result.sidebarOpaque = true
+  } else if (source.sidebarOpaque === false && typeof source.surfaceAlpha === 'number') {
+    result.sidebarAlpha = Math.min(1, Math.max(0, source.surfaceAlpha))
+    result.sidebarOpaque = result.sidebarAlpha === 1
+  } else {
+    result.sidebarAlpha = 1
+    result.sidebarOpaque = true
+  }
+
+  // Reconciliation for modalAlpha (defaults to 1 for readability):
+  if (typeof source.modalAlpha === 'number' && Number.isFinite(source.modalAlpha)) {
+    result.modalAlpha = Math.min(1, Math.max(0, source.modalAlpha))
+  } else {
+    result.modalAlpha = 1
+  }
+
   return result
 }

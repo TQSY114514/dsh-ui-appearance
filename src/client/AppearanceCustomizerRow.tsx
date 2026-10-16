@@ -751,6 +751,26 @@ export function AppearanceCustomizerRow({
               onChange={value => { set('surfaceAlpha', value) }}
             />
             <Slider
+              label={t('surface.sidebarOpacity')}
+              value={settings.sidebarAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => {
+                set('sidebarAlpha', value)
+              }}
+            />
+            <Slider
+              label={t('surface.modalOpacity')}
+              value={settings.modalAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('modalAlpha', value) }}
+            />
+            <Slider
               label={t('surface.inputOpacity')}
               value={settings.inputAlpha}
               min={0}
@@ -777,15 +797,6 @@ export function AppearanceCustomizerRow({
               format={value => `${Math.round(value * 100)}%`}
               onChange={value => { set('emphasisAlpha', value) }}
             />
-            <label className={css.checkRow}>
-              <input
-                type="checkbox"
-                className={css.checkbox}
-                checked={settings.sidebarOpaque}
-                onChange={event => { set('sidebarOpaque', event.target.checked) }}
-              />
-              <span className={css.sliderLabel}>{t('surface.sidebar')}</span>
-            </label>
             <Slider
               label={t('surface.glass')}
               value={settings.glassBlur}

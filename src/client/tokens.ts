@@ -193,8 +193,12 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   const {
     backgroundImage, backgroundVideo, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
-    sidebarOpaque, emphasisAlpha,
+    sidebarAlpha, sidebarOpaque, emphasisAlpha,
   } = settings
+
+  const effectiveSidebarAlpha = typeof sidebarAlpha === 'number'
+    ? sidebarAlpha
+    : (sidebarOpaque ? 1 : surfaceAlpha)
 
   // The wallpaper and the background video share one layer (#dsw-appearance-bg,
   // `position: fixed; z-index: -1`), so both need the frame's own background
@@ -287,6 +291,14 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     const bubHlL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.12) : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble-highlight'].light
     const bubHlD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.12) : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble-highlight'].dark
     emit('--dsw-specific-bubble-highlight', bubHlL, bubHlD)
+
+    const menuL = l3l
+    const menuD = l3d
+    emit('--dsw-specific-menu', menuL, menuD)
+    emit('--dsw-menu-surface-fill', menuL, menuD)
+    emit('--dsw-alias-fill-l1', modl, modd)
+    emit('--dsw-alias-fill-l2', modl, modd)
+    emit('--dsw-specific-tip', modl, modd)
   }
 
   const input = getRole('input')
@@ -562,6 +574,25 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     }
   }
 
+  // Ensure menu tokens always carry concrete static hex values so the host's
+  // --dsw-specific-menu: var(--dsw-menu-surface-fill) definition never forms a
+  // cyclic reference with applier.ts's --dsw-menu-surface-fill: var(--dsw-specific-menu) !important
+  // when surfaceAlpha is 1 (100% opaque mode, preventing deadlock & transparent collapse).
+  if (!tokens['--dsw-specific-menu']) {
+    emit(
+      '--dsw-specific-menu',
+      DEFAULT_SURFACE_COLORS['--dsw-specific-menu'].light,
+      DEFAULT_SURFACE_COLORS['--dsw-specific-menu'].dark,
+    )
+  }
+  if (!tokens['--dsw-menu-surface-fill']) {
+    emit(
+      '--dsw-menu-surface-fill',
+      DEFAULT_SURFACE_COLORS['--dsw-menu-surface-fill'].light,
+      DEFAULT_SURFACE_COLORS['--dsw-menu-surface-fill'].dark,
+    )
+  }
+
   const bakeAlpha = (
     token: string,
     explicitLight: string | undefined,
@@ -595,6 +626,37 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, flipSidebar[0], flipSidebar[1], codeAlpha)
   bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, flipLayer2[0], flipLayer2[1], codeAlpha)
 
+  const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
+  const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'
+  emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBaseL, emphasisAlpha), withAlpha(inlineCodeBaseD, emphasisAlpha))
+
+  if (effectiveSidebarAlpha < 1) {
+    bakeAlpha(
+      '--dsw-specific-sidebar-fill',
+      panel.light || undefined,
+      panel.dark || undefined,
+      flipSidebar[0],
+      flipSidebar[1],
+      effectiveSidebarAlpha,
+    )
+    bakeAlpha(
+      '--dsw-specific-sidebar-nav-item-active',
+      controlNavActive?.[0],
+      controlNavActive?.[1],
+      flipButtonElevated[0],
+      flipButtonElevated[1],
+      effectiveSidebarAlpha,
+    )
+    bakeAlpha(
+      '--dsw-specific-sidebar-nav-item-hover',
+      controlNavHover?.[0],
+      controlNavHover?.[1],
+      flipButtonFloatingHover[0],
+      flipButtonFloatingHover[1],
+      effectiveSidebarAlpha,
+    )
+  }
+
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
     const translucent = (
@@ -620,16 +682,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-bg-overlay', undefined, undefined, flipOverlay[0], flipOverlay[1])
     translucent('--dsw-alias-bg-module-platform', undefined, undefined, flipMod[0], flipMod[1])
     translucent('--dsw-alias-bg-multi-select', undefined, undefined, flipLayer2[0], flipLayer2[1])
-
-    if (!sidebarOpaque) {
-      translucent(
-        '--dsw-specific-sidebar-fill',
-        panel.light || undefined,
-        panel.dark || undefined,
-        flipSidebar[0],
-        flipSidebar[1],
-      )
-    }
 
     translucent(
       '--dsw-specific-bubble',
@@ -659,8 +711,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
     bakeControlTranslucent('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
     bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
-    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-active', controlNavActive, flipButtonElevated)
-    bakeControlTranslucent('--dsw-specific-sidebar-nav-item-hover', controlNavHover, flipButtonFloatingHover)
     translucent('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1])
     translucent('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1])
     translucent('--dsw-alias-fill-l1', undefined, undefined, flipMod[0], flipMod[1])
@@ -668,10 +718,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
-
-    const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
-    const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'
-    emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBaseL, emphasisAlpha), withAlpha(inlineCodeBaseD, emphasisAlpha))
   }
 
   if (surfaceAlpha < 1 || inputAlpha < 1) {
@@ -698,6 +744,19 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     } else {
       bakeAlpha('--dsw-specific-selector', undefined, undefined, undefined, undefined, inputAlpha)
     }
+  }
+
+  // In opaque mode (surfaceAlpha === 1), interactive hover and solid hover tokens
+  // must emit concrete static hex values (AGENTS.md hover mechanism) rather than
+  // falling back to host's stock 6% opacity (rgba(38, 49, 72, .06)), which looks
+  // completely transparent to users when transitioning from translucent to opaque.
+  const hoverL = controlButtonHover?.[0] ?? flipButtonFloatingHover[0] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-hover'].light
+  const hoverD = controlButtonHover?.[1] ?? flipButtonFloatingHover[1] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-hover'].dark
+  if (!tokens['--dsw-alias-interactive-bg-hover']) {
+    emit('--dsw-alias-interactive-bg-hover', hoverL, hoverD)
+  }
+  if (!tokens['--dsw-alias-interactive-bg-hover-solid']) {
+    emit('--dsw-alias-interactive-bg-hover-solid', hoverL, hoverD)
   }
 
   return tokens
