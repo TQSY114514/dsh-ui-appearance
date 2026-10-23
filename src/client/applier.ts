@@ -262,7 +262,10 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
    100% transparent and unreadable over wallpaper and chat text.
    Scope modal layer tokens and active navigation tabs to modalAlpha values.
    Excludes backdrop masks / overlays (.overlay, .mask) so the dimming mask stays untouched. */
-:is(#root, body) :is(
+/* Keep ancestor scoping specificity-free: :is(#root, body) contributes an
+   ID even for body-level portals, preventing the dark-mode rule below from
+   overriding the light modal background and tokens. */
+:where(#root, body) :is(
   [role="dialog"],
   [aria-modal="true"],
   [class*="_dialog"],
