@@ -27,6 +27,7 @@ const BODY_VARIABLES = [
   '--dsw-appearance-bg-base-light',
   '--dsw-appearance-bg-base-dark',
   '--dsw-appearance-blur',
+  '--dsw-appearance-glass-filter',
   '--dsw-appearance-scrim',
   '--dsw-appearance-bubble-ink-light',
   '--dsw-appearance-bubble-ink-dark',
@@ -281,6 +282,8 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-specific-sidebar-nav-item-active: var(--dsw-appearance-modal-nav-active-light);
   --dsw-specific-sidebar-nav-item-hover: var(--dsw-appearance-modal-nav-hover-light);
   background: var(--dsw-appearance-modal-l2-light) !important;
+  backdrop-filter: var(--dsw-appearance-glass-filter, none);
+  -webkit-backdrop-filter: var(--dsw-appearance-glass-filter, none);
 }
 :is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(
   [role="dialog"],
@@ -298,19 +301,47 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-specific-sidebar-nav-item-hover: var(--dsw-appearance-modal-nav-hover-dark);
   background: var(--dsw-appearance-modal-l2-dark) !important;
 }
-/* Sidebar session row & navigation active/hover states:
+/* Sidebar session row & navigation active/hover states + localized frosted glass:
    DSH styles .hIlkoa_sessionRow.hIlkoa_selected and ._2H3hWW_panelRow._2H3hWW_panelActive
    with "background: var(--dsw-alias-interactive-bg-hover)".
    In the sidebar column (.BynINW_sidebarCol / [class*="sidebarCol" i]), map
    --dsw-alias-interactive-bg-hover to --dsw-specific-sidebar-nav-item-active for selected
    items, and --dsw-specific-sidebar-nav-item-hover for hover states.
-   This guarantees the sidebar current task properly follows sidebarAlpha and panel colors,
-   and never collapses to transparent or falls back to host's 6% opacity! */
+   For glassBlur, apply backdrop-filter on sidebarCol::before (never on sidebarCol or
+   SidebarRoot directly, which would create a fixed-position containing block and trap
+   Windows desktop titlebar toggle buttons) and punch out SidebarRoot's duplicate
+   sidebar-fill background so sidebarAlpha stays single-layer. */
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) {
+  position: relative;
   --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-active);
+}
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  backdrop-filter: var(--dsw-appearance-glass-filter, none);
+  -webkit-backdrop-filter: var(--dsw-appearance-glass-filter, none);
+}
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > * {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
 }
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class*="_sessionRow"], [class*="sessionRow" i], [class*="_panelRow"], [class*="panelRow" i], button):hover:not(:is([class*="_selected"], [class*="selected" i], [class*="_panelActive"], [class*="panelActive" i])) {
   --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover);
+}
+/* Component-level frosted glass (composer input card, attachment cards, user bubbles,
+   and code blocks): glassBlur frosts only UI surfaces and never the background layer. */
+:where(#root, body) :is(
+  [class*="_card"]:has([class*="_input"]),
+  [class*="_fileCard"],
+  [class*="_bubble"],
+  [data-code-block]
+) {
+  backdrop-filter: var(--dsw-appearance-glass-filter, none);
+  -webkit-backdrop-filter: var(--dsw-appearance-glass-filter, none);
 }
 `
 
@@ -396,25 +427,22 @@ export class AppearanceApplier {
     const bgDark = resolvedBg.dark || '#151517'
     body.style.setProperty('--dsw-appearance-bg-base-light', bgLight)
     body.style.setProperty('--dsw-appearance-bg-base-dark', bgDark)
-    // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
-    // slider deepens the blur of the wallpaper that the translucent surfaces
-    // reveal. The panels themselves are never touched.
+    // 背景模糊 exclusively drives the wallpaper/video layer (#dsw-appearance-bg).
+    // 毛玻璃 (glassBlur) is strictly decoupled so it frosts only UI components
+    // (sidebar, input box, settings/modals, menus, bubbles) without blurring the
+    // exposed background canvas.
     body.style.setProperty(
       '--dsw-appearance-blur',
-      `${value.backgroundBlur + value.glassBlur}px`,
+      `${value.backgroundBlur}px`,
     )
-    // 毛玻璃 also drives the host's modal masks and dropdown menu backdrop filters:
-    // dialogs/dropdowns dim the page through `.mask` elements whose backdrop-filter
-    // is `var(--dsw-mask-blur)` (stock: blur(2px)), and MenuSurface / JobListAction blur
-    // underlying content through `var(--dsw-menu-backdrop-filter)` (stock: blur(40px)).
-    // Writing both tokens on body wins over the host's stylesheet definitions (body is
-    // the closer ancestor), so all popovers and masks frost synchronously with the slider.
-    // 0 means blur(0px) / none (fully clear), NOT the stock fallbacks.
-    body.style.setProperty('--dsw-mask-blur', `blur(${value.glassBlur}px)`)
-    body.style.setProperty(
-      '--dsw-menu-backdrop-filter',
-      value.glassBlur > 0 ? `blur(${value.glassBlur}px) saturate(150%)` : 'none',
-    )
+    const glassFilter = value.glassBlur > 0 ? `blur(${value.glassBlur}px) saturate(150%)` : 'none'
+    body.style.setProperty('--dsw-appearance-glass-filter', glassFilter)
+    // Keep the full-viewport modal mask clear (blur(0px)) so opening settings
+    // does not blur the exposed background canvas outside the dialog; the dialog
+    // panel itself (and dropdown menus via --dsw-menu-backdrop-filter) receives
+    // the frosted glass filter directly.
+    body.style.setProperty('--dsw-mask-blur', 'blur(0px)')
+    body.style.setProperty('--dsw-menu-backdrop-filter', glassFilter)
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
 
     // Modals & Settings Dialog (Issue #37: independent modalAlpha):

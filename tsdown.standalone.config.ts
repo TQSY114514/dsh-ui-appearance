@@ -147,13 +147,16 @@ const clientConfig: UserConfig = {
   clean: false,
   tsconfig: 'tsconfig.json',
   copy: [{ from: 'types/client.d.ts' }],
-  external: [...CLIENT_EXTERNALS],
+  deps: {
+    neverBundle: [...CLIENT_EXTERNALS],
+    alwaysBundle: (id: string) => !CLIENT_EXTERNALS.includes(id),
+    onlyBundle: ['clsx'],
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
     'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV ?? 'production'),
     'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),
   },
-  noExternal: (id: string) => (CLIENT_EXTERNALS.includes(id) ? undefined : true),
   plugins: [purityGate, cssModulesInline],
   outputOptions: {
     entryFileNames: 'client.js',

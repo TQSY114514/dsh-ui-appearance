@@ -66,10 +66,11 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-bg-opacity')).toBe('0.5')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('#ffffff')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('#151517')
-    // 毛玻璃 rides the same wallpaper-layer filter as 背景模糊 (summed).
-    expect(body.style.getPropertyValue('--dsw-appearance-blur')).toBe('20px')
-    // …and amplifies the host modal masks so covered content frosts too.
-    expect(body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(8px)')
+    // 背景模糊 controls only the background wallpaper/video layer; 毛玻璃 frosts UI components.
+    expect(body.style.getPropertyValue('--dsw-appearance-blur')).toBe('12px')
+    expect(body.style.getPropertyValue('--dsw-appearance-glass-filter')).toBe('blur(8px) saturate(150%)')
+    // Full-screen modal masks stay unblurred so 毛玻璃 only frosts the dialog card itself.
+    expect(body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
     expect(body.style.getPropertyValue('--dsw-appearance-scrim')).toBe('0.4')
     expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-light')).toBe('#ffffff')
     applier.dispose()
@@ -236,19 +237,34 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('glass 0 writes blur(0px) (no stock fallback); dispose removes the token', () => {
+  it('decouples glassBlur (component frosting) from backgroundBlur and full-screen modal mask; dispose removes tokens', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     applier.apply(full({ glassBlur: 20, backgroundBlur: 0 }))
-    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(20px)')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('0px')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-glass-filter')).toBe('blur(20px) saturate(150%)')
     expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('blur(20px) saturate(150%)')
-    applier.apply(full({ glassBlur: 0, backgroundBlur: 0 }))
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
+
+    applier.apply(full({ glassBlur: 0, backgroundBlur: 14 }))
+    expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('14px')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-glass-filter')).toBe('none')
     expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('none')
-    applier.apply(full({ glassBlur: 6, backgroundBlur: 0 }))
-    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(6px)')
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
+
+    applier.apply(full({ glassBlur: 6, backgroundBlur: 10 }))
+    expect(document.body.style.getPropertyValue('--dsw-appearance-blur')).toBe('10px')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-glass-filter')).toBe('blur(6px) saturate(150%)')
     expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('blur(6px) saturate(150%)')
+    expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('blur(0px)')
+
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('backdrop-filter: var(--dsw-appearance-glass-filter, none)')
+    expect(css).toContain('::before')
+    expect(css).toContain('[class*="_card"]:has([class*="_input"])')
+
     applier.dispose()
+    expect(document.body.style.getPropertyValue('--dsw-appearance-glass-filter')).toBe('')
     expect(document.body.style.getPropertyValue('--dsw-mask-blur')).toBe('')
     expect(document.body.style.getPropertyValue('--dsw-menu-backdrop-filter')).toBe('')
   })
