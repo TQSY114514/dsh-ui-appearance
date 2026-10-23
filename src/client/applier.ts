@@ -196,15 +196,13 @@ body[data-dsw-sliding] * {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-body[data-dsw-bubble-ink-light] #root [class*="_bubble"],
-body[data-dsw-bubble-ink-light] #root [class*="bubble" i] {
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-light);
 }
-body[data-dsw-bubble-ink-light] #root [class*="_bubble"] a,
-body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) a {
   color: inherit;
   text-decoration: underline;
 }
@@ -264,15 +262,16 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
    Excludes backdrop masks / overlays (.overlay, .mask) so the dimming mask stays untouched. */
 /* Keep ancestor scoping specificity-free: :is(#root, body) contributes an
    ID even for body-level portals, preventing the dark-mode rule below from
-   overriding the light modal background and tokens. */
+   overriding the light modal background and tokens.
+   Only match modal/dialog root containers (never broad panel/dialog substring
+   selectors, which would match inner child elements like .schemePanel or
+   .dialogBody and double-paint translucent backgrounds). */
 :where(#root, body) :is(
   [role="dialog"],
   [aria-modal="true"],
-  [class*="_dialog"],
-  [class*="dialog" i],
   [data-shortcut-modal="settings"],
-  [data-shortcut-modal="settings"] [class*="_panel"],
-  [data-shortcut-modal="settings"] [class*="panel" i]
+  [class$="_dialog"],
+  [class*="_dialog "]
 ):not([class*="overlay" i]):not([class*="mask" i]) {
   --dsw-alias-bg-layer-1: var(--dsw-appearance-modal-l1-light);
   --dsw-alias-bg-layer-2: var(--dsw-appearance-modal-l2-light);
@@ -286,11 +285,9 @@ body[data-dsw-bubble-ink-light] #root [class*="bubble" i] a {
 :is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(
   [role="dialog"],
   [aria-modal="true"],
-  [class*="_dialog"],
-  [class*="dialog" i],
   [data-shortcut-modal="settings"],
-  [data-shortcut-modal="settings"] [class*="_panel"],
-  [data-shortcut-modal="settings"] [class*="panel" i]
+  [class$="_dialog"],
+  [class*="_dialog "]
 ):not([class*="overlay" i]):not([class*="mask" i]) {
   --dsw-alias-bg-layer-1: var(--dsw-appearance-modal-l1-dark);
   --dsw-alias-bg-layer-2: var(--dsw-appearance-modal-l2-dark);
@@ -383,9 +380,20 @@ export class AppearanceApplier {
     // a record key (or legacy inline data URL) and resolves asynchronously.
     void this.syncImage(value.backgroundImage)
     body.style.setProperty('--dsw-appearance-bg-opacity', String(value.backgroundOpacity))
+    const resolveRole = (role: 'background' | 'panel'): { light: string; dark: string } => {
+      const l = value.light?.[role] || ''
+      const d = value.dark?.[role] || ''
+      const hasPerModeConfig = l !== '' || d !== ''
+      const legacy = !hasPerModeConfig ? (value[role] || '') : ''
+      return {
+        light: l !== '' ? l : legacy,
+        dark: d !== '' ? d : legacy,
+      }
+    }
+    const resolvedBg = resolveRole('background')
     const defaultLightBase = value.imageDark ? '#151517' : '#ffffff'
-    const bgLight = value.light?.background || value.background || defaultLightBase
-    const bgDark = value.dark?.background || value.background || '#151517'
+    const bgLight = resolvedBg.light || defaultLightBase
+    const bgDark = resolvedBg.dark || '#151517'
     body.style.setProperty('--dsw-appearance-bg-base-light', bgLight)
     body.style.setProperty('--dsw-appearance-bg-base-dark', bgDark)
     // 背景模糊 and 毛玻璃 ride the same wallpaper-layer filter: dragging either
@@ -411,8 +419,9 @@ export class AppearanceApplier {
 
     // Modals & Settings Dialog (Issue #37: independent modalAlpha):
     const modalAlpha = typeof value.modalAlpha === 'number' ? value.modalAlpha : 1
-    const panelLight = value.light?.panel || value.panel || ''
-    const panelDark = value.dark?.panel || value.dark?.background || value.panel || ''
+    const resolvedPanel = resolveRole('panel')
+    const panelLight = resolvedPanel.light
+    const panelDark = resolvedPanel.dark
 
     const isFlip = (value.backgroundImage !== '' || value.backgroundVideo !== '') && value.imageDark
 

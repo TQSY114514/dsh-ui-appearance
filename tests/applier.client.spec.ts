@@ -96,6 +96,73 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('')
   })
 
+  it('isolates modal panel variables per mode without leaking light/legacy panel or dark.background (Issue #38)', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const body = document.body
+
+    // 1. Customizing light.panel (even with legacy `panel` populated) must NOT leak into dark modal variables
+    applier.apply(full({
+      panel: '#f4f1ea',
+      light: { ...DEFAULT_SETTINGS.light, panel: '#f4f1ea' },
+      dark: { ...DEFAULT_SETTINGS.dark, panel: '' },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l1-light')).toBe('#f4f1ea')
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('#2c2c2e')
+
+    // 2. Customizing dark.background without dark.panel must keep stock dark modal layer-2 (#2c2c2e)
+    applier.apply(full({
+      dark: { ...DEFAULT_SETTINGS.dark, background: '#0b0f19', panel: '' },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-modal-l2-dark')).toBe('#2c2c2e')
+
+    applier.dispose()
+  })
+
+  it('uses specificity-free :where(#root, body) for light modals and avoids matching child panel/dialog elements (Issue #38)', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+
+    // Light modal ancestor scope must use :where(#root, body) so dark mode wins
+    expect(css).toContain(':where(#root, body) :is(')
+    expect(css).not.toContain('[data-shortcut-modal="settings"] [class*="panel" i]')
+    expect(css).not.toContain('[class*="dialog" i]')
+
+    // Verify DOM matching: settings modal root matches, but inner .schemePanel or .dialogBody does not
+    const overlay = document.createElement('div')
+    overlay.className = 'VOzbGW_overlay'
+    const dialog = document.createElement('div')
+    dialog.setAttribute('data-shortcut-modal', 'settings')
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-modal', 'true')
+    dialog.className = 'VOzbGW_panel'
+    const innerSchemePanel = document.createElement('div')
+    innerSchemePanel.className = '_schemePanel_12345'
+    const innerDialogBody = document.createElement('div')
+    innerDialogBody.className = 'abc_dialogBody'
+    dialog.append(innerSchemePanel, innerDialogBody)
+    overlay.append(dialog)
+    document.body.append(overlay)
+
+    const modalSelector = ':where(#root, body) :is([role="dialog"], [aria-modal="true"], [data-shortcut-modal="settings"], [class$="_dialog"], [class*="_dialog "]):not([class*="overlay" i]):not([class*="mask" i])'
+    expect(dialog.matches(modalSelector)).toBe(true)
+    expect(overlay.matches(modalSelector)).toBe(false)
+    expect(innerSchemePanel.matches(modalSelector)).toBe(false)
+    expect(innerDialogBody.matches(modalSelector)).toBe(false)
+
+    overlay.remove()
+    applier.dispose()
+  })
+
+  it('gates light bubble-ink rule out of dark mode so disabling dark accent inversion never falls back to light ink', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"])')
+    applier.dispose()
+  })
+
   it('arms the bubble-ink gate per mode and retracts it when inversion is off', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
