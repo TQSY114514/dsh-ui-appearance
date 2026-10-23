@@ -2,6 +2,28 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.24] - 2026-10-24
+
+### Changed
+
+- **毛玻璃强度（`glassBlur`）与背景模糊（`backgroundBlur`）彻底解耦**:
+  - 背景模糊（`--dsw-appearance-blur`）现仅控制底层壁纸/视频画布，不再与毛玻璃强度叠加重复模糊；全屏弹窗遮罩（`--dsw-mask-blur`）固定为 `blur(0px)`，避免打开弹窗时整屏变糊；
+  - 新增组件级毛玻璃变量 `--dsw-appearance-glass-filter`，使毛玻璃仅对 UI 表面生效：侧边栏（通过 `[class*="_sidebarCol"]::before` 伪元素实现，避免捕获 Windows 桌面端 `position: fixed` 标题栏按钮并消除双层背景叠加）、底部输入框卡片、附件卡片、用户消息气泡、代码块、设置面板与原生弹窗、下拉菜单。
+
+### Fixed
+
+- **深色模式下设置弹窗显示为浅色白底（[#38](https://github.com/TQSY114514/dsh-ui-appearance/issues/38), [#39](https://github.com/TQSY114514/dsh-ui-appearance/pull/39)）**:
+  - 将浅色弹窗规则的祖先选择器由 `:is(#root, body)`（含 `#root` ID 特异性 `(1, x, 0)`，导致压过深色模式类/属性选择器）改为零特异性的 `:where(#root, body)`；
+  - 收敛弹窗选择器范围，移除过宽的 `[class*="dialog" i]` 与 `[data-shortcut-modal="settings"] [class*="panel" i]`，仅精确匹配弹窗根容器，防止误伤设置面板内部的 `.schemePanel` 等子卡片；
+  - 严格按深浅模式隔离 `panelLight` / `panelDark` 与 `bgLight` / `bgDark` 回退链，防止浅色面板色或深色背景色串入深色弹窗底色变量（`--dsw-appearance-modal-l2-dark`）；
+  - 为浅色气泡文字颜色规则补充 `:not([data-ds-dark-theme]):not([data-theme="dark"])` 门控，防止关闭深色强调色反转时意外回落到浅色气泡深色字。
+
+### Security
+
+- **依赖安全更新与构建零警告**:
+  - 升级 `vitest` 至 `^4.1.12`、开发依赖 `tsdown` (`0.23.1`) / `jsdom` (`30.1.3`) / `fake-indexeddb` (`6.2.6`)，并通过 `pnpm.overrides` 锁定 `vite` (`^8.2.4`) 与 `@vitest/mocker` (`^4.1.12`)，通过 `pnpm audit` 零漏洞审查；
+  - 迁移 `tsdown.standalone.config.ts` 中弃用的 `external` / `noExternal` 至 `deps` 配置项，消除构建警告。
+
 ## [0.1.23] - 2026-10-16
 
 ### Added
