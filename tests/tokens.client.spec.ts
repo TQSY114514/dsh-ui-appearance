@@ -477,6 +477,13 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
     expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(65, 118, 230, 0.3)')
     expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(245, 246, 247, 0.3)')
+    // Slash command and dropdown menus also become translucent when inputAlpha < 1 or glassBlur > 0
+    expect(tokens['--dsw-specific-menu']!.light).toBe('rgba(255, 255, 255, 0.3)')
+    expect(tokens['--dsw-menu-surface-fill']!.light).toBe('rgba(255, 255, 255, 0.3)')
+
+    const frostedMenus = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 1, glassBlur: 16 }))
+    expect(frostedMenus['--dsw-specific-menu']!.light).toBe('rgba(255, 255, 255, 0.68)')
+    expect(frostedMenus['--dsw-menu-surface-fill']!.dark).toBe('rgba(53, 54, 56, 0.68)')
   })
 
   it('a dark image (imageDark) flips the family from the dark base', () => {

@@ -711,13 +711,22 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
     bakeControlTranslucent('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
     bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
-    translucent('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1])
-    translucent('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1])
+    const menuAlpha = alpha > 0 ? alpha : (inputAlpha < 1 ? inputAlpha : (settings.glassBlur > 0 ? 0.68 : 0))
+    bakeAlpha('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
+    bakeAlpha('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
     translucent('--dsw-alias-fill-l1', undefined, undefined, flipMod[0], flipMod[1])
     translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
+  } else if (inputAlpha < 1 || settings.glassBlur > 0) {
+    // When surfaceAlpha is left at 100% but the user lowers inputAlpha or enables
+    // frosted glass (glassBlur > 0), menu surfaces (such as the '/' slash command
+    // menu and model dropdowns) must become translucent so their backdrop-filter
+    // blur is visible instead of being hidden behind a 100% opaque fill.
+    const menuAlpha = inputAlpha < 1 ? inputAlpha : 0.68
+    bakeAlpha('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
+    bakeAlpha('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
   }
 
   if (surfaceAlpha < 1 || inputAlpha < 1) {

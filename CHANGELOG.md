@@ -2,6 +2,20 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.25] - 2026-10-24
+
+### Fixed
+
+- **侧边栏毛玻璃模糊覆盖上方文字（Logo / 新会话 / 技能 / 插件 / 自动化）**:
+  - 宿主 `SlotOutlet` 在侧边栏外包裹了 `<div data-slot="sidebar" style="display: contents">`，由于 `display: contents` 不生成盒模型，原有的直接子选择器 `> *` 无法提升 `SidebarRoot`（`._2H3hWW_root`）及其内部顶部区域（`logoRow`、`panelList`）的绘制层级，导致其落入 `sidebarCol::before` 毛玻璃层下方；
+  - 新增 `> [data-slot] > *` 与 `> [data-slot] > * > *` 穿透选择器，确保侧边栏所有内容均位于毛玻璃伪元素之上且不产生双层半透明底色叠加。
+- **斜杠命令浮层（`/` 触发菜单与命令弹窗）毛玻璃失效**:
+  - 宿主将斜杠命令浮层 `[data-composer-overlay]` 作为子节点挂载在输入框容器 `[data-composer-card]` 内，并通过 `bottom: calc(100% + 4px)` 定位在输入框边界之外。此前直接在输入框卡片本体上设置 `backdrop-filter` 使其成为 CSS Backdrop Root，导致 Chromium 将超出边界的斜杠菜单 `backdrop-filter` 裁剪为 `0px`；
+  - 改为通过 `:is([data-composer-card], [class*="_card"]:has([class*="_input"]))::before` 伪元素承载输入框毛玻璃，解除 Backdrop Root 裁剪；
+  - 当面板不透明度为 `100%`（或 `0%`）而调低输入框不透明度 `inputAlpha` 或开启毛玻璃 `glassBlur > 0` 时，自动为菜单表面（`--dsw-specific-menu` / `--dsw-menu-surface-fill`）烘焙半透明底色，并穿透清理菜单分组头 `--dsw-alias-menu-group-header-fill` 与 macOS `._backing` 衬底，使斜杠菜单毛玻璃完整呈现。
+- **恢复设置面板与弹窗打开时的外围全屏磨砂遮罩（`--dsw-mask-blur`）**:
+  - 将弹窗遮罩模糊度重新接入毛玻璃滑块（`blur(${glassBlur}px)`），打开设置面板时保留外围全屏磨砂遮罩层次感，关闭设置面板后底层壁纸仍严格仅受「背景模糊」控制。
+
 ## [0.1.24] - 2026-10-24
 
 ### Changed

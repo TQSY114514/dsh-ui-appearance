@@ -245,14 +245,19 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --deliverable-fill: var(--dsw-alias-bg-module-platform) !important;
   --deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important;
 }
-/* Menu & popover surfaces (MenuSurface, jobs panel, permission presets, avatar menu):
+/* Menu & popover surfaces (MenuSurface, slash command menu, jobs panel, permission presets, avatar menu):
    DSH MenuSurface sets background: var(--dsw-menu-surface-fill) and
    backdrop-filter: var(--dsw-menu-backdrop-filter). Guarantee that menu surfaces
-   always evaluate to the user's translucent menu tokens and follow glassBlur. */
+   always evaluate to the user's translucent menu tokens and follow glassBlur,
+   and clear the macOS opaque ._backing layer so chat/wallpaper shows through. */
 [data-menu-material],
 :is(#root, body) [data-menu-material],
 :is(#root, body) [class*="menu" i] {
   --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
+  --dsw-alias-menu-group-header-fill: transparent !important;
+}
+:where(#root, body) [data-menu-material] > [class*="_backing"] {
+  background: transparent !important;
 }
 /* Modals & Settings Dialog (Issue #37: independent modalAlpha):
    Settings panel (.wCInkW_panel / [data-shortcut-modal="settings"]) and native
@@ -324,18 +329,47 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   backdrop-filter: var(--dsw-appearance-glass-filter, none);
   -webkit-backdrop-filter: var(--dsw-appearance-glass-filter, none);
 }
-:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > * {
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > :not([data-slot]),
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > [data-slot] > * {
   position: relative;
-  z-index: 1;
   background: transparent !important;
+}
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > :not([data-slot]) > *,
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > [data-slot] > * > * {
+  position: relative;
 }
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class*="_sessionRow"], [class*="sessionRow" i], [class*="_panelRow"], [class*="panelRow" i], button):hover:not(:is([class*="_selected"], [class*="selected" i], [class*="_panelActive"], [class*="panelActive" i])) {
   --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover);
 }
 /* Component-level frosted glass (composer input card, attachment cards, user bubbles,
-   and code blocks): glassBlur frosts only UI surfaces and never the background layer. */
+   and code blocks): glassBlur frosts only UI surfaces and never the background layer.
+   IMPORTANT: The composer card ([data-composer-card] / [class*="_card"]:has([class*="_input"]))
+   hosts [data-composer-overlay] (slash command menu [data-trigger-menu] and command popup)
+   positioned at "bottom: calc(100% + 4px)" outside the card's box. Applying backdrop-filter
+   directly on the card makes it a CSS Backdrop Root and clips the slash menu's backdrop-filter
+   to 0px. Frost the card via ::before instead so [data-composer-overlay] is never clipped. */
+:where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) {
+  position: relative;
+}
+:where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"]))::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  backdrop-filter: var(--dsw-appearance-glass-filter, none);
+  -webkit-backdrop-filter: var(--dsw-appearance-glass-filter, none);
+}
+:where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) > :not([data-composer-overlay]):not([data-slot]),
+:where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) > [data-slot] > * {
+  position: relative;
+  z-index: 1;
+}
+:where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) > [data-composer-overlay] {
+  z-index: 2;
+}
 :where(#root, body) :is(
-  [class*="_card"]:has([class*="_input"]),
   [class*="_fileCard"],
   [class*="_bubble"],
   [data-code-block]
@@ -437,11 +471,10 @@ export class AppearanceApplier {
     )
     const glassFilter = value.glassBlur > 0 ? `blur(${value.glassBlur}px) saturate(150%)` : 'none'
     body.style.setProperty('--dsw-appearance-glass-filter', glassFilter)
-    // Keep the full-viewport modal mask clear (blur(0px)) so opening settings
-    // does not blur the exposed background canvas outside the dialog; the dialog
-    // panel itself (and dropdown menus via --dsw-menu-backdrop-filter) receives
-    // the frosted glass filter directly.
-    body.style.setProperty('--dsw-mask-blur', 'blur(0px)')
+    // Drive the modal backdrop mask (.VOzbGW_mask) with glassBlur while modals
+    // are open; closing the modal unmounts the mask and leaves the background
+    // layer strictly controlled by backgroundBlur.
+    body.style.setProperty('--dsw-mask-blur', `blur(${value.glassBlur}px)`)
     body.style.setProperty('--dsw-menu-backdrop-filter', glassFilter)
     body.style.setProperty('--dsw-appearance-scrim', String(value.scrim))
 
