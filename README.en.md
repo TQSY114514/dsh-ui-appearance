@@ -41,7 +41,7 @@ Latest official Desktop screenshot (community shots kept above):
 
 **Wallpaper & Video Backgrounds (Up to 200MB)** — Upload or drag in images (JPG / PNG / WebP / GIF), or **paste a URL to load in one click** (auto-routed by extension; works with CORS-friendly hosts). Stored directly as IndexedDB Blobs (zero heap memory duplication, free from localStorage quota; images over 4096px are proportionally downscaled, GIF animations preserved). Brightness is sampled on upload to auto-derive an harmonious accent palette. Supports hardware-accelerated **dynamic video backgrounds** (MP4 / WebM, muted loop playback, up to 200MB).
 
-**Glassmorphism & Translucency** — Dual sliders for panel opacity and frosted glass blur allow the sidebar, settings, chat, and task cards to melt into the background. **Input and code blocks feature independent opacity controls**; inline code chips preserve low-alpha accent hue with a dedicated "emphasis tint" slider. Neutral interactive controls and buttons bake alpha synchronously on hover, preventing sudden opaque snapping (`hover snapped opaque`).
+**Glassmorphism & Multi-Dimensional Independent Translucency** — **Main panels, sidebar, settings & modals, composer input, and code blocks** each have independent 0%–100% continuous opacity sliders (keeping the settings dialog crisp and readable even when main chat surfaces are 100% transparent). **Frosted glass blur (`glassBlur`) is fully decoupled from background blur (`backgroundBlur`)**: background blur applies exclusively to the wallpaper/video canvas, while frosted glass targets UI surfaces (sidebar, composer input, `/` slash command menu, message bubbles, code blocks, settings/modals, and modal backdrop masks). Inline code chips preserve a low-alpha accent tint with a dedicated "emphasis tint" slider; neutral interactive controls and buttons bake alpha synchronously on hover, preventing sudden opaque snapping (`hover snapped opaque`).
 
 **Three-Layer Background Architecture** — An innovative 3-layer rendering system: canvas base layer (custom solid background color) + media layer (wallpaper/video with independent blur and opacity) + anti-glare scrim layer (adaptive veil protecting text readability). Lowering media opacity blends smoothly into your custom background color without white flash.
 
@@ -100,10 +100,10 @@ Settings panel at a glance:
 
 | Section | Controls |
 |---|---|
-| Presets | Default / Midnight / Ocean / Forest / Rose / Monochrome; free to keep tuning after applying |
-| Theme colors | 6 roles × (picker + HEX): accent, background, panel, input, text, border |
+| Mode & Presets | Independent Light Mode (Default / Dawn / Sky / Mint / Sakura / Clay) and Dark Mode (Default / Midnight / Ocean / Forest / Rose / Monochrome) presets; free to keep tuning after applying |
+| Theme colors | 6 roles × (picker + HEX): accent (with auto bubble-text contrast toggle), background (with auto global-text contrast toggle), panel, input, text, border |
 | Background | Image upload/replace/remove, video upload/remove, **load from URL (image/video)**, image opacity, background blur, scrim |
-| Interface | Panel opacity, input opacity, code-block opacity, emphasis tint, keep sidebar opaque, glass blur |
+| Interface | Panel opacity, sidebar opacity, settings & modal opacity, input opacity, code-block opacity, emphasis tint, glass blur |
 | Color scheme | Export palette, import palette (JSON text) |
 
 ## Persistence & reset
@@ -118,7 +118,7 @@ Settings panel at a glance:
 |---|---|
 | **Colors & Contrast** | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens with dual-mode independence. Built-in WCAG 2.1 dynamic contrast algorithm (`a11yLabelStep`) ensures secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$, completely eliminating washed-out text on light mode and invisible icons on dark mode |
 | **Three-Layer Background** | Three decoupled layers (base canvas + media layer + anti-glare scrim), pushed to `position: fixed; z-index: -1`. When wallpaper/video is active, the official host base (`--dsw-alias-bg-base`) is **punched to transparent**, leaving `#root` free of `position`/`z-index` to eliminate stacking context traps and keep dialogs always on top |
-| **Glass & Anti-Bleed** | Layer-wide blur filter (`filter: blur`, background blur + glass sliders summed) combined with `inset: -48px` to eliminate translucent vignetting at screen edges; no `backdrop-filter` containing-block side effects |
+| **Component-Level Glass & Anti-Bleed** | Background blur uses a canvas `filter: blur` with `inset: -48px` extension to eliminate translucent vignetting at screen edges; frosted glass (`glassBlur`) is decoupled into component-level `backdrop-filter`, using `::before` pseudo-element isolation on the sidebar (`[class*="_sidebarCol"]::before`) and composer card (`[data-composer-card]::before`) so Windows desktop `position: fixed` titlebar buttons are never trapped and the `/` slash command overlay is never clipped by a CSS Backdrop Root |
 | **Hover Feedback Closure** | Neutral control and button hover tokens (`--dsw-alias-interactive-bg-hover` and `-solid`) bake opacity synchronously under translucent mode, fine-tuning lightness (10%~15%) while strictly revealing background to prevent sudden opaque snapping (`hover snapped opaque`) |
 | **Native Video Streaming** | Hardware-accelerated Chromium native streaming with muted loop playback. Videos are stored directly as IndexedDB Blobs (up to 200MB) without Base64 encoding and with zero extra heap duplication |
 | **Persistence & Garbage Collection** | Settings saved in browser `localStorage` (key `dsh-ui-appearance.settings`) with instantaneous cross-tab sync; media stored in `IndexedDB`. Replacing media or resetting to stock immediately performs Blob garbage collection (`deleteImage` / `deleteVideo`) to prevent orphaned files |
@@ -127,7 +127,7 @@ Settings panel at a glance:
 
 - **Works Across Platforms**: Full support for WebUI and [DSH Desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) (both advanced and compatible modes); includes an automated punch-through patch for Windows custom titlebar frames (`.BynINW_frame`, [#31](https://github.com/TQSY114514/dsh-ui-appearance/issues/31)).
 - **Dual-Mode Independent Palettes**: Saves two independent sets of 6-color palettes and presets for Light and Dark modes, smoothly adapting to system and host color schemes.
-- **Performance & Low-End Optimization**: Translucency is pre-baked as CSS `rgba()`; sliders remain smooth. Glass blur is consolidated into a single background layer filter; low-end devices can set blur sliders to 0 for instant rendering.
+- **Performance & Low-End Optimization**: Translucency is pre-baked as CSS `rgba()` with automatic transition freezing during active slider drags for 60fps responsiveness; low-end devices can set the "Glass Blur" and "Background Blur" sliders to 0 for instant rendering.
 - **Large Media Support**: Original images are stored losslessly in IndexedDB (auto-scaled proportionally above 4096px as WebP, GIF animations preserved within bounds); video ceiling expanded to 200MB with drag-and-drop and URL loading.
 - **Syntax Highlighting & Bubbles**: Code syntax highlighting (Shiki) follows independent syntax language rules; user message bubbles blend into the accent color while AI responses remain transparent.
 
@@ -185,7 +185,7 @@ vitest.config.ts              # Standalone test config (aliases to tests/stubs)
 lib/                          # Build output
 ```
 
-All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **164 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
+All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **174 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
 
 ## License
 

@@ -63,6 +63,13 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 - **壁纸色板深浅模式自适应（`derivePalette`）**：
   - 自动提取壁纸主色派生周边角色（背景、面板、输入框、边框）时，必须传入壁纸明暗标志 `isDark`。
   - 暗色壁纸生成低亮度暗调阶梯（`0.10` / `0.16` / `0.21`）；浅色壁纸必须生成高亮度浅调阶梯（`0.98` / `0.94` / `#ffffff`），严禁把暗夜色板写入浅色模式导致黑底黑字对比度崩溃。
+- **组件级毛玻璃与 CSS Backdrop Root / SlotOutlet 陷阱（v0.1.24–v0.1.25）**：
+  - **禁止直接给侧边栏容器或输入框卡片本体挂 `backdrop-filter`**：
+    - 侧边栏（`[class*="_sidebarCol"]`）内含 Windows 桌面端的 `position: fixed` 标题栏按钮，直接挂 `backdrop-filter` 会生成 fixed 包含块把按钮锁死在侧边栏内；且宿主 `SlotOutlet` 会包裹一层 `<div data-slot="sidebar" style="display: contents">`，必须用 `[class*="_sidebarCol"]::before` 承载毛玻璃，并用 `> :not([data-slot]), > [data-slot] > *` 穿透 `display: contents` 提升内容层级并打孔 `SidebarRoot` 重复底色。
+    - 输入框卡片（`[data-composer-card]`）内部挂载了向上溢出边界（`bottom: calc(100% + 4px)`）的斜杠命令浮层 `[data-composer-overlay]`。若直接给输入框卡片挂 `backdrop-filter`，该卡片会成为 CSS Backdrop Root，导致 Chromium 将超出卡片边界的斜杠菜单 `backdrop-filter` 裁剪为 `0px`。必须改用 `[data-composer-card]::before` 承载输入框毛玻璃。
+- **深浅模式弹窗样式特异性隔离（Issue #38）**：
+  - 浅色弹窗选择器祖先限定必须使用零特异性的 `:where(#root, body)`（绝不能用 `:is(#root, body)`，否则 `#root` 的 ID 特异性 `(1, 0, 0)` 会压过深色模式的属性选择器，导致深色模式下设置弹窗变成浅色白底）。
+  - 弹窗选择器严禁使用宽泛的子串匹配（如 `[class*="panel" i]` 或 `[class*="dialog" i]`），否则会匹配弹窗内部的 `.schemePanel` 等子组件导致半透明底色二次叠加。
 
 ## Before changing X, read Y
 
