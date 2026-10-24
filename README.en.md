@@ -142,6 +142,10 @@ Settings panel at a glance:
   - **Punch-through Occlusion**: The background layer sits at `z-index: -1`, revealing itself by setting `--dsw-alias-bg-base` to `transparent`. If an opaque **third-party skin** is active (e.g. themes hardcoding solid colors onto `body` or `#root`), the transparent punch-hole is blocked. Deactivate third-party opaque skins or reduce their opacity.
   - **Windows Desktop Custom Frame**: Upgrade to the latest plugin version; automated punch-through for Windows desktop titlebar frames is built-in ([#31](https://github.com/TQSY114514/dsh-ui-appearance/issues/31)).
 
+- **Q: Why doesn't the "Glass Blur" slider show a frosted effect on the sidebar/input/settings panel? And how do I keep the settings dialog readable when the main chat is 100% transparent?**
+  - **Pair with Translucency**: Frosted glass (`backdrop-filter`) requires a translucent surface to reveal the blurred backdrop behind it. If "Sidebar Opacity", "Input Opacity", or "Settings & Modal Opacity" is left at `100%` (fully solid), the opaque fill hides the blur; lower the corresponding opacity slider to `40%–80%` to let the frosted glass shine through.
+  - **Independent Opacity Channels**: Main panels, sidebar, settings & modals, composer input, and code blocks each have their own opacity slider. You can set "Panel Opacity" to `0%` for an unobstructed wallpaper in the chat view while keeping "Settings & Modal Opacity" at `80%–95%` with "Glass Blur" enabled for crisp readability.
+
 - **Q: Video background shows black screen or fails to play?**
   - **Codec Compatibility**: Chromium natively supports hardware decoding for **H.264 (MP4)** and **VP8 / VP9 (WebM)**. If the video uses unsupported codecs (such as HEVC / H.265, certain `.mov` containers, or specific audio tracks), decoding will fail. Please re-encode with tools like HandBrake or FFmpeg to standard H.264 MP4 before uploading.
 
