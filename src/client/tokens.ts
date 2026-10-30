@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { contrastRatio, isDarkColor, mixHex, relativeLuminance, withAlpha } from './color.ts'
+import { contrastRatio, isDarkColor, isHexColor, mixHex, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
 export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from '../appearance-settings.ts'
@@ -25,14 +25,15 @@ const LIGHT_INK = '#fafaf9'
 const DARK_INK = '#0f1115'
 
 /**
- * The on-ink counterpart of a label color. The sidebar wordmark's "harness"
- * badge paints its chip with `currentColor` (the label color) and its letters
- * with `--dsw-alias-label-primary-inverted`; `::selection` pairs its
- * background with `-foreground` the same way. Overriding the label color
- * without re-deriving these two breaks both pairings — a white chip keeps
- * the stock light-mode white letters and the badge disappears.
+ * The on-ink counterpart of a fill color. The sidebar wordmark's "harness"
+ * badge and solid tags paint their chip with `--dsw-alias-label-primary` and
+ * their letters with `--dsw-alias-label-primary-inverted`; accent fills and
+ * `::selection` pair `--dsw-alias-brand-primary` with contrasting foreground
+ * ink.
+ * @param label - `#rgb` or `#rrggbb` fill color.
+ * @returns `#fafaf9` or `#0f1115` contrasting ink.
  */
-const onInk = (label: string): string => {
+export const onInk = (label: string): string => {
   // WCAG contrast between the label and each candidate ink. Human visual
   // perception has a strong positive polarity bias on colored backgrounds
   // (saturated hues like DeepSeek brand blue #4176e6 and purple #7c3aed
@@ -117,6 +118,102 @@ export function bubbleInk(settings: AppearanceSettings): { light: string | null;
   return {
     light: inkFor('light'),
     dark: inkFor('dark'),
+  }
+}
+
+/** Minimum contrast ratio between selection highlight and bubble surface before falling back to inverted bubble ink. */
+const BUBBLE_SELECTION_SURFACE_CONTRAST_MIN = 2.2
+
+/** Background and foreground hex pair for `::selection` highlights. */
+export interface SelectionPair {
+  /** Selection highlight background color. */
+  bg: string
+  /** Selection text foreground color (guaranteed contrast against `bg`). */
+  fg: string
+}
+
+/** Per-mode selection color pairs for global surfaces and user-message bubbles. */
+export interface ModeSelectionColors {
+  /** Global `#root ::selection` pair per theme mode. */
+  global: { light: SelectionPair; dark: SelectionPair }
+  /** User-message bubble `::selection` pair per theme mode. */
+  bubble: { light: SelectionPair; dark: SelectionPair }
+}
+
+/**
+ * Compute contrast-guaranteed `::selection` colors for global text and user
+ * message bubbles across light and dark modes (Issue #46).
+ *
+ * Inside user message bubbles, `--dsw-alias-brand-primary` is locally rebound
+ * to the bubble's text ink so `.refChip` references stay readable (Issue #27);
+ * relying on raw `--dsw-alias-brand-primary` + root `--dsw-alias-label-primary-foreground`
+ * in `::selection` produces white-on-white (`#fafaf9` on `#fafaf9`) in dark mode
+ * and black-on-black (`#0f1115` on `#0f1115`) under light accents in light mode.
+ *
+ * Global selection always pairs the mode's accent color with `onInk(accent)`.
+ * Bubble selection uses that same accent pair whenever `accent` has clear visual
+ * separation from the effective bubble surface (`>= 2.2:1`), and automatically
+ * falls back to high-contrast inverted bubble ink (`onInk(surface)` + its
+ * opposite ink) when the user's bubble/panel color is close to the accent hue.
+ * @param settings - current appearance settings.
+ * @returns global and bubble selection pairs for light and dark modes.
+ */
+export function selectionColors(settings: AppearanceSettings): ModeSelectionColors {
+  const resolveRole = (role: AppearanceRole): { light: string; dark: string } => {
+    const l = settings.light?.[role] || ''
+    const d = settings.dark?.[role] || ''
+    const hasPerModeConfig = l !== '' || d !== ''
+    const legacy = !hasPerModeConfig ? (settings[role] || '') : ''
+    return {
+      light: l !== '' ? l : legacy,
+      dark: d !== '' ? d : legacy,
+    }
+  }
+
+  const accentRole = resolveRole('accent')
+  const panelRole = resolveRole('panel')
+  const bgRole = resolveRole('background')
+  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+  const alpha = typeof settings.surfaceAlpha === 'number'
+    ? Math.min(1, Math.max(0, settings.surfaceAlpha))
+    : 1
+
+  const pairForMode = (mode: 'light' | 'dark'): { global: SelectionPair; bubble: SelectionPair } => {
+    const rawAccent = accentRole[mode]
+    const accent = isHexColor(rawAccent) ? rawAccent : '#4176e6'
+    const globalPair: SelectionPair = { bg: accent, fg: onInk(accent) }
+
+    const rawPanel = panelRole[mode]
+    const rawBubble = isHexColor(rawPanel)
+      ? rawPanel
+      : (hasMedia && settings.imageDark
+        ? mixHex(DARK_BASE, LIGHT_BASE, 0.12)
+        : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode])
+
+    const rawBg = bgRole[mode]
+    const canvasBg = isHexColor(rawBg)
+      ? rawBg
+      : (mode === 'light' && settings.imageDark
+        ? DARK_BASE
+        : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'][mode])
+
+    const effectiveBubbleSurface = alpha >= 1 ? rawBubble : mixHex(canvasBg, rawBubble, alpha)
+
+    if (contrastRatio(accent, effectiveBubbleSurface) >= BUBBLE_SELECTION_SURFACE_CONTRAST_MIN) {
+      return { global: globalPair, bubble: globalPair }
+    }
+    const fallbackBg = onInk(effectiveBubbleSurface)
+    return {
+      global: globalPair,
+      bubble: { bg: fallbackBg, fg: onInk(fallbackBg) },
+    }
+  }
+
+  const light = pairForMode('light')
+  const dark = pairForMode('dark')
+  return {
+    global: { light: light.global, dark: dark.global },
+    bubble: { light: light.bubble, dark: dark.bubble },
   }
 }
 
@@ -347,10 +444,13 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       const menuD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.18) : a11yLabelStep('#fafaf9', DARK_BASE, surfD, 7, 0.18)
       emit('--dsw-alias-menu-icon', menuL, menuD)
     }
-    // The on-accent ink pair is emitted whenever the text role is customized
-    // OR accent inversion is on, so the bubble/selection/accent-button text
-    // always pairs with its actual background.
-    emit('--dsw-alias-label-primary-inverted', accentInkL, accentInkD)
+    // `--dsw-alias-label-primary-inverted` paints letters ON a `label-primary`
+    // surface (sidebar "harness" badge, `[data-tone='solid']` pills), so it
+    // pairs with `textL` / `textD`. `--dsw-alias-label-primary-foreground`
+    // paints letters ON a `brand-primary` (accent) surface (accent buttons,
+    // `.invertToggleOn`, `.activeBadge`), so it pairs with the accent when
+    // `invert.accent` is on, and with the text role otherwise.
+    emit('--dsw-alias-label-primary-inverted', onInk(textL), onInk(textD))
     emit('--dsw-alias-label-primary-foreground', accentInkL, accentInkD)
   }
 
@@ -366,18 +466,20 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   if (inkL !== '' || inkD !== '') {
     const prevPrimary = tokens['--dsw-alias-label-primary']
     const prevInk = tokens['--dsw-alias-label-primary-inverted']
+    const prevFg = tokens['--dsw-alias-label-primary-foreground']
     const labelL = inkL !== '' ? inkL : (prevPrimary?.light ?? '#0f1115')
     const labelD = inkD !== '' ? inkD : (prevPrimary?.dark ?? '#fafaf9')
     emit('--dsw-alias-label-primary', labelL, labelD)
-    // Re-derive the on-ink pair together with the new label, so the sidebar
-    // "harness" badge letters (painted with -inverted) and ::selection text
-    // pair with the new label fill instead of keeping the previous on-ink
-    // color and fading into the flipped chip. Modes left stock keep their
-    // previous on-ink value.
+    // Re-derive `-inverted` together with the flipped `label-primary` so the
+    // sidebar "harness" badge and `[data-tone='solid']` pills stay readable.
+    // Keep `-foreground` paired with the accent whenever `invert.accent` is on,
+    // so flipping the app background never breaks contrast on accent surfaces.
     const invInkL = inkL !== '' ? onInk(labelL) : (prevInk?.light ?? LIGHT_INK)
     const invInkD = inkD !== '' ? onInk(labelD) : (prevInk?.dark ?? DARK_INK)
+    const fgInkL = invL.accent ? accentInkL : (inkL !== '' ? onInk(labelL) : (prevFg?.light ?? LIGHT_INK))
+    const fgInkD = invD.accent ? accentInkD : (inkD !== '' ? onInk(labelD) : (prevFg?.dark ?? DARK_INK))
     emit('--dsw-alias-label-primary-inverted', invInkL, invInkD)
-    emit('--dsw-alias-label-primary-foreground', invInkL, invInkD)
+    emit('--dsw-alias-label-primary-foreground', fgInkL, fgInkD)
 
     // Re-derive secondary, tertiary, caption and menu-icon tokens so sub-labels remain legible
     // and meet WCAG contrast when background inversion flips label-primary.
@@ -542,22 +644,24 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       }
 
       if (text.light === '' && fl !== undefined) {
+        const fgL = invL.accent ? accentInkL : DARK_INK
         emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
         emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-tertiary', '#808285', tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
         emit('--dsw-alias-label-caption', '#808285', tokens['--dsw-alias-label-caption']?.dark ?? '#808285')
         emit('--dsw-alias-menu-icon', '#d6d3d1', tokens['--dsw-alias-menu-icon']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', DARK_INK, tokens['--dsw-alias-label-primary-inverted']?.dark ?? DARK_INK)
-        emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
+        emit('--dsw-alias-label-primary-foreground', fgL, tokens['--dsw-alias-label-primary-foreground']?.dark ?? (invD.accent ? accentInkD : DARK_INK))
       }
       if (text.dark === '' && fd !== undefined) {
+        const fgD = invD.accent ? accentInkD : DARK_INK
         emit('--dsw-alias-label-primary', tokens['--dsw-alias-label-primary']?.light ?? '#0f1115', '#fafaf9')
         emit('--dsw-alias-label-secondary', tokens['--dsw-alias-label-secondary']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-tertiary', tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8', '#808285')
         emit('--dsw-alias-label-caption', tokens['--dsw-alias-label-caption']?.light ?? '#9ea3a8', '#808285')
         emit('--dsw-alias-menu-icon', tokens['--dsw-alias-menu-icon']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', tokens['--dsw-alias-label-primary-inverted']?.light ?? LIGHT_INK, DARK_INK)
-        emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? LIGHT_INK, DARK_INK)
+        emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? (invL.accent ? accentInkL : LIGHT_INK), fgD)
       }
 
       const btnElev = getVal(flipButtonElevated, '--dsw-alias-button-elevated-fill')

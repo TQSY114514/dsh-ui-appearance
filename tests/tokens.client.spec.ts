@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_DARK_THEME, DEFAULT_INVERT, DEFAULT_LIGHT_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import {
-  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE,
+  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE, selectionColors,
 } from '../src/client/tokens.ts'
 import { contrastRatio } from '../src/client/color.ts'
 
@@ -118,14 +118,15 @@ describe('buildTokenOverrides', () => {
     expect(malformed['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
   })
 
-  it('accent inversion drives the on-accent ink from the accent color', () => {
-    // Default invert.accent is on: the bubble/selection/accent-button
-    // foreground auto-contrasts with the accent, not the text role.
+  it('accent inversion drives the on-accent ink from the accent color while keeping -inverted paired with label-primary', () => {
+    // Default invert.accent is on: `-foreground` (on brand-primary) auto-contrasts
+    // with the accent, while `-inverted` (on label-primary chips like the sidebar
+    // "harness" badge and `[data-tone='solid']` pills) stays paired with the text role.
     const darkAccent = buildTokenOverrides(full({ accent: '#111111' }))
-    // Dark accent → light ink on top of it.
+    // Dark accent → light ink on accent surfaces; `-inverted` contrasts with stock light (#0f1115) / dark (#fafaf9) labels.
     expect(darkAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    expect(darkAccent['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    // Light accent → dark ink.
+    expect(darkAccent['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    // Light accent → dark ink on accent surfaces.
     const lightAccent = buildTokenOverrides(full({ accent: '#ffffff' }))
     expect(lightAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // Per-mode independence: dark accent in light mode, light accent in dark.
@@ -136,12 +137,12 @@ describe('buildTokenOverrides', () => {
     expect(mixed['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
   })
 
-  it('background inversion overrides the global text color and re-derives the on-ink pair', () => {
+  it('background inversion overrides the global text color and re-derives -inverted without clobbering on-accent -foreground', () => {
     // Turning on background inversion makes the global label-primary contrast
     // with the app background. Dark background → light ink; the harness badge
-    // chip turns light, so its letters and ::selection flip dark in the same
-    // breath (previously the -inverted token kept its old value and the badge
-    // faded into the flipped chip).
+    // chip turns light, so `-inverted` flips dark. While `invert.accent` is on
+    // (default), `-foreground` stays paired with the `#4176e6` accent (`#fafaf9`);
+    // when `invert.accent` is off, `-foreground` follows the flipped label too.
     const darkBg = buildTokenOverrides(full({
       background: '#111111',
       light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
@@ -149,7 +150,15 @@ describe('buildTokenOverrides', () => {
     }))
     expect(darkBg['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(darkBg['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    expect(darkBg['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(darkBg['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+
+    const darkBgNoAccentInvert = buildTokenOverrides(full({
+      background: '#111111',
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { accent: false, background: true } },
+      dark: { ...DEFAULT_DARK_THEME, background: '#111111', invert: { accent: false, background: true } },
+    }))
+    expect(darkBgNoAccentInvert['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+
     // Background inversion is an explicit user override: it wins over the
     // text role (the whole app is that surface), unlike panel/input which
     // were dropped — a single global label cannot express per-sub-surface ink.
@@ -163,8 +172,8 @@ describe('buildTokenOverrides', () => {
     // Per-mode independence: dark background in light mode, light background
     // in dark mode → inks follow each surface independently.
     const perMode = buildTokenOverrides(full({
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
-      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', invert: { ...DEFAULT_INVERT, background: true } },
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { accent: false, background: true } },
+      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', invert: { accent: false, background: true } },
     }))
     expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
     expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
@@ -582,6 +591,65 @@ describe('buildTokenOverrides', () => {
     }))
     const menuD = lightPanelInDark['--dsw-alias-menu-icon']!.dark
     expect(contrastRatio(menuD, '#e5e7eb')).toBeGreaterThanOrEqual(7.0)
+  })
+
+  it('keeps -foreground paired with accent under dark wallpaper (imageDark) while flipping -inverted dark', () => {
+    const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true }))
+    expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(tokens['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(tokens['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+  })
+
+  it('computes high-contrast global and user-bubble selection pairs across modes and custom palettes (Issue #46)', () => {
+    // 1. Default settings: brand blue (#4176e6) with crisp white (#fafaf9) text in both global and user bubbles
+    //    (fixes dark-mode `#fafaf9` on `#fafaf9` white-on-white user-bubble selection).
+    const stock = selectionColors(full())
+    expect(stock.global.light).toEqual({ bg: '#4176e6', fg: '#fafaf9' })
+    expect(stock.global.dark).toEqual({ bg: '#4176e6', fg: '#fafaf9' })
+    expect(stock.bubble.light).toEqual({ bg: '#4176e6', fg: '#fafaf9' })
+    expect(stock.bubble.dark).toEqual({ bg: '#4176e6', fg: '#fafaf9' })
+    expect(contrastRatio(stock.bubble.dark.bg, stock.bubble.dark.fg)).toBeGreaterThan(4.0)
+
+    // 2. Light accent in dark mode (e.g. near-white `#fafaf9` or Monochrome `#b4b4b9`) flips selection text dark (`#0f1115`).
+    const whiteAccentDark = selectionColors(full({
+      dark: { ...DEFAULT_DARK_THEME, accent: '#fafaf9' },
+    }))
+    expect(whiteAccentDark.global.dark).toEqual({ bg: '#fafaf9', fg: '#0f1115' })
+    expect(whiteAccentDark.bubble.dark).toEqual({ bg: '#fafaf9', fg: '#0f1115' })
+
+    // 3. Light accent in light mode (`#fbbf24` on `#edf3fe` bubble): never black-on-black; falls back cleanly if close to bubble.
+    const yellowLight = selectionColors(full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#fbbf24' },
+    }))
+    expect(yellowLight.global.light).toEqual({ bg: '#fbbf24', fg: '#0f1115' })
+    expect(contrastRatio(yellowLight.bubble.light.bg, yellowLight.bubble.light.fg)).toBeGreaterThan(4.5)
+
+    // 4. Same-hue blue panel/bubble (`#355eb6`) + blue accent (`#4176e6`): accent would disappear into bubble,
+    //    so bubble selection automatically falls back to high-contrast inverted bubble ink (`#fafaf9` bg + `#0f1115` fg).
+    const blueOnBlue = selectionColors(full({
+      dark: { ...DEFAULT_DARK_THEME, accent: '#4176e6', panel: '#355eb6' },
+    }))
+    expect(blueOnBlue.global.dark).toEqual({ bg: '#4176e6', fg: '#fafaf9' })
+    expect(blueOnBlue.bubble.dark).toEqual({ bg: '#fafaf9', fg: '#0f1115' })
+
+    // 5. Transparent bubble (`surfaceAlpha: 0`) composites against `background` so contrast check reflects visible backdrop.
+    const transparentOnBlueBg = selectionColors(full({
+      surfaceAlpha: 0,
+      dark: { ...DEFAULT_DARK_THEME, accent: '#2563eb', background: '#1e3a8a' },
+    }))
+    expect(transparentOnBlueBg.bubble.dark).toEqual({ bg: '#fafaf9', fg: '#0f1115' })
+
+    // 6. Every shipped light and dark preset yields readable bubble and global selection pairs.
+    for (const preset of LIGHT_PRESETS) {
+      const sel = selectionColors(full({ light: { ...DEFAULT_LIGHT_THEME, ...preset.colors, preset: preset.id } }))
+      expect(contrastRatio(sel.global.light.bg, sel.global.light.fg)).toBeGreaterThan(4.0)
+      expect(contrastRatio(sel.bubble.light.bg, sel.bubble.light.fg)).toBeGreaterThan(4.0)
+    }
+    for (const preset of DARK_PRESETS) {
+      const sel = selectionColors(full({ dark: { ...DEFAULT_DARK_THEME, ...preset.colors, preset: preset.id } }))
+      expect(contrastRatio(sel.global.dark.bg, sel.global.dark.fg)).toBeGreaterThan(4.0)
+      expect(contrastRatio(sel.bubble.dark.bg, sel.bubble.dark.fg)).toBeGreaterThan(4.0)
+    }
   })
 })
 

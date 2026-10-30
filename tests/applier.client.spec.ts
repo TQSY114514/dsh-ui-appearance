@@ -375,15 +375,56 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('scopes business/brand primary tokens and refChip styling inside user bubbles (Issue #27)', () => {
+  it('scopes business/brand primary tokens, paired foregrounds, and selection styles inside user bubbles (Issue #27, #46)', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
+    applier.apply(full())
+    const body = document.body
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+
+    // Issue #27: inline refChip legibility inside user bubbles
     expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-alias-label-primary)')
     expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light)')
     expect(css).toContain('--dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark)')
     expect(css).toContain('[class*="refChip"]')
+
+    // Issue #46: bubble-scoped `-foreground` always contrasts with bubble-scoped `brand-primary`
+    expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-alias-label-primary-inverted)')
+    expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-light)')
+    expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-dark)')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-light')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-dark')).toBe('#0f1115')
+
+    // Dedicated global and bubble `::selection` variables (never `#fafaf9` on `#fafaf9`)
+    expect(css).toContain('--dsw-appearance-selection-bg-dark')
+    expect(css).toContain('--dsw-appearance-bubble-selection-bg-dark')
+    expect(css).toContain('--dsw-appearance-bubble-selection-fg-dark')
+    expect(body.style.getPropertyValue('--dsw-appearance-selection-bg-dark')).toBe('#4176e6')
+    expect(body.style.getPropertyValue('--dsw-appearance-selection-fg-dark')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-bg-dark')).toBe('#4176e6')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-fg-dark')).toBe('#fafaf9')
+
+    // Same-hue blue bubble falls back to contrasting `#fafaf9` bg + `#0f1115` fg
+    applier.apply(full({
+      dark: { ...DEFAULT_SETTINGS.dark, accent: '#4176e6', panel: '#355eb6' },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-bg-dark')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-fg-dark')).toBe('#0f1115')
+
+    // Turning off accent inversion retracts bubble-ink-fg; dispose cleans up all selection variables
+    applier.apply(full({
+      dark: { ...DEFAULT_SETTINGS.dark, invert: { ...DEFAULT_SETTINGS.dark.invert, accent: false } },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-dark')).toBe('')
+
     applier.dispose()
+    expect(body.style.getPropertyValue('--dsw-appearance-selection-bg-dark')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-selection-fg-dark')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-bg-dark')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-fg-dark')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-light')).toBe('')
   })
 
   it('enforces inverted label ink on solid tags so Agent Presets default tag stays readable', () => {

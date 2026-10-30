@@ -2,6 +2,20 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.26] - 2026-10-31
+
+### Fixed
+
+- **用户消息气泡划词选区（`::selection`）暗色下白底白字不可读（[#46](https://github.com/TQSY114514/dsh-ui-appearance/issues/46)）**:
+  - 此前为保障气泡内 `.refChip` 引用标签可读性（[#27](https://github.com/TQSY114514/dsh-ui-appearance/issues/27)），在用户消息气泡作用域内将 `--dsw-alias-brand-primary` 局部重绑定为气泡文字墨水色，而 `#root ::selection` 直接引用了 `--dsw-alias-brand-primary` 背景与根级 `--dsw-alias-label-primary-foreground` 前景，导致深色模式下气泡内划词变成 `#fafaf9` 白底配 `#fafaf9` 白字（浅色模式配浅强调色时则变成 `#0f1115` 黑底黑字）；
+  - 新增 `selectionColors()` 按深浅模式独立计算全局与用户气泡的 `::selection` 高亮配对（`--dsw-appearance-selection-*` / `--dsw-appearance-bubble-selection-*`）：当强调色与气泡实际有效底色（计入 `surfaceAlpha` 与背景底色合成）对比度充足（`>= 2.2:1`）时保持强调色高亮配高对比度文字，当用户自定义气泡色与强调色同色系撞色时自动回退为高对比反色墨水配对；
+  - 解耦 `--dsw-alias-label-primary-inverted`（作用于 `label-primary` 填充面，如侧边栏 `"harness"` 徽标与 `[data-tone='solid']` 标签）与 `--dsw-alias-label-primary-foreground`（作用于 `brand-primary` 强调色填充面），并在气泡作用域内同步配对局部 `--dsw-alias-label-primary-foreground`，防止背景反色（`invert.background`）或暗色壁纸（`imageDark`）破坏强调色表面与实心标签的文字对比度。
+
+### Chore
+
+- **开发依赖更新（[#47](https://github.com/TQSY114514/dsh-ui-appearance/pull/47)）**:
+  - 升级构建工具 `tsdown` 至 `0.23.2`。
+
 ## [0.1.25] - 2026-10-24
 
 ### Fixed

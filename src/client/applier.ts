@@ -10,7 +10,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
-import { buildTokenOverrides, bubbleInk, OVERRIDE_SOURCE } from './tokens.ts'
+import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, selectionColors } from './tokens.ts'
 import { mixHex, withAlpha } from './color.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
@@ -29,8 +29,18 @@ const BODY_VARIABLES = [
   '--dsw-appearance-blur',
   '--dsw-appearance-glass-filter',
   '--dsw-appearance-scrim',
+  '--dsw-appearance-selection-bg-light',
+  '--dsw-appearance-selection-fg-light',
+  '--dsw-appearance-selection-bg-dark',
+  '--dsw-appearance-selection-fg-dark',
+  '--dsw-appearance-bubble-selection-bg-light',
+  '--dsw-appearance-bubble-selection-fg-light',
+  '--dsw-appearance-bubble-selection-bg-dark',
+  '--dsw-appearance-bubble-selection-fg-dark',
   '--dsw-appearance-bubble-ink-light',
   '--dsw-appearance-bubble-ink-dark',
+  '--dsw-appearance-bubble-ink-fg-light',
+  '--dsw-appearance-bubble-ink-fg-dark',
   '--dsw-appearance-modal-l1-light',
   '--dsw-appearance-modal-l1-dark',
   '--dsw-appearance-modal-l2-light',
@@ -147,8 +157,22 @@ html[data-dsw-has-bg] [data-windows-titlebar] [class*="_frame"]:before {
   background: transparent !important;
 }
 #root ::selection {
-  background: var(--dsw-alias-brand-primary);
-  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-appearance-selection-bg-light, var(--dsw-alias-brand-primary));
+  color: var(--dsw-appearance-selection-fg-light, var(--dsw-alias-label-primary-foreground));
+}
+#root :is([class*="_bubble"], [class*="bubble" i])::selection,
+#root :is([class*="_bubble"], [class*="bubble" i]) ::selection {
+  background: var(--dsw-appearance-bubble-selection-bg-light, var(--dsw-alias-brand-primary));
+  color: var(--dsw-appearance-bubble-selection-fg-light, var(--dsw-alias-label-primary-foreground));
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root ::selection {
+  background: var(--dsw-appearance-selection-bg-dark, var(--dsw-alias-brand-primary));
+  color: var(--dsw-appearance-selection-fg-dark, var(--dsw-alias-label-primary-foreground));
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i])::selection,
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) ::selection {
+  background: var(--dsw-appearance-bubble-selection-bg-dark, var(--dsw-alias-brand-primary));
+  color: var(--dsw-appearance-bubble-selection-fg-dark, var(--dsw-alias-label-primary-foreground));
 }
 #root :focus-visible {
   outline: 2px solid var(--dsw-alias-state-business-primary);
@@ -188,6 +212,7 @@ body[data-dsw-sliding] * {
 #root [class*="bubble" i] {
   --dsw-alias-state-business-primary: var(--dsw-alias-label-primary);
   --dsw-alias-brand-primary: var(--dsw-alias-label-primary);
+  --dsw-alias-label-primary-foreground: var(--dsw-alias-label-primary-inverted);
 }
 #root [class*="_bubble"] [class*="refChip"],
 #root [class*="bubble" i] [class*="refChip"] {
@@ -202,6 +227,8 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-light);
+  --dsw-alias-label-primary-inverted: var(--dsw-appearance-bubble-ink-fg-light);
+  --dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-light);
 }
 html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) a {
   color: inherit;
@@ -215,6 +242,8 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-brand-primary: var(--dsw-appearance-bubble-ink-dark);
+  --dsw-alias-label-primary-inverted: var(--dsw-appearance-bubble-ink-fg-dark);
+  --dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-dark);
 }
 :is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
 :is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a,
@@ -522,6 +551,19 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-modal-nav-hover-light', bakeModal(baseNavHoverLight, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-dark', bakeModal(baseNavHoverDark, modalAlpha))
 
+    // Text selection contrast (Issue #46): write dedicated global and bubble
+    // selection pairs per mode so bubble-scoped brand overrides never cause
+    // white-on-white or black-on-black `::selection` highlights.
+    const sel = selectionColors(value)
+    body.style.setProperty('--dsw-appearance-selection-bg-light', sel.global.light.bg)
+    body.style.setProperty('--dsw-appearance-selection-fg-light', sel.global.light.fg)
+    body.style.setProperty('--dsw-appearance-selection-bg-dark', sel.global.dark.bg)
+    body.style.setProperty('--dsw-appearance-selection-fg-dark', sel.global.dark.fg)
+    body.style.setProperty('--dsw-appearance-bubble-selection-bg-light', sel.bubble.light.bg)
+    body.style.setProperty('--dsw-appearance-bubble-selection-fg-light', sel.bubble.light.fg)
+    body.style.setProperty('--dsw-appearance-bubble-selection-bg-dark', sel.bubble.dark.bg)
+    body.style.setProperty('--dsw-appearance-bubble-selection-fg-dark', sel.bubble.dark.fg)
+
     // Accent auto-inversion: scope the bubble text token to a contrast ink.
     // The stylesheet rules only match while the per-mode gate attribute is
     // present, so a null ink (toggle off) retracts the override entirely.
@@ -535,8 +577,8 @@ export class AppearanceApplier {
 
   /**
    * Set or retract the per-mode bubble text ink. Writes a body custom
-   * property with the color and a gate attribute that arms the scoped
-   * stylesheet rule.
+   * property with the color (and its contrasting foreground counterpart)
+   * and a gate attribute that arms the scoped stylesheet rule.
    * @param mode - theme mode the ink is computed for.
    * @param hex - contrast ink color, or null to retract the override.
    */
@@ -544,12 +586,15 @@ export class AppearanceApplier {
     const body = document.body
     const attr = `data-dsw-bubble-ink-${mode}`
     const variable = `--dsw-appearance-bubble-ink-${mode}`
+    const fgVariable = `--dsw-appearance-bubble-ink-fg-${mode}`
     if (hex === null) {
       body.removeAttribute(attr)
       body.style.removeProperty(variable)
+      body.style.removeProperty(fgVariable)
     } else {
       body.setAttribute(attr, '')
       body.style.setProperty(variable, hex)
+      body.style.setProperty(fgVariable, onInk(hex))
     }
   }
 
