@@ -651,6 +651,42 @@ describe('buildTokenOverrides', () => {
       expect(contrastRatio(sel.bubble.dark.bg, sel.bubble.dark.fg)).toBeGreaterThan(4.0)
     }
   })
+
+  it('bakes active page tab and markdown tag tokens at surfaceAlpha (including 0%) so active tabs never stay semi-transparent at rest and turn transparent on hover', () => {
+    const allZero = buildTokenOverrides(full({
+      surfaceAlpha: 0,
+      sidebarAlpha: 0,
+      modalAlpha: 0,
+      inputAlpha: 0,
+      codeAlpha: 0,
+    }))
+    expect(allZero['--dsw-alias-interactive-bg-active']).toEqual({
+      light: 'rgba(235, 238, 242, 0)',
+      dark: 'rgba(67, 69, 74, 0)',
+    })
+    expect(allZero['--dsw-alias-markdown-tag']).toEqual({
+      light: 'rgba(241, 243, 245, 0)',
+      dark: 'rgba(44, 44, 46, 0)',
+    })
+    expect(allZero['--dsw-alias-interactive-bg-hover']).toEqual({
+      light: 'rgba(241, 243, 245, 0)',
+      dark: 'rgba(53, 54, 56, 0)',
+    })
+
+    // Under dark wallpaper + translucency, no token ever contains NaN
+    const darkMediaTranslucent = buildTokenOverrides(full({
+      backgroundImage: 'data:image/webp;base64,AAAA',
+      imageDark: true,
+      surfaceAlpha: 0.4,
+      sidebarAlpha: 0.4,
+      inputAlpha: 0.4,
+      codeAlpha: 0.4,
+    }))
+    for (const [name, pair] of Object.entries(darkMediaTranslucent)) {
+      expect(pair.light, `${name}.light`).not.toContain('NaN')
+      expect(pair.dark, `${name}.dark`).not.toContain('NaN')
+    }
+  })
 })
 
 

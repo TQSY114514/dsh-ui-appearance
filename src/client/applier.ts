@@ -348,6 +348,10 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) {
   position: relative;
   --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-active);
+  --dsw-alias-interactive-bg-active: var(--dsw-specific-sidebar-nav-item-active);
+  --dsw-alias-markdown-tag: var(--dsw-specific-sidebar-nav-item-active);
+  --dsw-alias-button-elevated-fill: var(--dsw-specific-sidebar-nav-item-active);
+  --dsw-alias-button-floating-hover: var(--dsw-specific-sidebar-nav-item-hover);
 }
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i])::before {
   content: "";
@@ -367,8 +371,11 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 :is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) > [data-slot] > * > * {
   position: relative;
 }
-:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class*="_sessionRow"], [class*="sessionRow" i], [class*="_panelRow"], [class*="panelRow" i], button):hover:not(:is([class*="_selected"], [class*="selected" i], [class*="_panelActive"], [class*="panelActive" i])) {
+:is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class*="_sessionRow"], [class*="sessionRow" i], [class*="_panelRow"], [class*="panelRow" i], button):hover:not(:is([class*="_selected"], [class*="selected" i], [class*="_panelActive"], [class*="panelActive" i], [class*="_tabActive"], [class*="tabActive" i])) {
   --dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover);
+}
+:where(#root, body) :is([class*="_tabActive"], [class*="tabActive" i]):hover {
+  --dsw-alias-interactive-bg-hover: var(--dsw-alias-interactive-bg-active);
 }
 /* Component-level frosted glass (composer input card, attachment cards, user bubbles,
    and code blocks): glassBlur frosts only UI surfaces and never the background layer.
@@ -520,8 +527,8 @@ export class AppearanceApplier {
     const baseL3Light = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.14) : (isFlip ? '#434347' : '#ffffff')
     const baseOvLight = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.1) : (isFlip ? '#6e6e73' : '#e9ecf2')
     const baseModLight = panelLight !== '' ? mixHex(panelLight, '#ffffff', 0.06) : (isFlip ? '#434347' : '#f5f6f7')
-    const baseNavActiveLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.10) : (isFlip ? 'rgb(67, 69, 74)' : '#ebeef2')
-    const baseNavHoverLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.05) : (isFlip ? 'rgb(53, 54, 56)' : '#f1f3f5')
+    const baseNavActiveLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.10) : (isFlip ? '#43454a' : '#ebeef2')
+    const baseNavHoverLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.05) : (isFlip ? '#353638' : '#f1f3f5')
 
     const baseL1Dark = panelDark !== '' ? panelDark : '#232324'
     const baseL2Dark = panelDark !== '' ? mixHex(panelDark, '#151517', 0.08) : '#2c2c2e'

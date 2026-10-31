@@ -14,6 +14,7 @@ export interface Rgb {
 }
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
+const RGB_RE = /^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/i
 
 /**
  * Validate a user-typed hex color.
@@ -25,11 +26,19 @@ export function isHexColor(value: string): boolean {
 }
 
 /**
- * Parse a hex color to rgb channels.
- * @param value - `#rgb` or `#rrggbb` string.
+ * Parse a hex or rgb()/rgba() color to rgb channels.
+ * @param value - `#rgb`, `#rrggbb`, or `rgb(r, g, b)` string.
  * @returns the parsed channels.
  */
 export function parseHex(value: string): Rgb {
+  const rgbMatch = RGB_RE.exec(value)
+  if (rgbMatch) {
+    return {
+      r: Number(rgbMatch[1]),
+      g: Number(rgbMatch[2]),
+      b: Number(rgbMatch[3]),
+    }
+  }
   const hex = value.slice(1)
   if (hex.length === 3) {
     const first = hex.slice(0, 1)

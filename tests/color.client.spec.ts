@@ -28,6 +28,11 @@ describe('parseHex', () => {
   it('parses 6-digit hex', () => {
     expect(parseHex('#102030')).toEqual({ r: 16, g: 32, b: 48 })
   })
+
+  it('parses rgb() and rgba() strings without NaN', () => {
+    expect(parseHex('rgb(67, 69, 74)')).toEqual({ r: 67, g: 69, b: 74 })
+    expect(parseHex('rgba(53, 54, 56, 0.8)')).toEqual({ r: 53, g: 54, b: 56 })
+  })
 })
 
 describe('formatHex', () => {

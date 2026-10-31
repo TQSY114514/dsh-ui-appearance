@@ -250,6 +250,15 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   // the translucency too so hovers never snap back to an opaque chip.
   '--dsw-alias-interactive-bg-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
   '--dsw-alias-interactive-bg-hover-solid': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
+  '--dsw-alias-interactive-bg-active': { light: '#ebeef2', dark: '#43454a' }, // bluish-100 / bluish-750
+  '--dsw-alias-button-ghost-active-fill': { light: '#ebeef2', dark: '#43454a' }, // bluish-100 / bluish-750
+  '--dsw-alias-button-ghost-active-hover': { light: '#e9ecf2', dark: '#61666b' }, // bluish-150 / bluish-700
+  '--dsw-alias-markdown-tag': { light: '#f1f3f5', dark: '#2c2c2e' }, // bluish-75 / bluish-850
+  '--dsw-alias-markdown-citation': { light: '#ebeef2', dark: '#353638' }, // bluish-100 / bluish-800
+  '--dsw-alias-markdown-code-segment-selected': { light: '#ffffff', dark: '#353638' }, // bluish-00 / bluish-800
+  '--dsw-alias-markdown-code-segment-unselected': { light: '#f1f3f5', dark: '#1b1b1c' }, // bluish-75 / bluish-900
+  '--dsw-alias-markdown-placeholder': { light: '#f5f6f7', dark: '#2c2c2e' }, // bluish-60 / bluish-850
+  '--dsw-specific-login-input': { light: '#f9fafb', dark: '#1b1b1c' }, // bluish-50 / bluish-900
   // Task surfaces in the conversation area (todo panel, queue dock, goal
   // bar) ride the translucency with the other panels.
   '--dsw-specific-tip': { light: '#f5f6f7', dark: '#353638' }, // bluish-60 / bluish-800
@@ -543,6 +552,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-specific-selector', controlButtonFill[0], controlButtonFill[1])
     emit('--dsw-alias-interactive-bg-hover', controlButtonHover[0], controlButtonHover[1])
     emit('--dsw-alias-interactive-bg-hover-solid', controlButtonHover[0], controlButtonHover[1])
+    emit('--dsw-alias-interactive-bg-active', controlNavActive[0], controlNavActive[1])
+    emit('--dsw-alias-button-ghost-active-fill', controlNavActive[0], controlNavActive[1])
+    emit('--dsw-alias-button-ghost-active-hover', controlButtonHover[0], controlButtonHover[1])
+    emit('--dsw-alias-markdown-tag', controlNavActive[0], controlNavActive[1])
   }
 
   if (hasBackgroundMedia) {
@@ -585,9 +598,9 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         input: mixHex(base, LIGHT_BASE, 0.12),
         mod: mixHex(base, LIGHT_BASE, 0.18),
         overlay: mixHex(base, LIGHT_BASE, 0.35),
-        btnElev: 'rgb(67, 69, 74)',
-        btnFloat: 'rgb(44, 44, 46)',
-        btnHover: 'rgb(53, 54, 56)',
+        btnElev: '#43454a',
+        btnFloat: '#2c2c2e',
+        btnHover: '#353638',
       }
     }
     const fl = calcFlip(flipBaseLight)
@@ -675,6 +688,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-specific-selector', btnFloat[0], btnFloat[1])
       emit('--dsw-alias-interactive-bg-hover', btnHover[0], btnHover[1])
       emit('--dsw-alias-interactive-bg-hover-solid', btnHover[0], btnHover[1])
+      emit('--dsw-alias-interactive-bg-active', btnElev[0], btnElev[1])
+      emit('--dsw-alias-button-ghost-active-fill', btnElev[0], btnElev[1])
+      emit('--dsw-alias-button-ghost-active-hover', btnHover[0], btnHover[1])
+      emit('--dsw-alias-markdown-tag', btnFloat[0], btnFloat[1])
     }
   }
 
@@ -727,8 +744,17 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
 
   bakeAlpha('--dsw-specific-input-major', input.light, input.dark, flipInput[0], flipInput[1], inputAlpha)
+  if (inputAlpha < 1) {
+    bakeAlpha('--dsw-specific-login-input', undefined, undefined, flipInput[0], flipInput[1], inputAlpha)
+  }
   bakeAlpha('--dsw-alias-markdown-code-block', undefined, undefined, flipSidebar[0], flipSidebar[1], codeAlpha)
   bakeAlpha('--dsw-alias-markdown-code-block-banner', undefined, undefined, flipLayer2[0], flipLayer2[1], codeAlpha)
+  if (codeAlpha < 1) {
+    bakeAlpha('--dsw-alias-markdown-citation', undefined, undefined, flipLayer3[0], flipLayer3[1], codeAlpha)
+    bakeAlpha('--dsw-alias-markdown-code-segment-selected', undefined, undefined, flipLayer3[0], flipLayer3[1], codeAlpha)
+    bakeAlpha('--dsw-alias-markdown-code-segment-unselected', undefined, undefined, flipSidebar[0], flipSidebar[1], codeAlpha)
+    bakeAlpha('--dsw-alias-markdown-placeholder', undefined, undefined, flipLayer2[0], flipLayer2[1], codeAlpha)
+  }
 
   const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
   const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'
@@ -807,8 +833,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       derived: [string, string] | undefined,
       flip: [string | undefined, string | undefined],
     ): void => {
-      const valL = flip[0] ?? derived?.[0] ?? tokens[token]?.light ?? DEFAULT_SURFACE_COLORS[token]?.light ?? LIGHT_BASE
-      const valD = flip[1] ?? derived?.[1] ?? tokens[token]?.dark ?? DEFAULT_SURFACE_COLORS[token]?.dark ?? DARK_BASE
+      const valL = derived?.[0] ?? flip[0] ?? tokens[token]?.light ?? DEFAULT_SURFACE_COLORS[token]?.light ?? LIGHT_BASE
+      const valD = derived?.[1] ?? flip[1] ?? tokens[token]?.dark ?? DEFAULT_SURFACE_COLORS[token]?.dark ?? DARK_BASE
       emit(token, withAlpha(valL, alpha), withAlpha(valD, alpha))
     }
 
@@ -822,6 +848,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover-solid', controlButtonHover, flipButtonFloatingHover)
+    bakeControlTranslucent('--dsw-alias-interactive-bg-active', controlNavActive, flipButtonElevated)
+    bakeControlTranslucent('--dsw-alias-button-ghost-active-fill', controlNavActive, flipButtonElevated)
+    bakeControlTranslucent('--dsw-alias-button-ghost-active-hover', controlButtonHover, flipButtonFloatingHover)
+    bakeControlTranslucent('--dsw-alias-markdown-tag', controlNavActive, flipButtonFloating)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
   } else if (inputAlpha < 1 || settings.glassBlur > 0) {
     // When surfaceAlpha is left at 100% but the user lowers inputAlpha or enables
@@ -848,8 +878,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeInputHover('--dsw-alias-button-info-hover', lightInfoHover, darkInfoHover)
     bakeInputHover('--dsw-alias-button-primary-hover', lightPrimaryHover, darkPrimaryHover)
 
-    const plusBaseL = flipButtonFloating[0] ?? controlButtonFill?.[0]
-    const plusBaseD = flipButtonFloating[1] ?? controlButtonFill?.[1]
+    const plusBaseL = controlButtonFill?.[0] ?? flipButtonFloating[0]
+    const plusBaseD = controlButtonFill?.[1] ?? flipButtonFloating[1]
     if (plusBaseL !== undefined || plusBaseD !== undefined) {
       const pL = plusBaseL ?? DEFAULT_SURFACE_COLORS['--dsw-specific-selector'].light
       const pD = plusBaseD ?? DEFAULT_SURFACE_COLORS['--dsw-specific-selector'].dark
@@ -859,10 +889,10 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     }
   }
 
-  // In opaque mode (surfaceAlpha === 1), interactive hover and solid hover tokens
-  // must emit concrete static hex values (AGENTS.md hover mechanism) rather than
-  // falling back to host's stock 6% opacity (rgba(38, 49, 72, .06)), which looks
-  // completely transparent to users when transitioning from translucent to opaque.
+  // In opaque mode (surfaceAlpha === 1), interactive hover, solid hover, and
+  // active tab/chip tokens must emit concrete static hex values (AGENTS.md hover
+  // mechanism) rather than falling back to host's stock 6%–14% opacity, which looks
+  // inconsistent when transitioning between translucent and opaque modes.
   const hoverL = controlButtonHover?.[0] ?? flipButtonFloatingHover[0] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-hover'].light
   const hoverD = controlButtonHover?.[1] ?? flipButtonFloatingHover[1] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-hover'].dark
   if (!tokens['--dsw-alias-interactive-bg-hover']) {
@@ -870,6 +900,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
   if (!tokens['--dsw-alias-interactive-bg-hover-solid']) {
     emit('--dsw-alias-interactive-bg-hover-solid', hoverL, hoverD)
+  }
+  const activeL = controlNavActive?.[0] ?? flipButtonElevated[0] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-active'].light
+  const activeD = controlNavActive?.[1] ?? flipButtonElevated[1] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-interactive-bg-active'].dark
+  if (!tokens['--dsw-alias-interactive-bg-active']) {
+    emit('--dsw-alias-interactive-bg-active', activeL, activeD)
+  }
+  const tagL = controlNavActive?.[0] ?? flipButtonFloating[0] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-markdown-tag'].light
+  const tagD = controlNavActive?.[1] ?? flipButtonFloating[1] ?? DEFAULT_SURFACE_COLORS['--dsw-alias-markdown-tag'].dark
+  if (!tokens['--dsw-alias-markdown-tag']) {
+    emit('--dsw-alias-markdown-tag', tagL, tagD)
   }
 
   return tokens

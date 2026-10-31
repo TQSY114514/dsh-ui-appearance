@@ -456,13 +456,26 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('remaps interactive hover inside sidebar to sidebar nav active/hover tokens', () => {
+  it('remaps interactive hover and active tab tokens inside sidebar to sidebar nav active/hover tokens', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
     expect(css).toContain(':is(#root, body) :is([class*="_sidebarCol"], [class*="sidebarCol" i])')
     expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-active)')
+    expect(css).toContain('--dsw-alias-interactive-bg-active: var(--dsw-specific-sidebar-nav-item-active)')
+    expect(css).toContain('--dsw-alias-markdown-tag: var(--dsw-specific-sidebar-nav-item-active)')
     expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-specific-sidebar-nav-item-hover)')
+    expect(css).toContain(':where(#root, body) :is([class*="_tabActive"], [class*="tabActive" i]):hover')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-alias-interactive-bg-active)')
+
+    // Dark wallpaper + translucent modalAlpha never writes NaN into modal nav variables
+    applier.apply(full({
+      backgroundImage: 'data:image/png;base64,AAAA',
+      imageDark: true,
+      modalAlpha: 0.5,
+    }))
+    expect(document.body.style.getPropertyValue('--dsw-appearance-modal-nav-active-light')).toBe('rgba(67, 69, 74, 0.5)')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-modal-nav-hover-light')).toBe('rgba(53, 54, 56, 0.5)')
     applier.dispose()
   })
 
