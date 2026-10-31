@@ -146,6 +146,15 @@ Settings panel at a glance:
   - **Pair with Translucency**: Frosted glass (`backdrop-filter`) requires a translucent surface to reveal the blurred backdrop behind it. If "Sidebar Opacity", "Input Opacity", or "Settings & Modal Opacity" is left at `100%` (fully solid), the opaque fill hides the blur; lower the corresponding opacity slider to `40%–80%` to let the frosted glass shine through.
   - **Independent Opacity Channels**: Main panels, sidebar, settings & modals, composer input, and code blocks each have their own opacity slider. You can set "Panel Opacity" to `0%` for an unobstructed wallpaper in the chat view while keeping "Settings & Modal Opacity" at `80%–95%` with "Glass Blur" enabled for crisp readability.
 
+- **Q: Why are there no manual "Invert" buttons? When does automatic color inversion trigger, and how do I reset a single color role?**
+  - **Global WYSIWYG Fidelity**: Whenever you explicitly pick a "Text" color, global surfaces (chat area, sidebar, settings panel) **100% preserve your exact chosen color** without implicitly flipping it to black or white.
+  - **4 Automatic Contrast / Inversion Scenarios**:
+    1. **User Message Bubbles**: When "Text" is left at default, or when your custom text color has insufficient contrast ($< 3.5:1$) against the effective bubble backdrop (compositing panel color, panel opacity, and underlying background/wallpaper), bubble text automatically flips to high-contrast light or dark ink.
+    2. **Solid Accent Buttons & Badges**: Text and icons on solid accent fills (Send button, "Active" mode badge) always auto-pair with light or dark ink based on accent luminance; the top-left `"harness"` badge letters always invert against the global text color.
+    3. **Text Selection (`::selection`)**: Uses `accent` background + auto-contrasting text by default; if the bubble color is too close to the accent hue ($< 2.2:1$), selection inside the bubble automatically switches to an inverted high-contrast highlight.
+    4. **Default Light Mode + Dark Wallpaper**: When "Text" is left at default in Light Mode, uploading a dark wallpaper automatically flips the default dark text to light ink.
+  - **Resetting a Single Color Role**: Clear the HEX input box for that color role and press Enter (or click away) to restore that individual role back to its stock default.
+
 - **Q: Video background shows black screen or fails to play?**
   - **Codec Compatibility**: Chromium natively supports hardware decoding for **H.264 (MP4)** and **VP8 / VP9 (WebM)**. If the video uses unsupported codecs (such as HEVC / H.265, certain `.mov` containers, or specific audio tracks), decoding will fail. Please re-encode with tools like HandBrake or FFmpeg to standard H.264 MP4 before uploading.
 
