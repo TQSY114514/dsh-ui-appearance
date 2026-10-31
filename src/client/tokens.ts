@@ -94,6 +94,52 @@ function deriveStepForLabel(
 }
 
 /**
+ * Resolve a color role's `{ light, dark }` pair with strict per-mode isolation:
+ * if either mode explicitly customized this role, leaving the other mode empty
+ * preserves that mode's stock token rather than leaking the legacy field.
+ */
+function resolveRolePair(settings: AppearanceSettings, role: AppearanceRole): { light: string; dark: string } {
+  const l = settings.light?.[role] || ''
+  const d = settings.dark?.[role] || ''
+  const hasPerModeConfig = l !== '' || d !== ''
+  const legacy = !hasPerModeConfig ? (settings[role] || '') : ''
+  return {
+    light: l !== '' ? l : legacy,
+    dark: d !== '' ? d : legacy,
+  }
+}
+
+/**
+ * Compute the effective visible surface color behind user-message bubble text
+ * for a given mode, accounting for `panel`, `surfaceAlpha` translucency over
+ * `background`, and dark wallpaper (`imageDark`) surface flipping.
+ */
+function resolveEffectiveBubbleSurface(settings: AppearanceSettings, mode: 'light' | 'dark'): string {
+  const panelRole = resolveRolePair(settings, 'panel')
+  const bgRole = resolveRolePair(settings, 'background')
+  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+  const alpha = typeof settings.surfaceAlpha === 'number'
+    ? Math.min(1, Math.max(0, settings.surfaceAlpha))
+    : 1
+
+  const rawPanel = panelRole[mode]
+  const rawBubble = isHexColor(rawPanel)
+    ? rawPanel
+    : (hasMedia && settings.imageDark
+      ? mixHex(DARK_BASE, LIGHT_BASE, 0.12)
+      : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode])
+
+  const rawBg = bgRole[mode]
+  const canvasBg = isHexColor(rawBg)
+    ? rawBg
+    : (hasMedia && settings.imageDark
+      ? DARK_BASE
+      : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'][mode])
+
+  return alpha >= 1 ? rawBubble : mixHex(canvasBg, rawBubble, alpha)
+}
+
+/**
  * Per-mode ink color for the user-message bubble when accent auto-inversion
  * is enabled; `null` for a mode where it is off (the bubble keeps the normal
  * text color).
@@ -108,13 +154,11 @@ function deriveStepForLabel(
  * @returns per-mode ink hex, or null when inversion is off for that mode.
  */
 export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
-  const hasPerModeText = (settings.light?.text || '') !== '' || (settings.dark?.text || '') !== ''
+  const textRole = resolveRolePair(settings, 'text')
   const inkFor = (mode: 'light' | 'dark'): string | null => {
     if (!settings[mode]?.invert?.accent) return null
-    const surf = settings[mode]?.panel || (mode === 'light' ? settings.panel : '')
-      || settings[mode]?.background || (mode === 'light' ? settings.background : '')
-      || DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode]
-    const userText = settings[mode]?.text || (!hasPerModeText ? settings.text : '')
+    const surf = resolveEffectiveBubbleSurface(settings, mode)
+    const userText = textRole[mode]
     if (isHexColor(userText) && contrastRatio(userText, surf) >= 3.5) {
       return userText
     }
@@ -164,45 +208,13 @@ export interface ModeSelectionColors {
  * @returns global and bubble selection pairs for light and dark modes.
  */
 export function selectionColors(settings: AppearanceSettings): ModeSelectionColors {
-  const resolveRole = (role: AppearanceRole): { light: string; dark: string } => {
-    const l = settings.light?.[role] || ''
-    const d = settings.dark?.[role] || ''
-    const hasPerModeConfig = l !== '' || d !== ''
-    const legacy = !hasPerModeConfig ? (settings[role] || '') : ''
-    return {
-      light: l !== '' ? l : legacy,
-      dark: d !== '' ? d : legacy,
-    }
-  }
-
-  const accentRole = resolveRole('accent')
-  const panelRole = resolveRole('panel')
-  const bgRole = resolveRole('background')
-  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
-  const alpha = typeof settings.surfaceAlpha === 'number'
-    ? Math.min(1, Math.max(0, settings.surfaceAlpha))
-    : 1
+  const accentRole = resolveRolePair(settings, 'accent')
 
   const pairForMode = (mode: 'light' | 'dark'): { global: SelectionPair; bubble: SelectionPair } => {
     const rawAccent = accentRole[mode]
     const accent = isHexColor(rawAccent) ? rawAccent : '#4176e6'
     const globalPair: SelectionPair = { bg: accent, fg: onInk(accent) }
-
-    const rawPanel = panelRole[mode]
-    const rawBubble = isHexColor(rawPanel)
-      ? rawPanel
-      : (hasMedia && settings.imageDark
-        ? mixHex(DARK_BASE, LIGHT_BASE, 0.12)
-        : DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode])
-
-    const rawBg = bgRole[mode]
-    const canvasBg = isHexColor(rawBg)
-      ? rawBg
-      : (mode === 'light' && settings.imageDark
-        ? DARK_BASE
-        : DEFAULT_SURFACE_COLORS['--dsw-alias-bg-base'][mode])
-
-    const effectiveBubbleSurface = alpha >= 1 ? rawBubble : mixHex(canvasBg, rawBubble, alpha)
+    const effectiveBubbleSurface = resolveEffectiveBubbleSurface(settings, mode)
 
     if (contrastRatio(accent, effectiveBubbleSurface) >= BUBBLE_SELECTION_SURFACE_CONTRAST_MIN) {
       return { global: globalPair, bubble: globalPair }

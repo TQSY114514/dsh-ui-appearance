@@ -37,7 +37,7 @@ Latest official Desktop screenshot (community shots kept above):
 
 **Independent Dual-Mode Appearance** — Segmented tabs for "Light Mode" and "Dark Mode" at the top of the settings panel to configure 6 color roles and distinct presets independently. Dynamically adapts to host theme changes and the system `prefers-color-scheme`. Integrates a WCAG 2.1 auto-contrast algorithm (`a11yLabelStep`) to guarantee secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$, completely eliminating washed-out text on light mode and invisible icons on dark mode.
 
-**Theme Colors** — 6 core color roles: accent, background, panel, input, text, border. Each role features a native color picker and precise HEX input; text selection, keyboard focus rings, the top-left "harness" logo, and message bubbles seamlessly adapt to the accent color.
+**Theme Colors** — 6 core color roles: accent, background, panel, input, text, border. Each role features a native color picker and precise HEX input with **WYSIWYG global color fidelity** (your chosen text color is never implicitly overwritten); primary action buttons, text selection highlights, and keyboard focus rings follow the accent color, while user message bubbles follow the panel color with smart local contrast guardrails.
 
 **Wallpaper & Video Backgrounds (Up to 200MB)** — Upload or drag in images (JPG / PNG / WebP / GIF), or **paste a URL to load in one click** (auto-routed by extension; works with CORS-friendly hosts). Stored directly as IndexedDB Blobs (zero heap memory duplication, free from localStorage quota; images over 4096px are proportionally downscaled, GIF animations preserved). Brightness is sampled on upload to auto-derive an harmonious accent palette. Supports hardware-accelerated **dynamic video backgrounds** (MP4 / WebM, muted loop playback, up to 200MB).
 
@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's own `node_modules` and registers it in that profile's `package.json` (a `dependencies` entry plus `dsh.profile.bundles`, matching what `dsh plugin add` produces) — idempotent, safe to re-run. Optional parameters:
 
 ```powershell
-.\install.ps1 -Version '0.1.7'      # pin a version (default: latest release)
+.\install.ps1 -Version '0.1.26'     # pin a version (default: latest release)
 .\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
 .\install.ps1 -ProfileName 'web'    # target profile (default web; must be initialized)
 ```
@@ -101,7 +101,7 @@ Settings panel at a glance:
 | Section | Controls |
 |---|---|
 | Mode & Presets | Independent Light Mode (Default / Dawn / Sky / Mint / Sakura / Clay) and Dark Mode (Default / Midnight / Ocean / Forest / Rose / Monochrome) presets; free to keep tuning after applying |
-| Theme colors | 6 roles × (picker + HEX): accent (with auto bubble-text contrast toggle), background (with auto global-text contrast toggle), panel, input, text, border |
+| Theme colors | 6 roles × (picker + HEX): accent, background, panel, input, text, border (WYSIWYG global fidelity with automatic contrast guardrails on bubbles, buttons, and selection) |
 | Background | Image upload/replace/remove, video upload/remove, **load from URL (image/video)**, image opacity, background blur, scrim |
 | Interface | Panel opacity, sidebar opacity, settings & modal opacity, input opacity, code-block opacity, emphasis tint, glass blur |
 | Color scheme | Export palette, import palette (JSON text) |
@@ -116,7 +116,7 @@ Settings panel at a glance:
 
 | Capability | Mechanism |
 |---|---|
-| **Colors & Contrast** | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens with dual-mode independence. Built-in WCAG 2.1 dynamic contrast algorithm (`a11yLabelStep`) ensures secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$, completely eliminating washed-out text on light mode and invisible icons on dark mode |
+| **Colors & Contrast** | `ctx.theme.overrideTokens()` overrides `--dsw-alias-*` semantic tokens with dual-mode independence and WYSIWYG color fidelity. Built-in WCAG 2.1 dynamic contrast algorithm (`a11yLabelStep`) guarantees secondary text $\ge 7:1$ and tertiary text $\ge 4.5:1$; local contrast guardrails (`bubbleInk` compositing panel opacity against canvas/wallpaper, `selectionColors`, and `onInk`) preserve custom text colors when readable and automatically prevent unreadable collisions |
 | **Three-Layer Background** | Three decoupled layers (base canvas + media layer + anti-glare scrim), pushed to `position: fixed; z-index: -1`. When wallpaper/video is active, the official host base (`--dsw-alias-bg-base`) is **punched to transparent**, leaving `#root` free of `position`/`z-index` to eliminate stacking context traps and keep dialogs always on top |
 | **Component-Level Glass & Anti-Bleed** | Background blur uses a canvas `filter: blur` with `inset: -48px` extension to eliminate translucent vignetting at screen edges; frosted glass (`glassBlur`) is decoupled into component-level `backdrop-filter`, using `::before` pseudo-element isolation on the sidebar (`[class*="_sidebarCol"]::before`) and composer card (`[data-composer-card]::before`) so Windows desktop `position: fixed` titlebar buttons are never trapped and the `/` slash command overlay is never clipped by a CSS Backdrop Root |
 | **Hover Feedback Closure** | Neutral control and button hover tokens (`--dsw-alias-interactive-bg-hover` and `-solid`) bake opacity synchronously under translucent mode, fine-tuning lightness (10%~15%) while strictly revealing background to prevent sudden opaque snapping (`hover snapped opaque`) |
@@ -129,7 +129,7 @@ Settings panel at a glance:
 - **Dual-Mode Independent Palettes**: Saves two independent sets of 6-color palettes and presets for Light and Dark modes, smoothly adapting to system and host color schemes.
 - **Performance & Low-End Optimization**: Translucency is pre-baked as CSS `rgba()` with automatic transition freezing during active slider drags for 60fps responsiveness; low-end devices can set the "Glass Blur" and "Background Blur" sliders to 0 for instant rendering.
 - **Large Media Support**: Original images are stored losslessly in IndexedDB (auto-scaled proportionally above 4096px as WebP, GIF animations preserved within bounds); video ceiling expanded to 200MB with drag-and-drop and URL loading.
-- **Syntax Highlighting & Bubbles**: Code syntax highlighting (Shiki) follows independent syntax language rules; user message bubbles blend into the accent color while AI responses remain transparent.
+- **Syntax Highlighting & Bubbles**: Code syntax highlighting (Shiki) follows independent syntax language rules; user message bubbles follow panel color and opacity (with adaptive text and selection contrast) while AI responses remain transparent.
 
 ## FAQ
 
@@ -189,7 +189,7 @@ vitest.config.ts              # Standalone test config (aliases to tests/stubs)
 lib/                          # Build output
 ```
 
-All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **174 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
+All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **178 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
 
 ## License
 

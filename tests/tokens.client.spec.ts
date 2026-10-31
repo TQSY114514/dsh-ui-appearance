@@ -243,6 +243,18 @@ describe('buildTokenOverrides', () => {
       light: { ...DEFAULT_LIGHT_THEME, panel: '#355eb6', text: '#1e293b' },
     })
     expect(bubbleInk(clashingText).light).toBe('#fafaf9')
+    // Transparent bubble (surfaceAlpha = 0) composites against background / dark wallpaper
+    const transparentOverDarkBg = full({
+      surfaceAlpha: 0,
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111' },
+    })
+    expect(bubbleInk(transparentOverDarkBg).light).toBe('#fafaf9')
+    const darkWallpaperBubble = full({
+      backgroundImage: 'data:image/webp;base64,AAAA',
+      imageDark: true,
+      surfaceAlpha: 0,
+    })
+    expect(bubbleInk(darkWallpaperBubble).light).toBe('#fafaf9')
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
