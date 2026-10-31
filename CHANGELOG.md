@@ -2,6 +2,22 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.27] - 2026-10-31
+
+### Fixed
+
+- **全透明（`0%`）与半透明下侧边栏激活页签残留半透明底色、鼠标悬停才变透明**:
+  - 将 `--dsw-alias-interactive-bg-active`、`--dsw-alias-button-ghost-active-fill`、`--dsw-alias-button-ghost-active-hover`、`--dsw-alias-markdown-tag`、`--dsw-alias-markdown-citation`、`--dsw-alias-markdown-code-segment-selected` / `-unselected`、`--dsw-alias-markdown-placeholder` 及 `--dsw-specific-login-input` 纳入半透明烘焙与面板色衍生链，并在侧边栏作用域内将激活态与标签映射至侧边栏独立不透明度（`sidebarAlpha`）；
+  - 为激活页签（`[class*="_tabActive"]`）排除通用悬停覆盖并保持与激活态一致的透明度，彻底解决原生右侧栏与 `dsh-better-sidebar` 等插件页签在 `0%` 全透明下静止态呈半透明、悬停态才变全透明的问题；
+  - 扩展 `parseHex()` 支持解析 `rgb()` / `rgba()` 色值字符串，并将暗色翻转中的 `rgb(...)` 字面量统一规范为 HEX，杜绝 `withAlpha()` 产生 `rgba(NaN, NaN, NaN, ...)`。
+
+### Changed
+
+- **所见即所得色彩还原与自动对比度反色闭环**:
+  - 移除设置面板中「主色」「背景色」旁冗余的手动「反」切换按钮，简化主题颜色面板；
+  - 全局文字严格遵循用户所选颜色（所见即所得），不再因调整背景色而隐式翻转全局文字色；
+  - 升级 `bubbleInk()` 与 `selectionColors()` 共用 `resolveEffectiveBubbleSurface()` 合成表面计算（综合面板色、面板不透明度 `surfaceAlpha` 及底层背景/深色壁纸 `imageDark`）：当用户自定义文字色在气泡合成底色上清晰可读（对比度 $\ge 3.5:1$）时直接保留原色，仅在对比度不足或未自定义文字色时自动回退为高对比黑白字（`onInk`）。
+
 ## [0.1.26] - 2026-10-31
 
 ### Fixed
