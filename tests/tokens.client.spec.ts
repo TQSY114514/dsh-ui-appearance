@@ -182,6 +182,22 @@ describe('buildTokenOverrides', () => {
     expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#818181', dark: '#6b6c6f' })
     expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#818181', dark: '#6b6c6f' })
     expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d1d1d0', dark: '#3a3c3f' })
+
+    // Automatic background contrast when `text` is left empty (no manual invert button required):
+    // dark background in light mode or light background in dark mode auto-flips text,
+    // while an explicit `text` color is strictly respected.
+    const autoContrast = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', text: '' },
+      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', text: '' },
+    }))
+    expect(autoContrast['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    expect(autoContrast['--dsw-alias-label-secondary']).toEqual({ light: '#d5d5d5', dark: '#4e4f52' })
+
+    const explicitTextWins = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', text: '#38bdf8' },
+      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', text: '#1e293b' },
+    }))
+    expect(explicitTextWins['--dsw-alias-label-primary']).toEqual({ light: '#38bdf8', dark: '#1e293b' })
   })
 
   it('independent text customization per mode does not leak into the other mode', () => {

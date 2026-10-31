@@ -240,6 +240,11 @@ export function apply(ctx: ClientContext): void {
       ...patch[mode],
       [role]: value,
       preset: 'custom',
+      invert: {
+        ...patch[mode].invert,
+        accent: true,
+        background: false,
+      },
     }
     // Top-level role fields are a legacy mirror only: dual-mode writes must
     // NOT pollute them, or the untouched mode falls back to this value via
