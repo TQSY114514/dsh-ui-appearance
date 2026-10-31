@@ -182,22 +182,6 @@ describe('buildTokenOverrides', () => {
     expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#818181', dark: '#6b6c6f' })
     expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#818181', dark: '#6b6c6f' })
     expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d1d1d0', dark: '#3a3c3f' })
-
-    // Automatic background contrast when `text` is left empty (no manual invert button required):
-    // dark background in light mode or light background in dark mode auto-flips text,
-    // while an explicit `text` color is strictly respected.
-    const autoContrast = buildTokenOverrides(full({
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', text: '' },
-      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', text: '' },
-    }))
-    expect(autoContrast['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
-    expect(autoContrast['--dsw-alias-label-secondary']).toEqual({ light: '#d5d5d5', dark: '#4e4f52' })
-
-    const explicitTextWins = buildTokenOverrides(full({
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', text: '#38bdf8' },
-      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', text: '#1e293b' },
-    }))
-    expect(explicitTextWins['--dsw-alias-label-primary']).toEqual({ light: '#38bdf8', dark: '#1e293b' })
   })
 
   it('independent text customization per mode does not leak into the other mode', () => {
@@ -248,6 +232,17 @@ describe('buildTokenOverrides', () => {
       dark: { ...DEFAULT_DARK_THEME },
     })
     expect(bubbleInk(off)).toEqual({ light: null, dark: '#fafaf9' })
+    // User-selected `text` color is preserved inside bubbles whenever it is readable (>= 3.5:1),
+    // and only falls back to `#fafaf9` / `#0f1115` when it would clash with the bubble surface.
+    const customReadableText = full({
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#f4f1ea', text: '#292524' },
+      dark: { ...DEFAULT_DARK_THEME, panel: '#232737', text: '#e6e9f4' },
+    })
+    expect(bubbleInk(customReadableText)).toEqual({ light: '#292524', dark: '#e6e9f4' })
+    const clashingText = full({
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#355eb6', text: '#1e293b' },
+    })
+    expect(bubbleInk(clashingText).light).toBe('#fafaf9')
   })
 
   it('turns the surface tokens translucent below full opacity', () => {

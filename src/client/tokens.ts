@@ -108,11 +108,16 @@ function deriveStepForLabel(
  * @returns per-mode ink hex, or null when inversion is off for that mode.
  */
 export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
+  const hasPerModeText = (settings.light?.text || '') !== '' || (settings.dark?.text || '') !== ''
   const inkFor = (mode: 'light' | 'dark'): string | null => {
     if (!settings[mode]?.invert?.accent) return null
     const surf = settings[mode]?.panel || (mode === 'light' ? settings.panel : '')
       || settings[mode]?.background || (mode === 'light' ? settings.background : '')
       || DEFAULT_SURFACE_COLORS['--dsw-specific-bubble'][mode]
+    const userText = settings[mode]?.text || (!hasPerModeText ? settings.text : '')
+    if (isHexColor(userText) && contrastRatio(userText, surf) >= 3.5) {
+      return userText
+    }
     return onInk(surf)
   }
   return {
@@ -470,10 +475,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   // gate. Per-mode independent so a dark-mode invert doesn't leak into light.
   // Only background is invertible here: panel/input are sub-surfaces and a
   // single label token cannot express per-sub-surface ink.
-  const autoBgFlipL = text.light === '' && (settings.light?.background || '') !== '' && onInk(bg.light) === LIGHT_INK
-  const autoBgFlipD = text.dark === '' && (settings.dark?.background || '') !== '' && onInk(bg.dark) === DARK_INK
-  const inkL = (invL.background || autoBgFlipL) && bg.light !== '' ? onInk(bg.light) : ''
-  const inkD = (invD.background || autoBgFlipD) && bg.dark !== '' ? onInk(bg.dark) : ''
+  const inkL = invL.background && bg.light !== '' ? onInk(bg.light) : ''
+  const inkD = invD.background && bg.dark !== '' ? onInk(bg.dark) : ''
   if (inkL !== '' || inkD !== '') {
     const prevPrimary = tokens['--dsw-alias-label-primary']
     const prevInk = tokens['--dsw-alias-label-primary-inverted']
