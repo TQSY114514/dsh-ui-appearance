@@ -447,6 +447,37 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-fill-l1']).toBeDefined()
   })
 
+  it('surfaceAlpha no longer bakes the menu tokens (popoverAlpha owns them)', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.4, sidebarAlpha: 0.4 }))
+    // The panel drops to 40% while every dropdown keeps the stock host fill —
+    // the menu never turns into a see-through block over wallpaper/chat text.
+    expect(tokens['--dsw-alias-bg-layer-1']!.light).toBe('rgba(255, 255, 255, 0.4)')
+    expect(tokens['--dsw-specific-menu']).toEqual({ light: '#ffffff', dark: '#353638' })
+    expect(tokens['--dsw-menu-surface-fill']).toEqual({ light: '#ffffff', dark: '#353638' })
+    expect(tokens['--dsw-specific-menu']!.light).not.toContain('rgba(')
+  })
+
+  it('popoverAlpha bakes the menu tokens when lowered below 1', () => {
+    const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.4, sidebarAlpha: 0.4, popoverAlpha: 0.55 }))
+    expect(tokens['--dsw-specific-menu']).toEqual({ light: 'rgba(255, 255, 255, 0.55)', dark: 'rgba(53, 54, 56, 0.55)' })
+    expect(tokens['--dsw-menu-surface-fill']).toEqual({ light: 'rgba(255, 255, 255, 0.55)', dark: 'rgba(53, 54, 56, 0.55)' })
+    // The panel knob stays out of it: the menu alpha is popoverAlpha alone.
+    const opaquePanel = buildTokenOverrides(full({ surfaceAlpha: 1, popoverAlpha: 0.55 }))
+    expect(opaquePanel['--dsw-specific-menu']).toEqual(tokens['--dsw-specific-menu'])
+    // An explicit popoverAlpha also wins over the input/glass auto-follow.
+    const frostedButExplicit = buildTokenOverrides(full({ surfaceAlpha: 0.4, glassBlur: 16, popoverAlpha: 0.5 }))
+    expect(frostedButExplicit['--dsw-specific-menu']!.light).toBe('rgba(255, 255, 255, 0.5)')
+  })
+
+  it('popoverAlpha === 1 keeps the host menu values at any panel opacity', () => {
+    const stock = buildTokenOverrides(full({ surfaceAlpha: 1, popoverAlpha: 1 }))
+    for (const surfaceAlpha of [0, 0.4, 1]) {
+      const tokens = buildTokenOverrides(full({ surfaceAlpha, popoverAlpha: 1 }))
+      expect(tokens['--dsw-specific-menu']).toEqual(stock['--dsw-specific-menu'])
+      expect(tokens['--dsw-menu-surface-fill']).toEqual(stock['--dsw-menu-surface-fill'])
+    }
+  })
+
   it('accent never overrides the brand-text ink token', () => {
     const tokens = buildTokenOverrides(full({ accent: '#4176e6' }))
     expect(tokens['--dsw-alias-brand-text']).toBeUndefined()

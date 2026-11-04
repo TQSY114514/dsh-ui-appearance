@@ -456,6 +456,38 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
+  it('scopes menu & popover tokens to dedicated popover variables', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    // Container-level scope: material attribute + ARIA menu/listbox roles + popover class.
+    expect(css).toContain(':is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i])')
+    expect(css).toContain('--dsw-specific-menu: var(--dsw-appearance-popover-menu-light) !important')
+    expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-appearance-popover-menu-light) !important')
+    expect(css).toContain('--dsw-alias-menu-group-header-fill: transparent !important')
+    expect(css).toContain('--dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-light) !important')
+    expect(css).toContain('--dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-light) !important')
+    // Dark mode rides the same scope with the -dark pair.
+    expect(css).toContain('--dsw-specific-menu: var(--dsw-appearance-popover-menu-dark) !important')
+    expect(css).toContain('--dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-dark) !important')
+    applier.dispose()
+  })
+
+  it('bakes the popover variables with popoverAlpha only', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    applier.apply(full({ surfaceAlpha: 0.4, modalAlpha: 0.5, popoverAlpha: 1 }))
+    // popoverAlpha === 1: plain hex, no alpha re-baked into the menu fill.
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('#ffffff')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-dark')).toBe('#353638')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('#ffffff')
+    applier.apply(full({ surfaceAlpha: 1, modalAlpha: 1, popoverAlpha: 0.6 }))
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('rgba(255, 255, 255, 0.6)')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-dark')).toBe('rgba(53, 54, 56, 0.6)')
+    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-l2-dark')).toBe('rgba(44, 44, 46, 0.6)')
+    applier.dispose()
+  })
+
   it('remaps interactive hover and active tab tokens inside sidebar to sidebar nav active/hover tokens', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)

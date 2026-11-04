@@ -10,7 +10,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
-import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, selectionColors } from './tokens.ts'
+import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, popoverSurfaceAlpha, selectionColors } from './tokens.ts'
 import { mixHex, withAlpha } from './color.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
@@ -55,6 +55,12 @@ const BODY_VARIABLES = [
   '--dsw-appearance-modal-nav-active-dark',
   '--dsw-appearance-modal-nav-hover-light',
   '--dsw-appearance-modal-nav-hover-dark',
+  '--dsw-appearance-popover-menu-light',
+  '--dsw-appearance-popover-menu-dark',
+  '--dsw-appearance-popover-l1-light',
+  '--dsw-appearance-popover-l1-dark',
+  '--dsw-appearance-popover-l2-light',
+  '--dsw-appearance-popover-l2-dark',
 ] as const
 
 /**
@@ -287,6 +293,28 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 }
 :where(#root, body) [data-menu-material] > [class*="_backing"] {
   background: transparent !important;
+}
+/* Menu & popover opacity (popoverAlpha, mirrors the Issue #37 modalAlpha scoping):
+   Dropdowns, role=list menus, the '/' slash menu and popovers repaint their own
+   fill plus inner layer-1/2 cards, so the panel bake must not reach them.
+   The mapping rule above carries an ID via :is(#root, body); this block repeats
+   that specificity and sits later in the sheet, so it wins on a tie and no
+   #root-level !important can re-bake a menu back to the panel alpha.
+   The dark rule adds one attribute level instead of relying on source order.
+   Selectors stay on container/material attributes only — a broad
+   [class*="menu" i] here would match children and double-paint the fill. */
+:is(#root, body) :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]) {
+  --dsw-specific-menu: var(--dsw-appearance-popover-menu-light) !important;
+  --dsw-menu-surface-fill: var(--dsw-appearance-popover-menu-light) !important;
+  --dsw-alias-menu-group-header-fill: transparent !important;
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-light) !important;
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-light) !important;
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(#root, body) :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]) {
+  --dsw-specific-menu: var(--dsw-appearance-popover-menu-dark) !important;
+  --dsw-menu-surface-fill: var(--dsw-appearance-popover-menu-dark) !important;
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-dark) !important;
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-dark) !important;
 }
 /* Modals & Settings Dialog (Issue #37: independent modalAlpha):
    Settings panel (.wCInkW_panel / [data-shortcut-modal="settings"]) and native
@@ -557,6 +585,18 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-modal-nav-active-dark', bakeModal(baseNavActiveDark, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-light', bakeModal(baseNavHoverLight, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-dark', bakeModal(baseNavHoverDark, modalAlpha))
+
+    // Menu & popover opacity (popoverAlpha): the same panel-derived colors, but
+    // baked with the menu/popover alpha only — never with surfaceAlpha or
+    // modalAlpha. With no popover/input/glass tuning every variable stays the
+    // plain hex, so menus keep the host fill (macOS 94%) untouched.
+    const popoverAlpha = popoverSurfaceAlpha(value)
+    body.style.setProperty('--dsw-appearance-popover-menu-light', bakeModal(baseL3Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-menu-dark', bakeModal(baseL3Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l1-light', bakeModal(baseL1Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l1-dark', bakeModal(baseL1Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-light', bakeModal(baseL2Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-dark', bakeModal(baseL2Dark, popoverAlpha))
 
     // Text selection contrast (Issue #46): write dedicated global and bubble
     // selection pairs per mode so bubble-scoped brand overrides never cause

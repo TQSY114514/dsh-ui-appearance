@@ -2,6 +2,20 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Added
+
+- **菜单与浮层独立不透明度（`popoverAlpha`，设置项「菜单与浮层不透明度」）**:
+  - 新增 `surface.popoverOpacity` 滑块（`0%~100%`，默认 `100%`），语义与「设置与弹窗不透明度」（`modalAlpha`，Issue #37）对齐，但作用对象是菜单与浮层：下拉菜单、头像菜单、模型选择、`/` 斜杠命令浮层、`role="menu"` / `role="listbox"` 容器以及 `[class*="popover"]` 浮层；
+  - `applier` 新增 `--dsw-appearance-popover-menu` / `-l1` / `-l2` 变量，并在 `:is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i])` 作用域内重声明 `--dsw-specific-menu`、`--dsw-menu-surface-fill`、`--dsw-alias-menu-group-header-fill` 与 `--dsw-alias-bg-layer-1/2`，浮层内部的次级卡片底色随 `popoverAlpha` 变化而不再溢出到主面板。
+
+### Fixed
+
+- **主面板压到 `40%` 时菜单、下拉与 `/` 斜杠浮层变成叠在壁纸/聊天文字上的半透明块**:
+  - `--dsw-specific-menu` 与 `--dsw-menu-surface-fill` 不再由 `surfaceAlpha` 烘焙，改由独立的 `popoverAlpha` 决定；`popoverAlpha < 1` 时按该 alpha 烘焙，`popoverAlpha === 1`（默认）时不发射任何烘焙值，输出宿主原值（macOS 保持 `94%` 实底的既有观感）；
+  - 两者共用的有效 alpha 收敛到 `popoverSurfaceAlpha()`：显式调低「菜单与浮层不透明度」时以其为准，保持 `100%` 时沿用 v0.1.27 的自动跟随（`inputAlpha < 1` 或 `glassBlur > 0` 时为菜单表面烘焙半透明底色，使 `/` 斜杠浮层与下拉菜单的毛玻璃可见），两处（token 层与 applier 浮层作用域）从此不会给出互相矛盾的取值。
+
 ## [0.1.27] - 2026-10-31
 
 ### Fixed

@@ -52,6 +52,15 @@ describe('sanitizeSettings', () => {
     expect(sanitized.modalAlpha).toBe(0)
   })
 
+  it('clamps popoverAlpha to [0, 1] and defaults it to 1', () => {
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: 5 }).popoverAlpha).toBe(1)
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: -0.4 }).popoverAlpha).toBe(0)
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: 0.35 }).popoverAlpha).toBe(0.35)
+    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: Number.NaN }).popoverAlpha).toBe(1)
+    // A snapshot persisted before the knob existed keeps the host menu fill.
+    expect(sanitizeSettings({ surfaceAlpha: 0.4 }).popoverAlpha).toBe(1)
+  })
+
   it('rejects non-number numerics instead of feeding them into CSS', () => {
     const sanitized = sanitizeSettings({
       ...DEFAULT_SETTINGS,

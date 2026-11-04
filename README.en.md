@@ -103,7 +103,7 @@ Settings panel at a glance:
 | Mode & Presets | Independent Light Mode (Default / Dawn / Sky / Mint / Sakura / Clay) and Dark Mode (Default / Midnight / Ocean / Forest / Rose / Monochrome) presets; free to keep tuning after applying |
 | Theme colors | 6 roles × (picker + HEX): accent, background, panel, input, text, border (WYSIWYG global fidelity with automatic contrast guardrails on bubbles, buttons, and selection) |
 | Background | Image upload/replace/remove, video upload/remove, **load from URL (image/video)**, image opacity, background blur, scrim |
-| Interface | Panel opacity, sidebar opacity, settings & modal opacity, input opacity, code-block opacity, emphasis tint, glass blur |
+| Interface | Panel opacity, sidebar opacity, settings & modal opacity, menu & popover opacity, input opacity, code-block opacity, emphasis tint, glass blur |
 | Color scheme | Export palette, import palette (JSON text) |
 
 ## Persistence & reset

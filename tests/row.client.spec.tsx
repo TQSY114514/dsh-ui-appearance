@@ -66,6 +66,7 @@ const COPY: Record<string, string> = {
   'surface.opacity': 'Panel opacity',
   'surface.sidebarOpacity': 'Sidebar opacity',
   'surface.modalOpacity': 'Settings & modal opacity',
+  'surface.popoverOpacity': 'Menu & popover opacity',
   'surface.glass': 'Glass blur',
   'surface.hint': 'Lower panel opacity',
   'scheme.title': 'Color scheme',
@@ -224,6 +225,10 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('sidebarAlpha', 0.7)
     fireEvent.change(sliders[5]!, { target: { value: '0.85' } })
     expect(b.set).toHaveBeenCalledWith('modalAlpha', 0.85)
+    // The menu/popover slider sits right after the modal one.
+    expect(screen.getByText('Menu & popover opacity')).toBeDefined()
+    fireEvent.change(sliders[6]!, { target: { value: '0.6' } })
+    expect(b.set).toHaveBeenLastCalledWith('popoverAlpha', 0.6)
   })
 
   it('shows the preview and remove action once an image is set', () => {
