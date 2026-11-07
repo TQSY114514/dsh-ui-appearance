@@ -1,6 +1,6 @@
 # dsh-ui-appearance
 
-[中文](README.md) · English
+[中文](README.md) · English · [Contributing](CONTRIBUTING.md)
 
 The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring fine-grained panel/input/code opacity controls, frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
 

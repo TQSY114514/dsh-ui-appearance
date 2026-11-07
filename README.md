@@ -1,6 +1,6 @@
 # dsh-ui-appearance
 
-[English](README.en.md) · 中文
+[English](README.en.md) · 中文 · [参与贡献](CONTRIBUTING.md)
 
 DeepSeek Harness 生态中首个支持多维度 UI 参数深度自定义的外观插件 —— 不局限于固定预设，支持面板/输入框/代码块透明度微调、毛玻璃强度、壁纸/视频背景及色板智能衍生；WebUI 与 DSH Desktop 均可使用。
 

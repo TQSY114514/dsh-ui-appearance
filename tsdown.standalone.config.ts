@@ -136,7 +136,10 @@ const clientConfig: UserConfig = {
   entry: { client: 'src/client/index.ts' },
   outDir: 'lib',
   format: 'cjs',
-  platform: 'browser',
+  platform: 'neutral',
+  inputOptions: {
+    platform: 'browser',
+  },
   target: 'es2022',
   // The CJS closure cannot get a tsdown-emitted declaration (peers are not
   // installed here); types/client.d.ts mirrors the public surface instead.
