@@ -744,6 +744,15 @@ export function AppearanceCustomizerRow({
               onChange={value => { set('modalAlpha', value) }}
             />
             <Slider
+              label={t('surface.popoverOpacity')}
+              value={settings.popoverAlpha}
+              min={0}
+              max={1}
+              step={0.01}
+              format={value => `${Math.round(value * 100)}%`}
+              onChange={value => { set('popoverAlpha', value) }}
+            />
+            <Slider
               label={t('surface.inputOpacity')}
               value={settings.inputAlpha}
               min={0}

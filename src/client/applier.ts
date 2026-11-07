@@ -55,6 +55,16 @@ const BODY_VARIABLES = [
   '--dsw-appearance-modal-nav-active-dark',
   '--dsw-appearance-modal-nav-hover-light',
   '--dsw-appearance-modal-nav-hover-dark',
+  '--dsw-appearance-popover-l1-light',
+  '--dsw-appearance-popover-l1-dark',
+  '--dsw-appearance-popover-l2-light',
+  '--dsw-appearance-popover-l2-dark',
+  '--dsw-appearance-popover-l3-light',
+  '--dsw-appearance-popover-l3-dark',
+  '--dsw-appearance-popover-mod-light',
+  '--dsw-appearance-popover-mod-dark',
+  '--dsw-appearance-popover-hover-light',
+  '--dsw-appearance-popover-hover-dark',
 ] as const
 
 /**
@@ -277,16 +287,58 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 /* Menu & popover surfaces (MenuSurface, slash command menu, jobs panel, permission presets, avatar menu):
    DSH MenuSurface sets background: var(--dsw-menu-surface-fill) and
    backdrop-filter: var(--dsw-menu-backdrop-filter). Guarantee that menu surfaces
-   always evaluate to the user's translucent menu tokens and follow glassBlur,
-   and clear the macOS opaque ._backing layer so chat/wallpaper shows through. */
+   always evaluate to the user's popoverAlpha menu tokens and follow glassBlur,
+   scope inner layer/fill/hover tokens to popoverAlpha so menu item hover/selection
+   highlights and jobs popover rows remain visible even when surfaceAlpha is 0%,
+   and clear the macOS opaque ._backing / [data-menu-backing] layer so chat/wallpaper shows through. */
 [data-menu-material],
 :is(#root, body) [data-menu-material],
 :is(#root, body) [class*="menu" i] {
   --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
   --dsw-alias-menu-group-header-fill: transparent !important;
 }
-:where(#root, body) [data-menu-material] > [class*="_backing"] {
+:where(#root, body) :is([data-menu-backing], [data-menu-material] > [class*="_backing"]) {
   background: transparent !important;
+}
+:where(#root, body) :is(
+  [data-menu-material],
+  [data-trigger-menu],
+  [role="menu"],
+  [role="listbox"],
+  [class$="_menu"],
+  [class*="_menu "],
+  [class*="_menu_"],
+  [class*="_submenu"],
+  [class*="popover" i]
+) {
+  --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
+  --dsw-alias-menu-group-header-fill: transparent !important;
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-light);
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-light);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-popover-l3-light);
+  --dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-light);
+  --dsw-alias-fill-l2: var(--dsw-appearance-popover-mod-light);
+  --dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-light);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-appearance-popover-hover-light);
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(
+  [data-menu-material],
+  [data-trigger-menu],
+  [role="menu"],
+  [role="listbox"],
+  [class$="_menu"],
+  [class*="_menu "],
+  [class*="_menu_"],
+  [class*="_submenu"],
+  [class*="popover" i]
+) {
+  --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-dark);
+  --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-dark);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-popover-l3-dark);
+  --dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-dark);
+  --dsw-alias-fill-l2: var(--dsw-appearance-popover-mod-dark);
+  --dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-dark);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-appearance-popover-hover-dark);
 }
 /* Modals & Settings Dialog (Issue #37: independent modalAlpha):
    Settings panel (.wCInkW_panel / [data-shortcut-modal="settings"]) and native
@@ -557,6 +609,25 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-modal-nav-active-dark', bakeModal(baseNavActiveDark, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-light', bakeModal(baseNavHoverLight, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-dark', bakeModal(baseNavHoverDark, modalAlpha))
+
+    // Menus & Popovers (independent popoverAlpha):
+    const popoverAlpha = typeof value.popoverAlpha === 'number' && Number.isFinite(value.popoverAlpha)
+      ? Math.min(1, Math.max(0, value.popoverAlpha))
+      : 1
+    const basePopoverHoverLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.06) : (isFlip ? '#525257' : '#f1f3f5')
+    const basePopoverHoverDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.12) : '#43454a'
+    const basePopoverModDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.08) : '#43454a'
+
+    body.style.setProperty('--dsw-appearance-popover-l1-light', bakeModal(baseL1Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l1-dark', bakeModal(baseL1Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-light', bakeModal(baseL2Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-dark', bakeModal(baseL2Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l3-light', bakeModal(baseL3Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l3-dark', bakeModal(baseL3Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-mod-light', bakeModal(baseModLight, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-mod-dark', bakeModal(basePopoverModDark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-hover-light', bakeModal(basePopoverHoverLight, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-hover-dark', bakeModal(basePopoverHoverDark, popoverAlpha))
 
     // Text selection contrast (Issue #46): write dedicated global and bubble
     // selection pairs per mode so bubble-scoped brand overrides never cause

@@ -66,6 +66,7 @@ const COPY: Record<string, string> = {
   'surface.opacity': 'Panel opacity',
   'surface.sidebarOpacity': 'Sidebar opacity',
   'surface.modalOpacity': 'Settings & modal opacity',
+  'surface.popoverOpacity': 'Menu & popover opacity',
   'surface.glass': 'Glass blur',
   'surface.hint': 'Lower panel opacity',
   'scheme.title': 'Color scheme',
@@ -224,6 +225,8 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('sidebarAlpha', 0.7)
     fireEvent.change(sliders[5]!, { target: { value: '0.85' } })
     expect(b.set).toHaveBeenCalledWith('modalAlpha', 0.85)
+    fireEvent.change(sliders[6]!, { target: { value: '0.65' } })
+    expect(b.set).toHaveBeenCalledWith('popoverAlpha', 0.65)
   })
 
   it('shows the preview and remove action once an image is set', () => {

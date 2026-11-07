@@ -316,12 +316,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   const {
     backgroundImage, backgroundVideo, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
-    sidebarAlpha, sidebarOpaque, emphasisAlpha,
+    sidebarAlpha, popoverAlpha, sidebarOpaque, emphasisAlpha,
   } = settings
 
   const effectiveSidebarAlpha = typeof sidebarAlpha === 'number'
     ? sidebarAlpha
     : (sidebarOpaque ? 1 : surfaceAlpha)
+
+  const effectivePopoverAlpha = typeof popoverAlpha === 'number' && Number.isFinite(popoverAlpha)
+    ? Math.min(1, Math.max(0, popoverAlpha))
+    : 1
 
   // The wallpaper and the background video share one layer (#dsw-appearance-bg,
   // `position: fixed; z-index: -1`), so both need the frame's own background
@@ -804,6 +808,13 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     )
   }
 
+  if (effectivePopoverAlpha < 1) {
+    const menuExplicitL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.14) : undefined
+    const menuExplicitD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.14) : undefined
+    bakeAlpha('--dsw-specific-menu', menuExplicitL, menuExplicitD, flipLayer3[0], flipLayer3[1], effectivePopoverAlpha)
+    bakeAlpha('--dsw-menu-surface-fill', menuExplicitL, menuExplicitD, flipLayer3[0], flipLayer3[1], effectivePopoverAlpha)
+  }
+
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
     const translucent = (
@@ -858,9 +869,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-elevated-fill', controlButtonFill, flipButtonElevated)
     bakeControlTranslucent('--dsw-alias-button-floating-fill', controlButtonFill, flipButtonFloating)
     bakeControlTranslucent('--dsw-alias-button-floating-hover', controlButtonHover, flipButtonFloatingHover)
-    const menuAlpha = alpha > 0 ? alpha : (inputAlpha < 1 ? inputAlpha : (settings.glassBlur > 0 ? 0.68 : 0))
-    bakeAlpha('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
-    bakeAlpha('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
     translucent('--dsw-alias-fill-l1', undefined, undefined, flipMod[0], flipMod[1])
     translucent('--dsw-alias-fill-l2', undefined, undefined, flipMod[0], flipMod[1])
     bakeControlTranslucent('--dsw-alias-interactive-bg-hover', controlButtonHover, flipButtonFloatingHover)
@@ -870,14 +878,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-ghost-active-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-markdown-tag', controlNavActive, flipButtonFloating)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
-  } else if (inputAlpha < 1 || settings.glassBlur > 0) {
-    // When surfaceAlpha is left at 100% but the user lowers inputAlpha or enables
-    // frosted glass (glassBlur > 0), menu surfaces (such as the '/' slash command
-    // menu and model dropdowns) must become translucent so their backdrop-filter
-    // blur is visible instead of being hidden behind a 100% opaque fill.
-    const menuAlpha = inputAlpha < 1 ? inputAlpha : 0.68
-    bakeAlpha('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
-    bakeAlpha('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1], menuAlpha)
   }
 
   if (surfaceAlpha < 1 || inputAlpha < 1) {

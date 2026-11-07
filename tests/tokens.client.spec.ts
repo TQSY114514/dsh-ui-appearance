@@ -509,13 +509,47 @@ describe('buildTokenOverrides', () => {
     expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
     expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(65, 118, 230, 0.3)')
     expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(245, 246, 247, 0.3)')
-    // Slash command and dropdown menus also become translucent when inputAlpha < 1 or glassBlur > 0
-    expect(tokens['--dsw-specific-menu']!.light).toBe('rgba(255, 255, 255, 0.3)')
-    expect(tokens['--dsw-menu-surface-fill']!.light).toBe('rgba(255, 255, 255, 0.3)')
+    // Menus are controlled exclusively by popoverAlpha (default 1 = opaque),
+    // never snapping translucent just because inputAlpha < 1 or glassBlur > 0.
+    expect(tokens['--dsw-specific-menu']).toEqual({ light: '#ffffff', dark: '#353638' })
+    expect(tokens['--dsw-menu-surface-fill']).toEqual({ light: '#ffffff', dark: '#353638' })
+  })
 
-    const frostedMenus = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 1, glassBlur: 16 }))
-    expect(frostedMenus['--dsw-specific-menu']!.light).toBe('rgba(255, 255, 255, 0.68)')
-    expect(frostedMenus['--dsw-menu-surface-fill']!.dark).toBe('rgba(53, 54, 56, 0.68)')
+  it('popoverAlpha controls menu & popover tokens independently from surfaceAlpha, inputAlpha, and glassBlur', () => {
+    // 1. surfaceAlpha = 0, inputAlpha = 0, glassBlur = 16, popoverAlpha = 1 -> menus stay 100% opaque
+    const opaqueMenus = buildTokenOverrides(full({
+      surfaceAlpha: 0,
+      inputAlpha: 0,
+      glassBlur: 16,
+      popoverAlpha: 1,
+    }))
+    expect(opaqueMenus['--dsw-specific-menu']).toEqual({ light: '#ffffff', dark: '#353638' })
+    expect(opaqueMenus['--dsw-menu-surface-fill']).toEqual({ light: '#ffffff', dark: '#353638' })
+
+    // 2. surfaceAlpha = 1, popoverAlpha = 0.65 -> menus become 65% translucent while panels stay opaque
+    const translucentMenus = buildTokenOverrides(full({
+      surfaceAlpha: 1,
+      popoverAlpha: 0.65,
+    }))
+    expect(translucentMenus['--dsw-specific-menu']).toEqual({
+      light: 'rgba(255, 255, 255, 0.65)',
+      dark: 'rgba(53, 54, 56, 0.65)',
+    })
+    expect(translucentMenus['--dsw-menu-surface-fill']).toEqual({
+      light: 'rgba(255, 255, 255, 0.65)',
+      dark: 'rgba(53, 54, 56, 0.65)',
+    })
+    expect(translucentMenus['--dsw-alias-bg-layer-1']).toBeUndefined()
+
+    // 3. popoverAlpha = 0 -> menus are 100% transparent
+    const zeroMenus = buildTokenOverrides(full({
+      surfaceAlpha: 1,
+      popoverAlpha: 0,
+    }))
+    expect(zeroMenus['--dsw-specific-menu']).toEqual({
+      light: 'rgba(255, 255, 255, 0)',
+      dark: 'rgba(53, 54, 56, 0)',
+    })
   })
 
   it('a dark image (imageDark) flips the family from the dark base', () => {

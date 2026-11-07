@@ -447,13 +447,54 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('remaps menu surface fill to follow specific-menu translucency', () => {
+  it('remaps menu surface fill and scopes popover layer/fill/hover tokens to popoverAlpha', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
+    const body = document.body
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
     expect(css).toContain('[data-menu-material]')
+    expect(css).toContain('[data-menu-backing]')
     expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-specific-menu) !important')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-light)')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-dark)')
+    expect(css).toContain('--dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-light)')
+    expect(css).toContain('--dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-dark)')
+
+    // Default popoverAlpha = 1 keeps menu inner layers/hovers opaque even when surfaceAlpha = 0
+    applier.apply(full({ surfaceAlpha: 0, popoverAlpha: 1 }))
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('#ffffff')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l3-dark')).toBe('#353638')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-light')).toBe('#f1f3f5')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('#43454a')
+
+    // Lowering popoverAlpha bakes translucent rgba values
+    applier.apply(full({ surfaceAlpha: 1, popoverAlpha: 0.7 }))
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('rgba(255, 255, 255, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l3-dark')).toBe('rgba(53, 54, 56, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-light')).toBe('rgba(241, 243, 245, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('rgba(67, 69, 74, 0.7)')
+
+    // Verify popover selector matches menu/popover containers without matching sidebar trigger buttons (.hHd-Xa_moreMenu)
+    const menuEl = document.createElement('div')
+    menuEl.setAttribute('data-menu-material', '')
+    const slashMenuEl = document.createElement('div')
+    slashMenuEl.setAttribute('data-trigger-menu', '')
+    slashMenuEl.className = '_3e4SsG_menu'
+    const sidebarMoreBtn = document.createElement('button')
+    sidebarMoreBtn.className = 'hHd-Xa_moreMenu'
+    document.body.append(menuEl, slashMenuEl, sidebarMoreBtn)
+
+    const popoverSelector = ':where(#root, body) :is([data-menu-material], [data-trigger-menu], [role="menu"], [role="listbox"], [class$="_menu"], [class*="_menu "], [class*="_menu_"], [class*="_submenu"], [class*="popover" i])'
+    expect(menuEl.matches(popoverSelector)).toBe(true)
+    expect(slashMenuEl.matches(popoverSelector)).toBe(true)
+    expect(sidebarMoreBtn.matches(popoverSelector)).toBe(false)
+
+    menuEl.remove()
+    slashMenuEl.remove()
+    sidebarMoreBtn.remove()
     applier.dispose()
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('')
   })
 
   it('remaps interactive hover and active tab tokens inside sidebar to sidebar nav active/hover tokens', () => {

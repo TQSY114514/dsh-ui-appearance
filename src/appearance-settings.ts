@@ -117,6 +117,8 @@ export interface AppearanceSettings extends AppearanceColors {
   sidebarAlpha: number
   /** Modal dialog & settings panel opacity, 0..1; 1 = fully opaque modals. */
   modalAlpha: number
+  /** Menu dropdown & popover opacity, 0..1; 1 = fully opaque menus & popovers. */
+  popoverAlpha: number
   /** Composer input opacity, 0..1; 1 = follow surfaceAlpha. */
   inputAlpha: number
   /** Code block / inline code opacity, 0..1; 1 = follow surfaceAlpha. */
@@ -153,6 +155,7 @@ export const DEFAULT_SETTINGS: AppearanceSettings = {
   surfaceAlpha: 1,
   sidebarAlpha: 1,
   modalAlpha: 1,
+  popoverAlpha: 1,
   inputAlpha: 1,
   codeAlpha: 1,
   sidebarOpaque: true,
@@ -168,6 +171,7 @@ const NUMERIC_BOUNDS: Record<string, { min: number; max: number }> = {
   surfaceAlpha: { min: 0, max: 1 },
   sidebarAlpha: { min: 0, max: 1 },
   modalAlpha: { min: 0, max: 1 },
+  popoverAlpha: { min: 0, max: 1 },
   inputAlpha: { min: 0, max: 1 },
   codeAlpha: { min: 0, max: 1 },
   glassBlur: { min: 0, max: GLASS_BLUR_MAX },
@@ -341,6 +345,13 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
     result.modalAlpha = Math.min(1, Math.max(0, source.modalAlpha))
   } else {
     result.modalAlpha = 1
+  }
+
+  // Reconciliation for popoverAlpha (defaults to 1 for readability):
+  if (typeof source.popoverAlpha === 'number' && Number.isFinite(source.popoverAlpha)) {
+    result.popoverAlpha = Math.min(1, Math.max(0, source.popoverAlpha))
+  } else {
+    result.popoverAlpha = 1
   }
 
   return result
