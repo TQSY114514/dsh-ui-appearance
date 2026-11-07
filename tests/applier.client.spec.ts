@@ -39,26 +39,6 @@ function fakeCtx() {
 
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
 
-/** Menu & popover container scope the sheet must reproduce verbatim. */
-const MENU_TARGET = ':is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i])'
-
-/** Stylesheet text of the plugin sheet. */
-const sheetText = (): string => document.getElementById(STYLE_ID)?.textContent ?? ''
-
-/** Split a stylesheet into rule blocks with comments and whitespace collapsed,
- * so an assertion can prove a selector and its declarations live in the SAME
- * block — a whole-sheet toContain would still pass after the two halves drift
- * into different rules. */
-function ruleBlocks(css: string): Array<{ selector: string; body: string }> {
-  const compact = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ')
-  return [...compact.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .map(match => ({ selector: match[1]!.trim(), body: match[2]! }))
-}
-
-/** Rule blocks that declare a menu/popover variable. */
-const popoverRuleBlocks = (css: string): Array<{ selector: string; body: string }> =>
-  ruleBlocks(css).filter(block => block.body.includes('--dsw-appearance-popover-'))
-
 describe('AppearanceApplier', () => {
   it('owns the stylesheet and background layer from construction', () => {
     const { ctx } = fakeCtx()
@@ -467,115 +447,54 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('remaps menu surface fill to follow specific-menu translucency', () => {
+  it('remaps menu surface fill and scopes popover layer/fill/hover tokens to popoverAlpha', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
+    const body = document.body
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
     expect(css).toContain('[data-menu-material]')
+    expect(css).toContain('[data-menu-backing]')
     expect(css).toContain('--dsw-menu-surface-fill: var(--dsw-specific-menu) !important')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-light)')
+    expect(css).toContain('--dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-dark)')
+    expect(css).toContain('--dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-light)')
+    expect(css).toContain('--dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-dark)')
+
+    // Default popoverAlpha = 1 keeps menu inner layers/hovers opaque even when surfaceAlpha = 0
+    applier.apply(full({ surfaceAlpha: 0, popoverAlpha: 1 }))
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('#ffffff')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l3-dark')).toBe('#353638')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-light')).toBe('#f1f3f5')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('#43454a')
+
+    // Lowering popoverAlpha bakes translucent rgba values
+    applier.apply(full({ surfaceAlpha: 1, popoverAlpha: 0.7 }))
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('rgba(255, 255, 255, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l3-dark')).toBe('rgba(53, 54, 56, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-light')).toBe('rgba(241, 243, 245, 0.7)')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('rgba(67, 69, 74, 0.7)')
+
+    // Verify popover selector matches menu/popover containers without matching sidebar trigger buttons (.hHd-Xa_moreMenu)
+    const menuEl = document.createElement('div')
+    menuEl.setAttribute('data-menu-material', '')
+    const slashMenuEl = document.createElement('div')
+    slashMenuEl.setAttribute('data-trigger-menu', '')
+    slashMenuEl.className = '_3e4SsG_menu'
+    const sidebarMoreBtn = document.createElement('button')
+    sidebarMoreBtn.className = 'hHd-Xa_moreMenu'
+    document.body.append(menuEl, slashMenuEl, sidebarMoreBtn)
+
+    const popoverSelector = ':where(#root, body) :is([data-menu-material], [data-trigger-menu], [role="menu"], [role="listbox"], [class$="_menu"], [class*="_menu "], [class*="_menu_"], [class*="_submenu"], [class*="popover" i])'
+    expect(menuEl.matches(popoverSelector)).toBe(true)
+    expect(slashMenuEl.matches(popoverSelector)).toBe(true)
+    expect(sidebarMoreBtn.matches(popoverSelector)).toBe(false)
+
+    menuEl.remove()
+    slashMenuEl.remove()
+    sidebarMoreBtn.remove()
     applier.dispose()
-  })
-
-  it('leaves the menu & popover scope disarmed while the effective alpha is 1', () => {
-    const { ctx } = fakeCtx()
-    const applier = new AppearanceApplier(ctx)
-    applier.apply(full({ surfaceAlpha: 0.4, modalAlpha: 1, popoverAlpha: 1 }))
-    // No gate attribute and no popover variables: every scoped rule is inert, so
-    // the host's own menu fill (macOS 94%) is never overwritten.
-    expect(document.body.hasAttribute('data-dsw-appearance-popover')).toBe(false)
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-dark')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-l2-dark')).toBe('')
-
-    const blocks = popoverRuleBlocks(sheetText())
-    expect(blocks.length).toBe(2)
-    for (const block of blocks) expect(block.selector).toContain('body[data-dsw-appearance-popover]')
-
-    // Live matching proof: with the gate off, the menu surface matches neither
-    // the light nor the dark block, so nothing repaints it.
-    const menu = document.createElement('div')
-    menu.setAttribute('data-menu-material', 'translucent')
-    document.body.append(menu)
-    for (const block of blocks) expect(menu.matches(block.selector)).toBe(false)
-    // The host value the rules would have clobbered stays open: the mapping rule
-    // still forwards the untouched --dsw-specific-menu.
-    expect(applier).toBeDefined()
-    menu.remove()
-    applier.dispose()
-  })
-
-  it('arms the menu & popover scope and bakes it when the alpha drops below 1', () => {
-    const { ctx } = fakeCtx()
-    const applier = new AppearanceApplier(ctx)
-    applier.apply(full({ surfaceAlpha: 0.4, modalAlpha: 0.5, popoverAlpha: 0.4 }))
-    expect(document.body.getAttribute('data-dsw-appearance-popover')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('rgba(255, 255, 255, 0.4)')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-dark')).toBe('rgba(53, 54, 56, 0.4)')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('rgba(255, 255, 255, 0.4)')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-l2-dark')).toBe('rgba(44, 44, 46, 0.4)')
-
-    // Selector and declarations must live in the SAME block: moving either half
-    // into another rule makes these assertions fail.
-    const [light] = popoverRuleBlocks(sheetText()).filter(block => block.body.includes('--dsw-appearance-popover-menu-light'))
-    expect(light).toBeDefined()
-    expect(light!.selector).toBe(`body[data-dsw-appearance-popover] ${MENU_TARGET}`)
-    expect(light!.body).toContain('--dsw-specific-menu: var(--dsw-appearance-popover-menu-light);')
-    expect(light!.body).toContain('--dsw-alias-menu-group-header-fill: transparent !important;')
-    expect(light!.body).toContain('--dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-light);')
-    expect(light!.body).toContain('--dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-light);')
-    // The mapping rule keeps sole ownership of the fill (no specificity war).
-    expect(light!.body).not.toContain('--dsw-menu-surface-fill')
-
-    // Back to 100%: gate and variables are retracted again.
-    applier.apply(full({ surfaceAlpha: 0.4, modalAlpha: 0.5, popoverAlpha: 1 }))
-    expect(document.body.hasAttribute('data-dsw-appearance-popover')).toBe(false)
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('')
-    // The input/glass auto-follow still arms the scope on its own.
-    applier.apply(full({ surfaceAlpha: 1, popoverAlpha: 1, glassBlur: 8 }))
-    expect(document.body.getAttribute('data-dsw-appearance-popover')).toBe('')
-    expect(document.body.style.getPropertyValue('--dsw-appearance-popover-menu-light')).toBe('rgba(255, 255, 255, 0.68)')
-    applier.dispose()
-  })
-
-  it('reaches dark-mode menus on html, on body and through body-level portals', () => {
-    const { ctx } = fakeCtx()
-    const applier = new AppearanceApplier(ctx)
-    applier.apply(full({ popoverAlpha: 0.4 }))
-    const [dark] = popoverRuleBlocks(sheetText()).filter(block => block.body.includes('--dsw-appearance-popover-menu-dark'))
-    expect(dark).toBeDefined()
-    // The dark block keeps the group-header reset (parity with the light block).
-    expect(dark!.body).toContain('--dsw-alias-menu-group-header-fill: transparent !important;')
-    expect(dark!.body).toContain('--dsw-specific-menu: var(--dsw-appearance-popover-menu-dark);')
-    expect(dark!.body).toContain('--dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-dark);')
-    // Two ancestor shapes, no :is(#root, body) hop in between.
-    expect(dark!.selector).toContain(`html:is([data-ds-dark-theme], [data-theme="dark"]) body[data-dsw-appearance-popover] ${MENU_TARGET}`)
-    expect(dark!.selector).toContain(`body:is([data-ds-dark-theme], [data-theme="dark"])[data-dsw-appearance-popover] ${MENU_TARGET}`)
-
-    const menu = document.createElement('div')
-    menu.setAttribute('data-menu-material', 'translucent')
-    const portal = document.createElement('div')
-    portal.setAttribute('role', 'menu')
-    document.body.append(menu, portal)
-    const darkSelector = dark!.selector
-
-    // 1. theme marker on <html>, menu inside the app shell.
-    document.documentElement.setAttribute('data-ds-dark-theme', '')
-    expect(menu.matches(darkSelector)).toBe(true)
-    // 2. theme marker on <body> itself.
-    document.documentElement.removeAttribute('data-ds-dark-theme')
-    document.body.setAttribute('data-ds-dark-theme', '')
-    expect(menu.matches(darkSelector)).toBe(true)
-    // 3. a menu portaled straight into <body> (no wrapper between gate and menu).
-    expect(portal.matches(darkSelector)).toBe(true)
-    document.body.removeAttribute('data-ds-dark-theme')
-    // 4. light mode: the dark block no longer matches, the light one does.
-    expect(menu.matches(darkSelector)).toBe(false)
-    const [lightBlock] = popoverRuleBlocks(sheetText()).filter(block => block.body.includes('--dsw-appearance-popover-menu-light'))
-    expect(menu.matches(lightBlock!.selector)).toBe(true)
-
-    menu.remove()
-    portal.remove()
-    applier.dispose()
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-l1-light')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-popover-hover-dark')).toBe('')
   })
 
   it('remaps interactive hover and active tab tokens inside sidebar to sidebar nav active/hover tokens', () => {

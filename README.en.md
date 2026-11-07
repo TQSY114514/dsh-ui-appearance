@@ -41,7 +41,7 @@ Latest official Desktop screenshot (community shots kept above):
 
 **Wallpaper & Video Backgrounds (Up to 200MB)** — Upload or drag in images (JPG / PNG / WebP / GIF), or **paste a URL to load in one click** (auto-routed by extension; works with CORS-friendly hosts). Stored directly as IndexedDB Blobs (zero heap memory duplication, free from localStorage quota; images over 4096px are proportionally downscaled, GIF animations preserved). Brightness is sampled on upload to auto-derive an harmonious accent palette. Supports hardware-accelerated **dynamic video backgrounds** (MP4 / WebM, muted loop playback, up to 200MB).
 
-**Glassmorphism & Multi-Dimensional Independent Translucency** — **Main panels, sidebar, settings & modals, composer input, and code blocks** each have independent 0%–100% continuous opacity sliders (keeping the settings dialog crisp and readable even when main chat surfaces are 100% transparent). **Frosted glass blur (`glassBlur`) is fully decoupled from background blur (`backgroundBlur`)**: background blur applies exclusively to the wallpaper/video canvas, while frosted glass targets UI surfaces (sidebar, composer input, `/` slash command menu, message bubbles, code blocks, settings/modals, and modal backdrop masks). Inline code chips preserve a low-alpha accent tint with a dedicated "emphasis tint" slider; neutral interactive controls and buttons bake alpha synchronously on hover, preventing sudden opaque snapping (`hover snapped opaque`).
+**Glassmorphism & Multi-Dimensional Independent Translucency** — **Main panels, sidebar, settings & modals, menus & popovers, composer input, and code blocks** each have independent 0%–100% continuous opacity sliders (keeping the settings dialog, dropdown menus, and popovers crisp and readable even when main chat surfaces are 100% transparent). **Frosted glass blur (`glassBlur`) is fully decoupled from background blur (`backgroundBlur`)**: background blur applies exclusively to the wallpaper/video canvas, while frosted glass targets UI surfaces (sidebar, composer input, `/` slash command menu, dropdown menus & popovers, message bubbles, code blocks, settings/modals, and modal backdrop masks). Inline code chips preserve a low-alpha accent tint with a dedicated "emphasis tint" slider; neutral interactive controls, buttons, and menu items bake alpha synchronously on hover, preventing sudden opaque snapping (`hover snapped opaque`).
 
 **Three-Layer Background Architecture** — An innovative 3-layer rendering system: canvas base layer (custom solid background color) + media layer (wallpaper/video with independent blur and opacity) + anti-glare scrim layer (adaptive veil protecting text readability). Lowering media opacity blends smoothly into your custom background color without white flash.
 
@@ -144,8 +144,7 @@ Settings panel at a glance:
 
 - **Q: Why doesn't the "Glass Blur" slider show a frosted effect on the sidebar/input/settings panel? And how do I keep the settings dialog readable when the main chat is 100% transparent?**
   - **Pair with Translucency**: Frosted glass (`backdrop-filter`) requires a translucent surface to reveal the blurred backdrop behind it. If "Sidebar Opacity", "Input Opacity", or "Settings & Modal Opacity" is left at `100%` (fully solid), the opaque fill hides the blur; lower the corresponding opacity slider to `40%–80%` to let the frosted glass shine through.
-  - **Independent Opacity Channels**: Main panels, sidebar, settings & modals, menus & popovers, composer input, and code blocks each have their own opacity slider. You can set "Panel Opacity" to `0%` for an unobstructed wallpaper in the chat view while keeping "Settings & Modal Opacity" at `80%–95%` with "Glass Blur" enabled for crisp readability.
-  - **Menu & Popover Opacity**: `100%` means **no extra baking** — menus keep the host's own fill (a `94%` solid on macOS). If "Glass Blur" is on or "Input Opacity" is lowered, popovers still follow the existing auto-link and stay translucent; leave the slider at `100%` with glass blur off and input opacity at `100%` for solid menus, or lower the slider to control popover translucency explicitly.
+  - **Independent Opacity Channels**: Main panels, sidebar, settings & modals, menus & popovers, composer input, and code blocks each have their own opacity slider. You can set "Panel Opacity" to `0%` for an unobstructed wallpaper in the chat view while keeping "Settings & Modal Opacity" and "Menu & Popover Opacity" at `80%–100%` with "Glass Blur" enabled for crisp readability.
 
 - **Q: Why are there no manual "Invert" buttons? When does automatic color inversion trigger, and how do I reset a single color role?**
   - **Global WYSIWYG Fidelity**: Whenever you explicitly pick a "Text" color, global surfaces (chat area, sidebar, settings panel) **100% preserve your exact chosen color** without implicitly flipping it to black or white.
@@ -199,7 +198,7 @@ vitest.config.ts              # Standalone test config (aliases to tests/stubs)
 lib/                          # Build output
 ```
 
-All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **178 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
+All `@deepseek-ai/*` dependencies are optional peers provided by the host at runtime; the only runtime dependency is `clsx`. **179 vitest tests green** (runnable standalone in this repo); CI build and artifact assertions green.
 
 ## License
 

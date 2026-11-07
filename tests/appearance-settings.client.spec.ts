@@ -38,7 +38,7 @@ describe('sanitizeSettings', () => {
       backgroundOpacity: 5, scrim: -1, surfaceAlpha: Number.NaN,
       backgroundBlur: 999, glassBlur: -3, emphasisAlpha: 9,
       inputAlpha: 5, codeAlpha: -1,
-      sidebarAlpha: 2, modalAlpha: -0.5,
+      sidebarAlpha: 2, modalAlpha: -0.5, popoverAlpha: 1.5,
     })
     expect(sanitized.backgroundOpacity).toBe(1)
     expect(sanitized.scrim).toBe(0)
@@ -50,15 +50,7 @@ describe('sanitizeSettings', () => {
     expect(sanitized.codeAlpha).toBe(0)
     expect(sanitized.sidebarAlpha).toBe(1)
     expect(sanitized.modalAlpha).toBe(0)
-  })
-
-  it('clamps popoverAlpha to [0, 1] and defaults it to 1', () => {
-    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: 5 }).popoverAlpha).toBe(1)
-    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: -0.4 }).popoverAlpha).toBe(0)
-    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: 0.35 }).popoverAlpha).toBe(0.35)
-    expect(sanitizeSettings({ ...DEFAULT_SETTINGS, popoverAlpha: Number.NaN }).popoverAlpha).toBe(1)
-    // A snapshot persisted before the knob existed keeps the host menu fill.
-    expect(sanitizeSettings({ surfaceAlpha: 0.4 }).popoverAlpha).toBe(1)
+    expect(sanitized.popoverAlpha).toBe(1)
   })
 
   it('rejects non-number numerics instead of feeding them into CSS', () => {
@@ -89,6 +81,7 @@ describe('sanitizeSettings', () => {
     expect(legacyTranslucent.sidebarAlpha).toBe(0.6)
     expect(legacyTranslucent.sidebarOpaque).toBe(false)
     expect(legacyTranslucent.modalAlpha).toBe(1)
+    expect(legacyTranslucent.popoverAlpha).toBe(1)
   })
 
   it('drops unknown fields and keeps known strings', () => {

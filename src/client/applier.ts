@@ -10,7 +10,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
-import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, popoverSurfaceAlpha, selectionColors } from './tokens.ts'
+import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, selectionColors } from './tokens.ts'
 import { mixHex, withAlpha } from './color.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
@@ -19,16 +19,6 @@ import { getVideo } from './video-store.ts'
 export const BG_LAYER_ID = 'dsw-appearance-bg'
 /** Stylesheet element id owned by this plugin. */
 export const STYLE_ID = 'dsw-appearance-styles'
-
-/** Menu & popover variables, written only while the popover scope is armed. */
-const POPOVER_VARIABLES = [
-  '--dsw-appearance-popover-menu-light',
-  '--dsw-appearance-popover-menu-dark',
-  '--dsw-appearance-popover-l1-light',
-  '--dsw-appearance-popover-l1-dark',
-  '--dsw-appearance-popover-l2-light',
-  '--dsw-appearance-popover-l2-dark',
-] as const
 
 /** CSS variables the applier writes on body, consumed by the stylesheet. */
 const BODY_VARIABLES = [
@@ -65,13 +55,17 @@ const BODY_VARIABLES = [
   '--dsw-appearance-modal-nav-active-dark',
   '--dsw-appearance-modal-nav-hover-light',
   '--dsw-appearance-modal-nav-hover-dark',
-  ...POPOVER_VARIABLES,
+  '--dsw-appearance-popover-l1-light',
+  '--dsw-appearance-popover-l1-dark',
+  '--dsw-appearance-popover-l2-light',
+  '--dsw-appearance-popover-l2-dark',
+  '--dsw-appearance-popover-l3-light',
+  '--dsw-appearance-popover-l3-dark',
+  '--dsw-appearance-popover-mod-light',
+  '--dsw-appearance-popover-mod-dark',
+  '--dsw-appearance-popover-hover-light',
+  '--dsw-appearance-popover-hover-dark',
 ] as const
-
-/** Body attribute arming the menu & popover scope. Set only while the effective
- * menu alpha is below 1: at 1 the attribute and the `POPOVER_VARIABLES` are
- * retracted, so no scoped rule matches and the host's own menu fill survives. */
-const POPOVER_ATTRIBUTE = 'data-dsw-appearance-popover'
 
 /**
  * Static sheet: the background layer is pushed to `z-index: -1` so it paints
@@ -293,46 +287,58 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 /* Menu & popover surfaces (MenuSurface, slash command menu, jobs panel, permission presets, avatar menu):
    DSH MenuSurface sets background: var(--dsw-menu-surface-fill) and
    backdrop-filter: var(--dsw-menu-backdrop-filter). Guarantee that menu surfaces
-   always evaluate to the user's translucent menu tokens and follow glassBlur,
-   and clear the macOS opaque ._backing layer so chat/wallpaper shows through. */
+   always evaluate to the user's popoverAlpha menu tokens and follow glassBlur,
+   scope inner layer/fill/hover tokens to popoverAlpha so menu item hover/selection
+   highlights and jobs popover rows remain visible even when surfaceAlpha is 0%,
+   and clear the macOS opaque ._backing / [data-menu-backing] layer so chat/wallpaper shows through. */
 [data-menu-material],
 :is(#root, body) [data-menu-material],
-:is(#root, body) [class*="menu" i],
-body[data-dsw-appearance-popover] :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]) {
+:is(#root, body) [class*="menu" i] {
   --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
   --dsw-alias-menu-group-header-fill: transparent !important;
 }
-:where(#root, body) [data-menu-material] > [class*="_backing"] {
+:where(#root, body) :is([data-menu-backing], [data-menu-material] > [class*="_backing"]) {
   background: transparent !important;
 }
-/* Menu & popover opacity (popoverAlpha, mirrors the Issue #37 modalAlpha scoping):
-   Dropdowns, role=list menus, the '/' slash menu and popovers repaint their own
-   fill plus inner layer-1/2 cards, so the panel bake must not reach them.
-   Everything below is armed by body[data-dsw-appearance-popover]: the applier
-   sets that attribute (and the --dsw-appearance-popover-* variables) only while
-   the effective menu alpha is below 1, so at 1 no rule here matches and the
-   host's own menu fill (macOS 94%) is exactly what the menus paint.
-   --dsw-menu-surface-fill is deliberately NOT redeclared: the mapping rule above
-   already forwards it to var(--dsw-specific-menu) on the same element and also
-   lists these containers, so scoping --dsw-specific-menu wins the fill with no
-   specificity war against that !important mapping.
-   Selectors stay on container/material attributes only — a broad
-   [class*="menu" i] here would match children and double-paint the fill. */
-body[data-dsw-appearance-popover] :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]) {
-  --dsw-specific-menu: var(--dsw-appearance-popover-menu-light);
+:where(#root, body) :is(
+  [data-menu-material],
+  [data-trigger-menu],
+  [role="menu"],
+  [role="listbox"],
+  [class$="_menu"],
+  [class*="_menu "],
+  [class*="_menu_"],
+  [class*="_submenu"],
+  [class*="popover" i]
+) {
+  --dsw-menu-surface-fill: var(--dsw-specific-menu) !important;
   --dsw-alias-menu-group-header-fill: transparent !important;
   --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-light);
   --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-light);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-popover-l3-light);
+  --dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-light);
+  --dsw-alias-fill-l2: var(--dsw-appearance-popover-mod-light);
+  --dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-light);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-appearance-popover-hover-light);
 }
-/* Dark mode carries no intermediate ancestor: a menu portaled straight into
-   body has body as its only ancestor, so the marker is read from html OR from
-   body itself — and both variants outrank the light block by an attribute. */
-html:is([data-ds-dark-theme], [data-theme="dark"]) body[data-dsw-appearance-popover] :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]),
-body:is([data-ds-dark-theme], [data-theme="dark"])[data-dsw-appearance-popover] :is([data-menu-material], [role="menu"], [role="listbox"], [class*="popover" i]) {
-  --dsw-specific-menu: var(--dsw-appearance-popover-menu-dark);
-  --dsw-alias-menu-group-header-fill: transparent !important;
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) :is(
+  [data-menu-material],
+  [data-trigger-menu],
+  [role="menu"],
+  [role="listbox"],
+  [class$="_menu"],
+  [class*="_menu "],
+  [class*="_menu_"],
+  [class*="_submenu"],
+  [class*="popover" i]
+) {
   --dsw-alias-bg-layer-1: var(--dsw-appearance-popover-l1-dark);
   --dsw-alias-bg-layer-2: var(--dsw-appearance-popover-l2-dark);
+  --dsw-alias-bg-layer-3: var(--dsw-appearance-popover-l3-dark);
+  --dsw-alias-fill-l1: var(--dsw-appearance-popover-mod-dark);
+  --dsw-alias-fill-l2: var(--dsw-appearance-popover-mod-dark);
+  --dsw-alias-interactive-bg-hover: var(--dsw-appearance-popover-hover-dark);
+  --dsw-alias-interactive-bg-hover-solid: var(--dsw-appearance-popover-hover-dark);
 }
 /* Modals & Settings Dialog (Issue #37: independent modalAlpha):
    Settings panel (.wCInkW_panel / [data-shortcut-modal="settings"]) and native
@@ -604,24 +610,24 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-modal-nav-hover-light', bakeModal(baseNavHoverLight, modalAlpha))
     body.style.setProperty('--dsw-appearance-modal-nav-hover-dark', bakeModal(baseNavHoverDark, modalAlpha))
 
-    // Menu & popover opacity (popoverAlpha): the same panel-derived colors, but
-    // baked with the menu/popover alpha only — never with surfaceAlpha or
-    // modalAlpha. The gate attribute is what arms the scoped rules, so at an
-    // effective alpha of 1 nothing is written at all and the host's own menu
-    // fill (macOS 94%) stays untouched.
-    const popoverAlpha = popoverSurfaceAlpha(value)
-    if (popoverAlpha < 1) {
-      body.setAttribute(POPOVER_ATTRIBUTE, '')
-      body.style.setProperty('--dsw-appearance-popover-menu-light', bakeModal(baseL3Light, popoverAlpha))
-      body.style.setProperty('--dsw-appearance-popover-menu-dark', bakeModal(baseL3Dark, popoverAlpha))
-      body.style.setProperty('--dsw-appearance-popover-l1-light', bakeModal(baseL1Light, popoverAlpha))
-      body.style.setProperty('--dsw-appearance-popover-l1-dark', bakeModal(baseL1Dark, popoverAlpha))
-      body.style.setProperty('--dsw-appearance-popover-l2-light', bakeModal(baseL2Light, popoverAlpha))
-      body.style.setProperty('--dsw-appearance-popover-l2-dark', bakeModal(baseL2Dark, popoverAlpha))
-    } else {
-      body.removeAttribute(POPOVER_ATTRIBUTE)
-      for (const name of POPOVER_VARIABLES) body.style.removeProperty(name)
-    }
+    // Menus & Popovers (independent popoverAlpha):
+    const popoverAlpha = typeof value.popoverAlpha === 'number' && Number.isFinite(value.popoverAlpha)
+      ? Math.min(1, Math.max(0, value.popoverAlpha))
+      : 1
+    const basePopoverHoverLight = panelLight !== '' ? mixHex(panelLight, '#151517', 0.06) : (isFlip ? '#525257' : '#f1f3f5')
+    const basePopoverHoverDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.12) : '#43454a'
+    const basePopoverModDark = panelDark !== '' ? mixHex(panelDark, '#ffffff', 0.08) : '#43454a'
+
+    body.style.setProperty('--dsw-appearance-popover-l1-light', bakeModal(baseL1Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l1-dark', bakeModal(baseL1Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-light', bakeModal(baseL2Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l2-dark', bakeModal(baseL2Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l3-light', bakeModal(baseL3Light, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-l3-dark', bakeModal(baseL3Dark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-mod-light', bakeModal(baseModLight, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-mod-dark', bakeModal(basePopoverModDark, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-hover-light', bakeModal(basePopoverHoverLight, popoverAlpha))
+    body.style.setProperty('--dsw-appearance-popover-hover-dark', bakeModal(basePopoverHoverDark, popoverAlpha))
 
     // Text selection contrast (Issue #46): write dedicated global and bubble
     // selection pairs per mode so bubble-scoped brand overrides never cause
@@ -816,7 +822,6 @@ export class AppearanceApplier {
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
     body.removeAttribute('data-dsw-sliding')
-    body.removeAttribute(POPOVER_ATTRIBUTE)
     // Compositor anchor cleanup: remove the html attribute so the host's natural
     // background resumes after the plugin is unloaded.
     document.documentElement.removeAttribute('data-dsw-has-bg')

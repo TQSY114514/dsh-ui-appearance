@@ -117,7 +117,7 @@ export interface AppearanceSettings extends AppearanceColors {
   sidebarAlpha: number
   /** Modal dialog & settings panel opacity, 0..1; 1 = fully opaque modals. */
   modalAlpha: number
-  /** Menu dropdown & popover opacity, 0..1; 1 = keep the host menu fill untouched. */
+  /** Menu dropdown & popover opacity, 0..1; 1 = fully opaque menus & popovers. */
   popoverAlpha: number
   /** Composer input opacity, 0..1; 1 = follow surfaceAlpha. */
   inputAlpha: number
@@ -347,8 +347,7 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
     result.modalAlpha = 1
   }
 
-  // Reconciliation for popoverAlpha (defaults to 1 so menus keep the host fill
-  // until the slider is actually moved):
+  // Reconciliation for popoverAlpha (defaults to 1 for readability):
   if (typeof source.popoverAlpha === 'number' && Number.isFinite(source.popoverAlpha)) {
     result.popoverAlpha = Math.min(1, Math.max(0, source.popoverAlpha))
   } else {

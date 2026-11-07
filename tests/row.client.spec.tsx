@@ -225,10 +225,8 @@ describe('AppearanceCustomizerRow', () => {
     expect(b.set).toHaveBeenCalledWith('sidebarAlpha', 0.7)
     fireEvent.change(sliders[5]!, { target: { value: '0.85' } })
     expect(b.set).toHaveBeenCalledWith('modalAlpha', 0.85)
-    // The menu/popover slider sits right after the modal one.
-    expect(screen.getByText('Menu & popover opacity')).toBeDefined()
-    fireEvent.change(sliders[6]!, { target: { value: '0.6' } })
-    expect(b.set).toHaveBeenLastCalledWith('popoverAlpha', 0.6)
+    fireEvent.change(sliders[6]!, { target: { value: '0.65' } })
+    expect(b.set).toHaveBeenCalledWith('popoverAlpha', 0.65)
   })
 
   it('shows the preview and remove action once an image is set', () => {

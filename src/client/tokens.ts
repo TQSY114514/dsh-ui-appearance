@@ -301,31 +301,6 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
 }
 
 /**
- * Effective alpha for the menu & popover surfaces (`--dsw-specific-menu`,
- * `--dsw-menu-surface-fill` and the popover-scoped layer fills).
- *
- * An explicit `popoverAlpha` below 1 always wins. At 1 the surface keeps the
- * v0.1.27 auto-follow instead: lowering `inputAlpha` or enabling `glassBlur`
- * still frosts the '/' slash menu and the dropdowns, whose backdrop-filter is
- * otherwise hidden behind a 100% opaque fill. With no input/glass tuning it
- * returns 1, meaning "emit nothing" — the menu tokens then keep the host's own
- * fill (macOS 94%) instead of a re-baked alpha.
- * @param settings - current appearance settings.
- * @returns alpha in 0..1; 1 leaves the menu tokens untouched.
- */
-export function popoverSurfaceAlpha(settings: AppearanceSettings): number {
-  const explicit = typeof settings.popoverAlpha === 'number'
-    ? Math.min(1, Math.max(0, settings.popoverAlpha))
-    : 1
-  if (explicit < 1) return explicit
-  const inputAlpha = typeof settings.inputAlpha === 'number'
-    ? Math.min(1, Math.max(0, settings.inputAlpha))
-    : 1
-  if (inputAlpha < 1) return inputAlpha
-  return typeof settings.glassBlur === 'number' && settings.glassBlur > 0 ? 0.68 : 1
-}
-
-/**
  * Compute the full override layer for one settings snapshot. Every role with
  * a non-empty color contributes its token group; a surfaceAlpha below 1 turns
  * the major surface tokens translucent. Returns an empty object when nothing
@@ -341,12 +316,16 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
 
   const {
     backgroundImage, backgroundVideo, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
-    sidebarAlpha, sidebarOpaque, emphasisAlpha,
+    sidebarAlpha, popoverAlpha, sidebarOpaque, emphasisAlpha,
   } = settings
 
   const effectiveSidebarAlpha = typeof sidebarAlpha === 'number'
     ? sidebarAlpha
     : (sidebarOpaque ? 1 : surfaceAlpha)
+
+  const effectivePopoverAlpha = typeof popoverAlpha === 'number' && Number.isFinite(popoverAlpha)
+    ? Math.min(1, Math.max(0, popoverAlpha))
+    : 1
 
   // The wallpaper and the background video share one layer (#dsw-appearance-bg,
   // `position: fixed; z-index: -1`), so both need the frame's own background
@@ -829,6 +808,13 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     )
   }
 
+  if (effectivePopoverAlpha < 1) {
+    const menuExplicitL = panel.light !== '' ? mixHex(panel.light, LIGHT_BASE, 0.14) : undefined
+    const menuExplicitD = panel.dark !== '' ? mixHex(panel.dark, DARK_BASE, 0.14) : undefined
+    bakeAlpha('--dsw-specific-menu', menuExplicitL, menuExplicitD, flipLayer3[0], flipLayer3[1], effectivePopoverAlpha)
+    bakeAlpha('--dsw-menu-surface-fill', menuExplicitL, menuExplicitD, flipLayer3[0], flipLayer3[1], effectivePopoverAlpha)
+  }
+
   if (surfaceAlpha < 1) {
     const alpha = surfaceAlpha
     const translucent = (
@@ -892,15 +878,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeControlTranslucent('--dsw-alias-button-ghost-active-hover', controlButtonHover, flipButtonFloatingHover)
     bakeControlTranslucent('--dsw-alias-markdown-tag', controlNavActive, flipButtonFloating)
     translucent('--dsw-specific-tip', undefined, undefined, flipMod[0], flipMod[1])
-  }
-
-  // Menu & popover surfaces (popoverAlpha): surfaceAlpha no longer bakes them —
-  // a 40% panel used to turn every dropdown and the '/' slash menu into a
-  // see-through block stacked on the wallpaper and chat text.
-  const popoverSurface = popoverSurfaceAlpha(settings)
-  if (popoverSurface < 1) {
-    bakeAlpha('--dsw-specific-menu', undefined, undefined, flipLayer3[0], flipLayer3[1], popoverSurface)
-    bakeAlpha('--dsw-menu-surface-fill', undefined, undefined, flipLayer3[0], flipLayer3[1], popoverSurface)
   }
 
   if (surfaceAlpha < 1 || inputAlpha < 1) {
