@@ -2,7 +2,7 @@
 
 [English](README.en.md) · 中文 · [参与贡献](CONTRIBUTING.md)
 
-DeepSeek Harness 生态中首个支持多维度 UI 参数深度自定义的外观插件 —— 不局限于固定预设，支持面板/输入框/代码块透明度微调、毛玻璃强度、壁纸/视频背景及色板智能衍生；WebUI 与 DSH Desktop 均可使用。
+DeepSeek Harness 生态中首个支持多维度 UI 参数深度自定义的外观插件 —— 不局限于固定预设，支持面板/侧边栏/设置弹窗/菜单浮层/输入框/代码块 6 路独立透明度微调、毛玻璃强度、壁纸/视频背景及色板智能衍生；WebUI 与 DSH Desktop 均可使用。
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com/zh/p/TQSY114514/dsh-ui-appearance/)
 [![npm version](https://img.shields.io/npm/v/dsh-ui-appearance.svg?style=flat-square&color=cb3837&labelColor=161b22&logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-ui-appearance)
@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 脚本直接从 npm registry 拉取已构建的发布包（`lib/` 预构建产物随包分发），链接进 profile 自己的 `node_modules` 并在该 profile 的 `package.json` 中注册（`dependencies` 条目 + `dsh.profile.bundles`，与 `dsh plugin add` 的产物一致）——幂等，可重复执行。可选参数：
 
 ```powershell
-.\install.ps1 -Version '0.1.27'     # 固定版本（默认装最新发布版）
+.\install.ps1 -Version '0.1.28'     # 固定版本（默认装最新发布版）
 .\install.ps1 -DshHome 'D:\.dsh'    # 自定义 DSH 主目录（默认 %DSH_HOME% 或 %USERPROFILE%\.dsh）
 .\install.ps1 -ProfileName 'web'    # 目标 profile（默认 web；profile 需已初始化）
 ```
@@ -183,6 +183,7 @@ src/
     ├── applier.ts            # DOM 应用器(token 覆写、三层背景、毛玻璃)
     ├── tokens.ts             # 颜色角色 → token 映射、双模式预设、半透明烘焙
     ├── color.ts / image.ts   # 色值工具 / 图片预处理(超 4096px 缩边,不降质)
+    ├── url-load.ts           # URL 背景加载与图片/视频扩展名分流
     ├── blob-db.ts            # IndexedDB 底座(DB v2:图片+视频两 store)
     ├── image-store.ts        # IndexedDB 图片存储(键化引用与 GC)
     ├── video-store.ts        # IndexedDB 视频存储(200MB 上限与 GC)

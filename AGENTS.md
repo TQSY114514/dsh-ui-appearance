@@ -18,19 +18,20 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 ## Architecture map
 
 - **入口** `src/index.ts`：插件装配——注册主题扩展点与设置插槽。
+- **配置模型** `src/appearance-settings.ts`：外观设置 Schema、默认值与持久化清洗校验（`sanitizeSettings`）。
 - **客户端运行时** `src/client/`（注入 Host 浏览器侧）：
   - `AppearanceCustomizerRow.tsx` + `.module.css`：设置面板 UI。
   - `tokens.ts`：`--dsw-*` token 系统覆写（颜色/透明/毛玻璃的核心）。
-  - `applier.ts`：把设置应用到 CSS 变量。
-  - `color.ts` / `color-scheme.ts`：颜色角计算、深浅色模式适配、壁纸主色提取。
-  - `image.ts` / `url-load.ts`：图片上传压缩、URL 加载分流（按扩展名）。
-  - `video-store.ts`：视频背景（IndexedDB 存储，避开 localStorage 配额）。
-  - `settings-store.ts`：设置持久化。
+  - `applier.ts`：把设置应用到 CSS 变量与局部作用域样式。
+  - `color.ts` / `color-scheme.ts`：颜色角计算、深浅色模式适配、壁纸主色提取与配色导入导出。
+  - `blob-db.ts` / `image-store.ts` / `video-store.ts`：图片与视频背景 IndexedDB Blob 存储（上限 200MB，避开 localStorage 配额）。
+  - `image.ts` / `url-load.ts`：图片上传预处理、URL 加载分流（按扩展名）。
+  - `settings-store.ts`：设置持久化与状态同步。
   - `locales.ts`：多语言文案。
 - **invariant** `src/invariant.ts`：插件前置条件/一致性检查（运行时断言）。
 - **构建产物** `lib/`：编译输出（`lib/index.js` + `.d.ts`，`files` 字段只发布 `lib/` 与 `cordis.patch.yml`）。
 - **宿主注入声明**：`package.json` 的 `dsh.client.inject` 列出所需 `@deepseek-ai/dsh-client-*` 运行时。
-- **文档** `docs/`：截图演示；`CHANGELOG.md`：版本演进。
+- **文档** `docs/`：截图演示；`CHANGELOG.md`：版本演进；`CONTRIBUTING.md`：贡献指南与反 AI Slop 规范。
 
 ## Hard rules
 
@@ -70,6 +71,12 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 - **深浅模式弹窗样式特异性隔离（Issue #38）**：
   - 浅色弹窗选择器祖先限定必须使用零特异性的 `:where(#root, body)`（绝不能用 `:is(#root, body)`，否则 `#root` 的 ID 特异性 `(1, 0, 0)` 会压过深色模式的属性选择器，导致深色模式下设置弹窗变成浅色白底）。
   - 弹窗选择器严禁使用宽泛的子串匹配（如 `[class*="panel" i]` 或 `[class*="dialog" i]`），否则会匹配弹窗内部的 `.schemePanel` 等子组件导致半透明底色二次叠加。
+- **菜单与浮层独立不透明度（`popoverAlpha`，PR #48）**：
+  - `--dsw-specific-menu` 与 `--dsw-menu-surface-fill` 必须完全由 `popoverAlpha`（`0..1`，默认 `1`）独立线性控制，严禁在 `popoverAlpha === 1` 时隐式回退 `inputAlpha` 或 `glassBlur (0.68)` 造成 `99% -> 100%` 跳变。
+  - `applier.ts` 中的菜单/浮窗作用域规则必须常驻生效（绝不能加 `if (popoverAlpha < 1)` 门控），并完整映射 `--dsw-alias-bg-layer-1/2/3`、`--dsw-alias-fill-l1/l2` 及 `--dsw-alias-interactive-bg-hover` / `-solid`，确保当 `surfaceAlpha = 0%` 而 `popoverAlpha = 100%`（默认）时，` / ` 斜杠菜单选中项、下拉菜单悬停高亮与后台任务浮窗行不会变成全透明而隐形。
+  - 菜单容器类名选择器必须区分大小写（`[class$="_menu"]`、`[class*="_menu "]`、`[class*="_menu_"]`、`[class*="_submenu"]`），严禁用 `[class*="_menu" i]` 误匹配侧边栏的 `.hHd-Xa_moreMenu` 等触发按钮。
+- **tsdown 0.23.4+ 客户端 CJS 构建配置**：
+  - `tsdown 0.23.4+` 在 `format: 'cjs'` 时会忽略顶层 `platform: 'browser'` 并抛出警告；`tsdown.standalone.config.ts` 的 `clientConfig` 必须配置为 `platform: 'neutral'` + `inputOptions: { platform: 'browser' }`。
 
 ## Before changing X, read Y
 

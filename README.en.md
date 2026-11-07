@@ -2,7 +2,7 @@
 
 [中文](README.md) · English · [Contributing](CONTRIBUTING.md)
 
-The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring fine-grained panel/input/code opacity controls, frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
+The first appearance customization plugin in the DeepSeek Harness ecosystem supporting deep multi-dimensional UI parameter tuning — far beyond fixed presets, featuring 6-channel independent opacity controls (panel / sidebar / modals / menus & popovers / input / code blocks), frosted glass, wallpaper/video backgrounds, and smart palette derivation; works on both WebUI and DSH Desktop.
 
 [![Awesome DSH Plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com/p/TQSY114514/dsh-ui-appearance/)
 [![npm version](https://img.shields.io/npm/v/dsh-ui-appearance.svg?style=flat-square&color=cb3837&labelColor=161b22&logo=npm&logoColor=white)](https://www.npmjs.com/package/dsh-ui-appearance)
@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://raw.gith
 The script pulls the pre-built package straight from the npm registry (the published tarball ships the built `lib/`), links it into the profile's own `node_modules` and registers it in that profile's `package.json` (a `dependencies` entry plus `dsh.profile.bundles`, matching what `dsh plugin add` produces) — idempotent, safe to re-run. Optional parameters:
 
 ```powershell
-.\install.ps1 -Version '0.1.27'     # pin a version (default: latest release)
+.\install.ps1 -Version '0.1.28'     # pin a version (default: latest release)
 .\install.ps1 -DshHome 'D:\.dsh'    # custom DSH home (default %DSH_HOME% or %USERPROFILE%\.dsh)
 .\install.ps1 -ProfileName 'web'    # target profile (default web; must be initialized)
 ```
@@ -183,6 +183,7 @@ src/
     ├── applier.ts            # DOM applier (token overrides, 3-layer background, glass)
     ├── tokens.ts             # Color roles → token mapping, dual-mode presets, alpha baking
     ├── color.ts / image.ts   # Color utilities / image preparation (>4096px rescale, lossless)
+    ├── url-load.ts           # URL background loader & image/video extension routing
     ├── blob-db.ts            # IndexedDB base (DB v2: image + video stores)
     ├── image-store.ts        # IndexedDB image storage (keyed reference & GC)
     ├── video-store.ts        # IndexedDB video storage (200MB cap & GC)

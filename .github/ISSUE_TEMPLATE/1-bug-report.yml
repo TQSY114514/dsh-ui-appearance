@@ -11,17 +11,23 @@ body:
     id: env
     attributes:
       label: 运行环境
-      description: 操作系统 / DSH 版本 / 本插件版本
-      placeholder: Windows 11 / DSH v0.1.0-rc.6 / dsh-ui-appearance v0.3.0
+      description: 操作系统 / 客户端类型（WebUI 或 DSH Desktop） / DSH 版本 / 本插件版本
+      placeholder: Windows 11 / DSH Desktop v0.2.0 / dsh-ui-appearance v0.1.28
     validations:
       required: true
   - type: textarea
     id: desc
     attributes:
       label: 异常现象描述
-      description: 发生了什么异常？以及你的预期效果是怎样的？
+      description: 发生了什么异常（浅色还是深色模式）？以及你的预期效果是怎样的？
     validations:
       required: true
+  - type: textarea
+    id: scheme
+    attributes:
+      label: 导出的配色方案 JSON（选填，推荐）
+      description: 如涉及颜色对比度或透明度异常，可点击设置面板底部「导出配色」并粘贴在此，方便我们一键复现。
+      render: json
   - type: textarea
     id: screenshot
     attributes:

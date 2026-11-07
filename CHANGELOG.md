@@ -2,6 +2,22 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.28] - 2026-11-07
+
+### Added
+
+- **菜单与浮层独立不透明度控制（`popoverAlpha`，[#48](https://github.com/TQSY114514/dsh-ui-appearance/pull/48)）**:
+  - 在设置面板「界面」区块新增独立的「菜单与浮层不透明度」（`0% ~ 100%`，默认 `100%`）滑块，将下拉菜单（模型选择、工作区菜单、权限预设、更多操作）、`/` 斜杠命令浮层、后台任务浮窗（Jobs）及子智能体状态浮窗的不透明度从主面板（`surfaceAlpha`）中彻底解耦；
+  - 在菜单与浮窗作用域内同步映射内部图层（`--dsw-alias-bg-layer-1/2/3`）、任务行填充（`--dsw-alias-fill-l1/l2`）与菜单项悬停/选中高亮（`--dsw-alias-interactive-bg-hover` / `-solid`），彻底解决当主面板设为 `0%` 全透明时菜单文字看不清、下拉菜单悬停与 `/` 斜杠命令选中高亮隐形的问题；
+  - 精确限定区分大小写的菜单容器选择器（`[class$="_menu"]`、`[class*="_menu_"]`、`[class*="_submenu"]`），防止误匹配侧边栏触发按钮（如 `.hHd-Xa_moreMenu`），并穿透清理 `[data-menu-backing]` 衬底。
+- **贡献指南与 PR 规范模板**:
+  - 新增中英双语 [`CONTRIBUTING.md`](./CONTRIBUTING.md)（含架构红线、高频 PR 翻车点自查表及 AI 辅助开发反 Slop 规范）与 [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md)。
+
+### Chore
+
+- **开发依赖升级与构建配置适配（[#49](https://github.com/TQSY114514/dsh-ui-appearance/pull/49)）**:
+  - 升级 `fake-indexeddb` 至 `6.2.7`、`tsdown` 至 `0.23.4`（`rolldown 1.2.16`），并在 `tsdown.standalone.config.ts` 中将客户端 CJS 构建配置更新为 `platform: 'neutral'` + `inputOptions: { platform: 'browser' }`，保持零构建警告。
+
 ## [0.1.27] - 2026-10-31
 
 ### Fixed
