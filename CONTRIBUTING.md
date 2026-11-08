@@ -38,11 +38,14 @@ pnpm prepare
 # 3. 运行完整单元测试套件（Vitest）
 pnpm test
 
-# 4. 在本地 DSH 环境中端到端验证
+# 4. 类型检查（覆盖 src/、tests/ 与 types/ 宿主类型桩）
+pnpm typecheck
+
+# 5. 在本地 DSH 环境中端到端验证
 dsh plugin --profile <name> add file:<本地仓库路径>
 ```
 
-提交 PR 前，请确保 `pnpm prepare`（零警告）与 `pnpm test`（全量测试通过）均在本地验证通过，且中英文界面文案（`src/client/locales.ts`）与文档（`README.md` / `README.en.md`）保持同步。
+提交 PR 前，请确保 `pnpm typecheck`（零错误）、`pnpm prepare`（零警告）与 `pnpm test`（全量测试通过）均在本地验证通过，且中英文界面文案（`src/client/locales.ts`）与文档（`README.md` / `README.en.md`）保持同步。**并把这三条命令的实际结尾输出贴进 PR 描述**（见第 3 节第 7 条）——没有可复现证据的自检视为未验证。
 
 ### 3. Pull Request 提交规范与纪律
 
@@ -54,6 +57,7 @@ dsh plugin --profile <name> add file:<本地仓库路径>
 4. **谨慎引入外部依赖**：当前插件唯一的运行时依赖只有 `clsx`。引入任何新依赖前请三思：*能否用原生 Web / CSS API 实现？是否会增大客户端包体积？*
 5. **Commit 规范**：遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范（如 `feat(surface): ...`、`fix(theme): ...`、`docs: ...`、`test: ...`、`chore: ...`），清晰描述改动意图，避免使用模糊的提交信息。
 6. **理性看待评审与婉拒**：若您的 PR 未被合并，通常是因为边界情况未闭环、破坏了深浅模式/半透明不变式、性能考量或与项目规划不符。**这绝非否定您的付出，我们由衷感谢每一位贡献者的时间与热情。**
+7. **附上可复现的验证证据**：PR 描述中必须贴出 `pnpm typecheck`、`pnpm prepare` 与 `pnpm test` 的实际结尾输出（或截图），并注明本次新增/修改的测试；只有勾选框、没有实际输出与证据的自检，视为未验证。
 
 ### 4. AI 辅助开发与反 AI Slop 规范
 
@@ -113,11 +117,14 @@ pnpm prepare
 # 3. Run the standalone unit test suite (Vitest)
 pnpm test
 
-# 4. End-to-end verification in a local DSH profile
+# 4. Type-check sources, tests, and the host type stubs in types/
+pnpm typecheck
+
+# 5. End-to-end verification in a local DSH profile
 dsh plugin --profile <name> add file:<path-to-local-repo>
 ```
 
-Before opening a PR, verify that `pnpm prepare` finishes with zero warnings, `pnpm test` passes 100%, and bilingual locale strings (`src/client/locales.ts`) and docs (`README.md` / `README.en.md`) are updated in lockstep.
+Before opening a PR, verify that `pnpm typecheck` reports zero errors, `pnpm prepare` finishes with zero warnings, `pnpm test` passes 100%, and bilingual locale strings (`src/client/locales.ts`) and docs (`README.md` / `README.en.md`) are updated in lockstep. **Paste the actual tail output of all three commands into the PR description** (see §3 item 6) — checkboxes without reproducible evidence count as unverified.
 
 ### 3. Pull Request Discipline
 
@@ -126,6 +133,7 @@ Before opening a PR, verify that `pnpm prepare` finishes with zero warnings, `pn
 3. **Align New Features Upfront**: For significant new features, open an Issue first to align on design and scope before writing code.
 4. **Dependency Defense**: `clsx` is our only runtime dependency. Think three times before proposing any new package: *Can this be done cleanly with standard Web/CSS APIs?*
 5. **Conventional Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat(surface): ...`, `fix(theme): ...`, `docs: ...`, `test: ...`, `chore: ...`).
+6. **Paste Reproducible Validation Evidence**: Include the actual tail output (or screenshots) of `pnpm typecheck`, `pnpm prepare`, and `pnpm test` in the PR description, plus the tests added/changed. Checked boxes without real output count as unverified.
 
 ### 4. AI-Assisted Development & Anti-Slop Policy
 
