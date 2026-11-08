@@ -133,10 +133,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   /** Runtime seat: owner params and framework hooks. */
   export type PropsRuntime<S extends string> = Record<string, unknown>
 
-  /** Actions bound to the store handle. */
-  export interface BoundActions<S> {
-    sync(snapshot: unknown, revision: number): void
-  }
+  /** Actions bound to the store handle (the leading draft parameter is
+   * partially applied by the harness, so callers pass only the real args). */
+  export type BoundActions<S> = S extends { create(): { actions: infer A } } ? A : never
 
   /** Locale namespace registry (augmented by the plugin). */
   export interface LocaleNamespaceMap {}

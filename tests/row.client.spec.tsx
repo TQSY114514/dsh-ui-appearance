@@ -7,6 +7,7 @@ import { createSnapshotStore, type SessionListState, type WorkspaceListState } f
 import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
 import { AppearanceCustomizerRow, type AppearanceCustomizerComponentProps } from '../src/client/AppearanceCustomizerRow.tsx'
 import { createAppearanceRowStore } from '../src/client/settings-store.ts'
+import type { AppearanceRole, ThemeMode } from '../src/appearance-settings.ts'
 // Pulls the settings.appearance LocaleNamespaceMap augmentation into the program.
 import type {} from '../src/client/index.ts'
 
@@ -98,7 +99,7 @@ function emptyWorkspaces() {
 function mount() {
   const store = createAppearanceRowStore().create()
   const set = vi.fn()
-  const setModeRole = vi.fn((mode, role, hex) => {
+  const setModeRole = vi.fn((mode: ThemeMode, role: AppearanceRole, hex: string) => {
     store.actions.patch({ [mode]: { ...store.getSnapshot().settings[mode], [role]: hex, preset: 'custom' } })
   })
   const setImage = vi.fn()

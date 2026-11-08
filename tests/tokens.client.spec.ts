@@ -305,7 +305,7 @@ describe('buildTokenOverrides', () => {
     const tokens = buildTokenOverrides(full({
       surfaceAlpha: 1,
       panel: '#f0e0d0',
-      light: { accent: '', background: '', panel: '#f0e0d0', input: '', text: '', border: '', preset: '', invert: {} },
+      light: { accent: '', background: '', panel: '#f0e0d0', input: '', text: '', border: '', preset: '', invert: { accent: false, background: false } },
     }))
     expect(tokens['--dsw-specific-menu']?.light).not.toBe('#ffffff')
     expect(tokens['--dsw-menu-surface-fill']?.light).toBe(tokens['--dsw-specific-menu']?.light)
@@ -607,6 +607,7 @@ describe('buildTokenOverrides', () => {
         text: '#292524',
         border: '#e7e5e4',
         preset: 'dawn',
+        invert: { accent: false, background: false },
       },
       dark: {
         accent: '#7c9cff',
@@ -616,6 +617,7 @@ describe('buildTokenOverrides', () => {
         text: '#e6e9f4',
         border: '#343a52',
         preset: 'midnight',
+        invert: { accent: false, background: false },
       },
     }))
     expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#d97706', dark: '#7c9cff' })

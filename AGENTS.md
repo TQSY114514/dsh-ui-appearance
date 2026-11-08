@@ -88,6 +88,7 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 
 ## Verification
 
+- `pnpm typecheck` 零错误（`tsc --noEmit`，覆盖 `src/`、`tests/` 与 `types/` 宿主类型桩），`pnpm test` 全绿。
 - `pnpm install`（含 prepare 构建）成功。
 - `dsh plugin --profile <name> add .` 端到端安装可用（host 侧浏览器能加载）。
 - 卸载后界面完整恢复默认。

@@ -166,6 +166,7 @@ export const en = {
   'scheme.apply': 'Apply',
   'scheme.cancel': 'Cancel',
   'scheme.invalid': 'Invalid color scheme JSON, check and retry',
+  'scheme.exported': 'Copied to clipboard',
   'actions.reset': 'Reset all to default',
   'actions.resetMode': 'Reset current mode to default',
 } satisfies Record<AppearanceKey, string>

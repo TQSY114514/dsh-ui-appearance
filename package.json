@@ -55,7 +55,8 @@
     "bundle": "tsdown --config tsdown.standalone.config.ts",
     "watch": "tsdown --config tsdown.standalone.config.ts --watch",
     "prepare": "tsdown --config tsdown.standalone.config.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "clsx": "^2.0.0"

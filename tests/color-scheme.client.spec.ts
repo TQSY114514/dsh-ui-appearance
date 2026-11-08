@@ -22,8 +22,8 @@ describe('exportColorScheme', () => {
 
   it('exports both light and dark mode colors when customized', () => {
     const settings = full({
-      light: { accent: '#d97706', background: '#fbfaf8', panel: '#f4f1ea', input: '#ffffff', text: '#292524', border: '#e7e5e4', preset: 'dawn' },
-      dark: { accent: '#7c9cff', background: '#1b1e2c', panel: '#232737', input: '#202435', text: '#e6e9f4', border: '#343a52', preset: 'midnight' },
+      light: { accent: '#d97706', background: '#fbfaf8', panel: '#f4f1ea', input: '#ffffff', text: '#292524', border: '#e7e5e4', preset: 'dawn', invert: { accent: false, background: false } },
+      dark: { accent: '#7c9cff', background: '#1b1e2c', panel: '#232737', input: '#202435', text: '#e6e9f4', border: '#343a52', preset: 'midnight', invert: { accent: false, background: false } },
     })
     const parsed = JSON.parse(exportColorScheme(settings)) as {
       version: number
