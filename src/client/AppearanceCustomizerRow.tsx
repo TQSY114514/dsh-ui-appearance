@@ -585,7 +585,6 @@ export function AppearanceCustomizerRow({
                 />
               ))}
             </div>
-            <div className={css.hint}>{t('color.hint' as AppearanceKey)}</div>
           </div>
 
           <div

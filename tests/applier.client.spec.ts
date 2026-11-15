@@ -584,5 +584,28 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-bg-base-light')).toBe('')
     expect(body.style.getPropertyValue('--dsw-appearance-bg-base-dark')).toBe('')
   })
+
+  it('marks translucent sidebars and hides the host session-list fade stripe until opaque or disposed', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const body = document.body
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+    expect(css).toContain('body[data-dsw-translucent-sidebar]')
+    expect(css).toContain('[class$="_fade"]')
+
+    applier.apply(full({ sidebarAlpha: 1 }))
+    expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(false)
+
+    applier.apply(full({ sidebarAlpha: 0.4 }))
+    expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(true)
+
+    applier.apply(full({ sidebarAlpha: 1 }))
+    expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(false)
+
+    applier.apply(full({ sidebarAlpha: 0.2 }))
+    expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(true)
+    applier.dispose()
+    expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(false)
+  })
 })
 

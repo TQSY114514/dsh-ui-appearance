@@ -429,6 +429,13 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
 :where(#root, body) :is([class*="_tabActive"], [class*="tabActive" i]):hover {
   --dsw-alias-interactive-bg-hover: var(--dsw-alias-interactive-bg-active);
 }
+/* Host session-list bottom fade (._fade) paints a linear-gradient to
+   --dsw-specific-sidebar-fill on top of the sidebar; when sidebarAlpha < 1 that
+   double-composites the translucent fill into a visible opaque-looking stripe
+   above the account footer (DSH itself hides ._fade on macOS vibrancy). */
+body[data-dsw-translucent-sidebar] #root :is([class*="_sidebarCol"], [class*="sidebarCol" i]) :is([class$="_fade"], [class*="_fade "]) {
+  display: none;
+}
 /* Component-level frosted glass (composer input card, attachment cards, user bubbles,
    and code blocks): glassBlur frosts only UI surfaces and never the background layer.
    IMPORTANT: The composer card ([data-composer-card] / [class*="_card"]:has([class*="_input"]))
@@ -528,6 +535,14 @@ export class AppearanceApplier {
       document.documentElement.setAttribute('data-dsw-has-bg', '')
     } else {
       document.documentElement.removeAttribute('data-dsw-has-bg')
+    }
+    const effectiveSidebarAlpha = typeof value.sidebarAlpha === 'number'
+      ? value.sidebarAlpha
+      : (value.sidebarOpaque ? 1 : value.surfaceAlpha)
+    if (effectiveSidebarAlpha < 1) {
+      body.setAttribute('data-dsw-translucent-sidebar', '')
+    } else {
+      body.removeAttribute('data-dsw-translucent-sidebar')
     }
     // The wallpaper rides a CSS variable like every other knob; the value is
     // a record key (or legacy inline data URL) and resolves asynchronously.
@@ -821,6 +836,7 @@ export class AppearanceApplier {
     body.style.removeProperty('--dsw-menu-backdrop-filter')
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
+    body.removeAttribute('data-dsw-translucent-sidebar')
     body.removeAttribute('data-dsw-sliding')
     // Compositor anchor cleanup: remove the html attribute so the host's natural
     // background resumes after the plugin is unloaded.
