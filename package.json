@@ -1,8 +1,22 @@
 {
   "name": "dsh-ui-appearance",
   "author": "TQSY114514",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Appearance customization plugin for DeepSeek Harness WebUI: theme palette, background image, transparency and blur over the --dsw-* token system",
+  "keywords": [
+    "deepseek",
+    "deepseek-harness",
+    "deepseek-ai",
+    "dsh",
+    "dsh-plugin",
+    "theme",
+    "appearance",
+    "customization",
+    "wallpaper",
+    "video-background",
+    "glassmorphism",
+    "webui"
+  ],
   "license": "MIT",
   "type": "module",
   "repository": {

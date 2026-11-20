@@ -2,6 +2,26 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.29] - 2026-11-20
+
+### Fixed
+
+- **右侧栏全屏后背景被纯黑遮盖及对话区穿透重影（[#53](https://github.com/TQSY114514/dsh-ui-appearance/issues/53)）**:
+  - 在 `applier.ts` 中新增 `html[data-dsw-translucent-surface]` 标记（随 `surfaceAlpha < 1` 同步并在 `dispose()` 中清理）；
+  - 启用背景媒体或半透明面板时，以 `#root` 高特异性将 `[data-sidebar-right-panel="fullscreen"][data-sidebar-right-open]` 保持透明，压过 `dsh-skins` / `dsh-web-all` 中 `rgb(from var(--dsw-alias-bg-base) r g b / 1)` 将透明底色提权为纯黑 `#000000` 的冲突；
+  - 在 `[data-rightbar-fullscreen]` 期间对被叠盖的中间对话列 `_centerCol`（以及 Web / macOS 非抽屉模式下被 `100vw` 覆盖的 `_sidebarCol` 与 `_leadingSeat`）施加 `opacity: 0; visibility: hidden; pointer-events: none`，消除穿透重影并保留 Grid 轨道、对话滚动位置、Windows 桌面端左侧栏与窄屏抽屉交互。
+- **半透明侧边栏底部渐变条双层叠色与设置面板过时提示清理**:
+  - 侧边栏半透明时自动隐藏宿主会话列表底部的 `._fade` 渐变遮罩，消除账号栏上方发灰横条；移除设置面板颜色区过时的「反」字说明文案，补齐英文 `scheme.exported` 文案并刷新文档截图。
+- **类型检查基线修复并接入 CI 门禁**:
+  - 清理源码与测试中的基线类型错误，并在 GitHub Actions 构建流程中接入 `pnpm typecheck`（`tsc --noEmit`）门禁。
+
+### Chore
+
+- **npm 检索关键词与贡献规范完善**:
+  - 在 `package.json` 补充 `keywords` 字段；完善 `CONTRIBUTING.md` 与 PR 模板中的 AI 协作规范及可复现验证要求。
+- **开发与 CI 依赖升级（[#50](https://github.com/TQSY114514/dsh-ui-appearance/pull/50), [#51](https://github.com/TQSY114514/dsh-ui-appearance/pull/51), [#52](https://github.com/TQSY114514/dsh-ui-appearance/pull/52), [#54](https://github.com/TQSY114514/dsh-ui-appearance/pull/54)）**:
+  - 升级 `pnpm/action-setup` 至 `6.1.1`、`tsdown` 至 `0.23.7`、`jsdom` 至 `31.0.1`、`fake-indexeddb` 至 `6.2.8`。
+
 ## [0.1.28] - 2026-11-07
 
 ### Added
