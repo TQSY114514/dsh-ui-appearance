@@ -607,5 +607,110 @@ describe('AppearanceApplier', () => {
     applier.dispose()
     expect(body.hasAttribute('data-dsw-translucent-sidebar')).toBe(false)
   })
+
+  it('keeps fullscreen right sidebar transparent and hides occluded columns when bg media or translucent surfaces are active (Issue #53)', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const html = document.documentElement
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+
+    const panelSelector = 'html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) #root [data-sidebar-right-panel="fullscreen"][data-sidebar-right-open]'
+    const centerSelector = 'html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) #root [class*="_frame"][data-rightbar-fullscreen] > [class*="_centerCol"]'
+    const sidebarSelector = 'html:not([data-windows-titlebar]):is([data-dsw-has-bg], [data-dsw-translucent-surface]) body:not([data-windows-titlebar]) #root [class*="_frame"][data-rightbar-fullscreen]:not([data-sidebar-drawer]) > :is([class*="_sidebarCol"], [class*="_leadingSeat"])'
+
+    expect(css).toContain(panelSelector)
+    expect(css).toContain('background: transparent !important;')
+    expect(css).toContain(centerSelector)
+    expect(css).toContain('opacity: 0 !important;')
+    expect(css).toContain('visibility: hidden !important;')
+    expect(css).toContain('pointer-events: none !important;')
+    expect(css).toContain(sidebarSelector)
+
+    // 1. data-dsw-translucent-surface tracks surfaceAlpha < 1 and clears on 1 / dispose
+    applier.apply(full({ surfaceAlpha: 1 }))
+    expect(html.hasAttribute('data-dsw-translucent-surface')).toBe(false)
+
+    applier.apply(full({ surfaceAlpha: 0.5 }))
+    expect(html.hasAttribute('data-dsw-translucent-surface')).toBe(true)
+
+    applier.apply(full({ surfaceAlpha: 1 }))
+    expect(html.hasAttribute('data-dsw-translucent-surface')).toBe(false)
+
+    // 2. Real DOM selector matching across fullscreen / Windows titlebar / drawer states
+    const root = document.createElement('div')
+    root.id = 'root'
+    const frame = document.createElement('div')
+    frame.className = 'mP3x-q_frame'
+    const sidebarCol = document.createElement('div')
+    sidebarCol.className = 'mP3x-q_sidebarCol'
+    const centerCol = document.createElement('div')
+    centerCol.className = 'mP3x-q_centerCol'
+    const rightbarCol = document.createElement('div')
+    rightbarCol.className = 'mP3x-q_rightbarCol'
+    const leadingSeat = document.createElement('div')
+    leadingSeat.className = 'mP3x-q_leadingSeat'
+    const panel = document.createElement('div')
+    panel.className = 'acoR2W_panel'
+    panel.setAttribute('data-sidebar-right-panel', 'fullscreen')
+    rightbarCol.append(panel)
+    frame.append(sidebarCol, centerCol, rightbarCol, leadingSeat)
+    root.append(frame)
+    document.body.append(root)
+
+    try {
+      // Inactive state (no bg media, opaque surface): nothing matches
+      expect(panel.matches(panelSelector)).toBe(false)
+      expect(centerCol.matches(centerSelector)).toBe(false)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(false)
+
+      // Background media enabled, but rightbar is collapsed (no data-sidebar-right-open, no data-rightbar-fullscreen)
+      applier.apply(full({ backgroundImage: 'data:image/png;base64,AAAA', surfaceAlpha: 1 }))
+      expect(html.hasAttribute('data-dsw-has-bg')).toBe(true)
+      expect(panel.matches(panelSelector)).toBe(false)
+      expect(centerCol.matches(centerSelector)).toBe(false)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(false)
+
+      // Open fullscreen rightbar: panel stays transparent, center/sidebar/leadingSeat are suppressed
+      panel.setAttribute('data-sidebar-right-open', '')
+      frame.setAttribute('data-rightbar-fullscreen', '')
+      expect(panel.matches(panelSelector)).toBe(true)
+      expect(centerCol.matches(centerSelector)).toBe(true)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(true)
+      expect(leadingSeat.matches(sidebarSelector)).toBe(true)
+
+      // Windows desktop leaves the left sidebar visible outside fullscreen rightbar
+      html.setAttribute('data-windows-titlebar', '')
+      expect(panel.matches(panelSelector)).toBe(true)
+      expect(centerCol.matches(centerSelector)).toBe(true)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(false)
+      html.removeAttribute('data-windows-titlebar')
+
+      // Narrow drawer mode sits above fullscreen and stays visible/interactive
+      frame.setAttribute('data-sidebar-drawer', '')
+      expect(centerCol.matches(centerSelector)).toBe(true)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(false)
+      frame.removeAttribute('data-sidebar-drawer')
+
+      // Also activates with surfaceAlpha < 1 even without background media
+      applier.apply(full({ backgroundImage: '', backgroundVideo: '', surfaceAlpha: 0 }))
+      expect(html.hasAttribute('data-dsw-has-bg')).toBe(false)
+      expect(html.hasAttribute('data-dsw-translucent-surface')).toBe(true)
+      expect(panel.matches(panelSelector)).toBe(true)
+      expect(centerCol.matches(centerSelector)).toBe(true)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(true)
+
+      applier.dispose()
+      expect(html.hasAttribute('data-dsw-has-bg')).toBe(false)
+      expect(html.hasAttribute('data-dsw-translucent-surface')).toBe(false)
+      expect(panel.matches(panelSelector)).toBe(false)
+      expect(centerCol.matches(centerSelector)).toBe(false)
+      expect(sidebarCol.matches(sidebarSelector)).toBe(false)
+    } finally {
+      html.removeAttribute('data-windows-titlebar')
+      document.body.removeAttribute('data-windows-titlebar')
+      root.remove()
+      applier.dispose()
+    }
+  })
 })
 

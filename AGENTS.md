@@ -75,6 +75,9 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
   - `--dsw-specific-menu` 与 `--dsw-menu-surface-fill` 必须完全由 `popoverAlpha`（`0..1`，默认 `1`）独立线性控制，严禁在 `popoverAlpha === 1` 时隐式回退 `inputAlpha` 或 `glassBlur (0.68)` 造成 `99% -> 100%` 跳变。
   - `applier.ts` 中的菜单/浮窗作用域规则必须常驻生效（绝不能加 `if (popoverAlpha < 1)` 门控），并完整映射 `--dsw-alias-bg-layer-1/2/3`、`--dsw-alias-fill-l1/l2` 及 `--dsw-alias-interactive-bg-hover` / `-solid`，确保当 `surfaceAlpha = 0%` 而 `popoverAlpha = 100%`（默认）时，` / ` 斜杠菜单选中项、下拉菜单悬停高亮与后台任务浮窗行不会变成全透明而隐形。
   - 菜单容器类名选择器必须区分大小写（`[class$="_menu"]`、`[class*="_menu "]`、`[class*="_menu_"]`、`[class*="_submenu"]`），严禁用 `[class*="_menu" i]` 误匹配侧边栏的 `.hHd-Xa_moreMenu` 等触发按钮。
+- **右侧栏全屏底色黑屏与穿透重影（Issue #53）**：
+  - 宿主在右侧栏全屏时仍保留 `_centerCol`（Web / macOS 非抽屉模式下还会覆盖 `_sidebarCol` 与 `_leadingSeat`），依赖 Dockkit `._tabHost` 的不透明 `--dsw-alias-bg-base` 遮挡；`dsh-skins` / `dsh-web-all` 对 `[data-sidebar-right-panel="fullscreen"][data-sidebar-right-open]` 注入 `rgb(from var(--dsw-alias-bg-base) r g b / 1) !important`，会将本插件打孔的 `transparent`（`rgba(0,0,0,0)`）提权成纯黑 `#000000` 遮盖壁纸且盖不住正 `z-index` 的中间栏标签/输入框。
+  - `applier.ts` 需在启用背景媒体（`data-dsw-has-bg`）或 `surfaceAlpha < 1`（`data-dsw-translucent-surface`）时，用带 `#root` 的更高特异性覆写全屏壳层 `background: transparent !important`，并对 `[data-rightbar-fullscreen]` 下的被遮挡列施加 `opacity: 0; visibility: hidden; pointer-events: none`（绝不用 `display: none`，以免破坏 Grid 轨道或重置滚动位置），同时保留 Windows 标题栏下的 `_sidebarCol`（全屏止于左侧栏右缘）与窄屏抽屉 `[data-sidebar-drawer]`（`z-index: 71` 位于全屏之上）。
 - **tsdown 0.23.4+ 客户端 CJS 构建配置**：
   - `tsdown 0.23.4+` 在 `format: 'cjs'` 时会忽略顶层 `platform: 'browser'` 并抛出警告；`tsdown.standalone.config.ts` 的 `clientConfig` 必须配置为 `platform: 'neutral'` + `inputOptions: { platform: 'browser' }`。
 

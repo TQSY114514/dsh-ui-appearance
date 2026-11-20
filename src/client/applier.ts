@@ -166,6 +166,39 @@ html[data-dsw-has-bg][data-windows-titlebar] [class*="_frame"]:before,
 html[data-dsw-has-bg] [data-windows-titlebar] [class*="_frame"]:before {
   background: transparent !important;
 }
+/* Right-sidebar fullscreen backdrop & occluded-column suppression (Issue #53):
+   1. Third-party skin adapters (e.g. dsh-skins / dsh-web-all) paint an opaque
+      'background-color: rgb(from var(--dsw-alias-bg-base) r g b / 1) !important'
+      on [data-sidebar-right-panel="fullscreen"][data-sidebar-right-open].
+      When dsh-ui-appearance punches out --dsw-alias-bg-base to transparent
+      (rgba(0, 0, 0, 0)), CSS relative color elevates it to solid #000000,
+      covering the wallpaper while leaving positive z-index center elements
+      (tabs z:1, composer z:9) exposed. Override with higher (#root) specificity
+      so the fullscreen panel shell stays transparent and shows the wallpaper.
+   2. DSH keeps _centerCol (and on non-Windows non-drawer shells, _sidebarCol
+      and _leadingSeat) mounted behind the fullscreen rightbar, relying on an
+      opaque --dsw-alias-bg-base on Dockkit's ._tabHost to hide them. When
+      background media or surfaceAlpha < 1 makes ._tabHost transparent or
+      translucent, hide those occluded columns with opacity: 0 +
+      visibility: hidden + pointer-events: none (preserving grid tracks and
+      scroll position while ensuring descendants with visibility: visible
+      cannot bleed through). On Windows desktop ([data-windows-titlebar]) the
+      fullscreen panel stops at --dsh-windows-sidebar-width, so _sidebarCol
+      stays visible; in narrow drawer mode ([data-sidebar-drawer]) the drawer
+      sits at z-index 71 above fullscreen and stays interactive. */
+html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) #root [data-sidebar-right-panel="fullscreen"][data-sidebar-right-open] {
+  background: transparent !important;
+}
+html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) #root [class*="_frame"][data-rightbar-fullscreen] > [class*="_centerCol"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+html:not([data-windows-titlebar]):is([data-dsw-has-bg], [data-dsw-translucent-surface]) body:not([data-windows-titlebar]) #root [class*="_frame"][data-rightbar-fullscreen]:not([data-sidebar-drawer]) > :is([class*="_sidebarCol"], [class*="_leadingSeat"]) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 #root ::selection {
   background: var(--dsw-appearance-selection-bg-light, var(--dsw-alias-brand-primary));
   color: var(--dsw-appearance-selection-fg-light, var(--dsw-alias-label-primary-foreground));
@@ -536,6 +569,11 @@ export class AppearanceApplier {
     } else {
       document.documentElement.removeAttribute('data-dsw-has-bg')
     }
+    if (typeof value.surfaceAlpha === 'number' && value.surfaceAlpha < 1) {
+      document.documentElement.setAttribute('data-dsw-translucent-surface', '')
+    } else {
+      document.documentElement.removeAttribute('data-dsw-translucent-surface')
+    }
     const effectiveSidebarAlpha = typeof value.sidebarAlpha === 'number'
       ? value.sidebarAlpha
       : (value.sidebarOpaque ? 1 : value.surfaceAlpha)
@@ -841,5 +879,6 @@ export class AppearanceApplier {
     // Compositor anchor cleanup: remove the html attribute so the host's natural
     // background resumes after the plugin is unloaded.
     document.documentElement.removeAttribute('data-dsw-has-bg')
+    document.documentElement.removeAttribute('data-dsw-translucent-surface')
   }
 }
