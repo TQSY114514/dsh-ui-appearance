@@ -682,6 +682,23 @@ describe('buildTokenOverrides', () => {
     expect(lightCustomText['--dsw-alias-button-contrast-fill']).toEqual({ light: '#61666b', dark: '#fafaf9' })
   })
 
+  it('flips brand-primary, button hovers, and composerButtonColors in light mode under dark wallpaper (imageDark)', () => {
+    const flipped = full({ backgroundImage: 'img:dark', imageDark: true, inputAlpha: 0.5 })
+    const tokens = buildTokenOverrides(flipped)
+    expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#f9fafb', dark: '#f9fafb' })
+    expect(tokens['--dsw-alias-button-info-fill']).toEqual({ light: '#7aaaff', dark: '#7aaaff' })
+    expect(tokens['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(tokens['--dsw-alias-button-primary-hover']).toEqual({ light: '#ebeef2', dark: '#ebeef2' })
+    expect(tokens['--dsw-alias-button-info-hover']).toEqual({ light: '#4176e6', dark: '#4176e6' })
+
+    const btns = composerButtonColors(flipped)
+    expect(btns.active).toBe(true)
+    expect(btns.light.primaryFill).toBe('rgba(249, 250, 251, 0.5)')
+    expect(btns.light.infoFill).toBe('rgba(122, 170, 255, 0.5)')
+    expect(btns.light.primaryHover).toBe('rgba(235, 238, 242, 0.5)')
+    expect(btns.light.infoHover).toBe('rgba(65, 118, 230, 0.5)')
+  })
+
   it('computes high-contrast global and user-bubble selection pairs across modes and custom palettes (Issue #46)', () => {
     // 1. Default settings: brand blue (#4176e6) with crisp white (#fafaf9) text in both global and user bubbles
     //    (fixes dark-mode `#fafaf9` on `#fafaf9` white-on-white user-bubble selection).

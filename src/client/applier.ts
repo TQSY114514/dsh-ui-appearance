@@ -301,7 +301,7 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
    leaving neutral label-primary consumers (QuestionComposer checkboxes,
    step indicators, danger buttons) paired with global text. */
 html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is(
-  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_info"], [class*="_chipActive"]),
   a[class*="_primary"],
   [role="switch"][aria-checked="true"],
   input:checked + [class*="_indicator"],
@@ -310,14 +310,14 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink
   --dsw-alias-label-primary-foreground: var(--dsw-appearance-accent-ink-light);
 }
 :is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-accent-ink-dark] :is(
-  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_info"], [class*="_chipActive"]),
   a[class*="_primary"],
   [role="switch"][aria-checked="true"],
   input:checked + [class*="_indicator"],
   [data-dsw-accent-surface]
 ),
 :is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-accent-ink-dark] :is(
-  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_info"], [class*="_chipActive"]),
   a[class*="_primary"],
   [role="switch"][aria-checked="true"],
   input:checked + [class*="_indicator"],
