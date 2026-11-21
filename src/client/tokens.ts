@@ -204,19 +204,23 @@ export function composerButtonColors(settings: AppearanceSettings): ComposerButt
     ? Math.min(1, Math.max(0, settings.inputAlpha))
     : 1
   const accentRole = resolveRolePair(settings, 'accent')
+  const hasBackgroundMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+  const textRole = resolveRolePair(settings, 'text')
+  const flipLight = hasBackgroundMedia && settings.imageDark && textRole.light === ''
 
   const forMode = (mode: 'light' | 'dark'): ComposerButtonModeColors => {
     const raw = accentRole[mode]
     const hasCustom = isHexColor(raw)
+    const effectiveMode = mode === 'light' && flipLight ? 'dark' : mode
     const mixBase = mode === 'light' ? LIGHT_BASE : DARK_BASE
-    const primaryBase = hasCustom ? raw : (mode === 'light' ? STOCK_BRAND_LIGHT : STOCK_BRAND_DARK)
+    const primaryBase = hasCustom ? raw : (effectiveMode === 'light' ? STOCK_BRAND_LIGHT : STOCK_BRAND_DARK)
     const primaryHoverBase = hasCustom
       ? mixHex(raw, mixBase, 0.22)
-      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'][mode]
-    const infoBase = hasCustom ? raw : (mode === 'light' ? STOCK_INFO_LIGHT : STOCK_INFO_DARK)
+      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'][effectiveMode]
+    const infoBase = hasCustom ? raw : (effectiveMode === 'light' ? STOCK_INFO_LIGHT : STOCK_INFO_DARK)
     const infoHoverBase = hasCustom
       ? mixHex(raw, mixBase, 0.15)
-      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'][mode]
+      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'][effectiveMode]
 
     return {
       primaryFill: withAlpha(primaryBase, alpha),
@@ -689,7 +693,18 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
         emit('--dsw-alias-button-contrast-fill', '#fafaf9', tokens['--dsw-alias-button-contrast-fill']?.dark ?? '#f9fafb')
         if (!hasAccentL) {
+          emit('--dsw-alias-brand-primary', STOCK_BRAND_DARK, hasAccentD ? accentRole.dark : STOCK_BRAND_DARK)
           emit('--dsw-alias-button-info-fill', STOCK_INFO_DARK, hasAccentD ? accentRole.dark : STOCK_INFO_DARK)
+          emit(
+            '--dsw-alias-button-primary-hover',
+            DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'].dark,
+            darkPrimaryHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'].dark,
+          )
+          emit(
+            '--dsw-alias-button-info-hover',
+            DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].dark,
+            darkInfoHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].dark,
+          )
         }
       }
       if (text.dark === '' && fd !== undefined) {

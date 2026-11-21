@@ -23,8 +23,8 @@ vi.mock('../src/client/video-store.ts', () => ({
 }))
 
 afterEach(() => {
-  document.head.querySelectorAll(`#${STYLE_ID}`).forEach(node => node.remove())
-  document.body.querySelectorAll(`#${BG_LAYER_ID}`).forEach(node => node.remove())
+  document.head.querySelectorAll(`#${STYLE_ID}`).forEach(node => { node.remove() })
+  document.body.querySelectorAll(`#${BG_LAYER_ID}`).forEach(node => { node.remove() })
   vi.restoreAllMocks()
   videoMock.resolveLoad = undefined
 })

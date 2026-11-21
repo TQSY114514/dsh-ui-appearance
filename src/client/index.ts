@@ -122,16 +122,13 @@ export function apply(ctx: ClientContext): void {
   // localStorage and the store sync stay synchronous so swatches, React rows,
   // and persistence never lag behind the drag.
   let applyRaf: number | undefined
-  let applyPending = false
 
   const scheduleApply = (): void => {
     if (applyRaf !== undefined) {
-      applyPending = true
       return
     }
     applyRaf = requestAnimationFrame(() => {
       applyRaf = undefined
-      applyPending = false
       applier?.apply(current)
     })
   }
@@ -142,7 +139,6 @@ export function apply(ctx: ClientContext): void {
       cancelAnimationFrame(applyRaf)
       applyRaf = undefined
     }
-    applyPending = false
     applier?.apply(current)
   }
 
@@ -184,7 +180,6 @@ export function apply(ctx: ClientContext): void {
       if (applyRaf !== undefined) {
         cancelAnimationFrame(applyRaf)
         applyRaf = undefined
-        applyPending = false
       }
       applier?.dispose()
       applier = undefined

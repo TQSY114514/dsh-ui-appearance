@@ -22,7 +22,7 @@ import { ACCEPTED_VIDEO_TYPES, deleteVideo, isVideoFile, MAX_VIDEO_BYTES, saveVi
 import { classifyUrl, loadImageFromUrl, loadVideoFromUrl, urlToName, UrlLoadFailure, type UrlLoadError } from './url-load.ts'
 import { exportColorScheme, parseColorScheme } from './color-scheme.ts'
 import {
-  APPEARANCE_PRESETS, LIGHT_PRESETS, DARK_PRESETS,
+  LIGHT_PRESETS, DARK_PRESETS,
   BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX,
 } from './tokens.ts'
 import type { AppearanceKey } from './locales.ts'
@@ -210,6 +210,14 @@ function Slider(props: {
   )
 }
 
+/** Whether the host document currently activates dark mode. */
+function detectHostDark(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.body?.hasAttribute('data-ds-dark-theme')
+    || document.documentElement?.hasAttribute('data-ds-dark-theme')
+    || (document.documentElement?.getAttribute('data-theme') === 'dark')
+}
+
 /** Map a remote-load failure code to the localized message key. */
 function urlErrorText(code: UrlLoadError, t: (key: AppearanceKey) => string): string {
   const key: AppearanceKey = `background.urlError.${code}` as AppearanceKey
@@ -288,13 +296,6 @@ export function AppearanceCustomizerRow({
   useEffect(() => () => {
     if (exportTimerRef.current !== null) clearTimeout(exportTimerRef.current)
   }, [])
-
-  const detectHostDark = (): boolean => {
-    if (typeof document === 'undefined') return false
-    return document.body?.hasAttribute('data-ds-dark-theme')
-      || document.documentElement?.hasAttribute('data-ds-dark-theme')
-      || (document.documentElement?.getAttribute('data-theme') === 'dark')
-  }
 
   const [hostDarkMode, setHostDarkMode] = useState(detectHostDark)
   const currentHostMode: ThemeMode = hostDarkMode ? 'dark' : 'light'

@@ -22,6 +22,19 @@ jobs:
       - name: Run the test suite
         run: pnpm test
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Run Biome linter
+        run: pnpm lint
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -37,12 +50,29 @@ jobs:
       - name: Type-check sources, tests, and host type stubs
         run: pnpm typecheck
       - run: pnpm prepare
-      - name: Verify build artifacts
-        run: |
-          test -f lib/index.js
-          test -f lib/invariant.js
-          test -f lib/client.js
-          test -f lib/index.d.ts
-          test -f lib/invariant.d.ts
-          test -f lib/client.d.ts
-          echo "all artifacts present"
+      - name: Verify tarball contents and entrypoints
+        run: pnpm verify:pack
+
+  browser-css:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright-core install --with-deps chromium
+      - name: Run Chromium CSS & contrast regression tests
+        run: pnpm test:browser
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
