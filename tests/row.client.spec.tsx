@@ -300,7 +300,7 @@ describe('AppearanceCustomizerRow', () => {
   })
 
   it('tells the user when a picked file is not a video at all', async () => {
-    const b = mount()
+    mount()
     openRow()
     const input = document.querySelector('input[accept^="video/mp4"]')
     if (!(input instanceof HTMLInputElement)) throw new Error('missing video input')
@@ -311,7 +311,7 @@ describe('AppearanceCustomizerRow', () => {
   })
 
   it('never renders a blank hint when an error message key is missing', async () => {
-    const b = mount()
+    mount()
     openRow()
     const saved = COPY['background.videoError.type']
     delete COPY['background.videoError.type']

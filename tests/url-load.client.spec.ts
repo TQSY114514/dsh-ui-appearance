@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MAX_INPUT_BYTES } from '../src/client/image.ts'
 import { MAX_VIDEO_BYTES } from '../src/client/video-store.ts'
 import {
-  classifyUrl, fetchBlob, loadImageFromUrl, loadVideoFromUrl, UrlLoadFailure,
+  classifyUrl, fetchBlob, loadImageFromUrl, loadVideoFromUrl,
 } from '../src/client/url-load.ts'
 
 const realFetch = globalThis.fetch

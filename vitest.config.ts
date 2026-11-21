@@ -6,7 +6,7 @@
  * the resolver). Run with `pnpm test`.
  */
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
@@ -19,6 +19,7 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.spec.{ts,tsx}'],
+    exclude: [...configDefaults.exclude, 'tests/browser/**'],
     environment: 'node',
   },
 })
