@@ -97,6 +97,7 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 
 - `pnpm lint`（Biome 静态检查）、`pnpm typecheck` 零错误（`tsc --noEmit`，覆盖 `src/`、`tests/` 与 `types/` 宿主类型桩）。
 - `pnpm prepare && pnpm verify:pack` 构建并通过发布包产物、ESM 导入与 CJS 语法自检（`npm pack --dry-run`）。
+- 首次运行浏览器测试前执行 `pnpm exec playwright-core install chromium`（Linux 缺少系统依赖时改用 `pnpm exec playwright-core install --with-deps chromium`）。
 - `pnpm test` 全绿（Node 25/26 下需挂 `NODE_OPTIONS=--no-experimental-webstorage`），`pnpm test:browser` 在真实 Chromium 中通过 CSS 级联与对比度回归验证。
 - `dsh plugin --profile <name> add .` 端到端安装可用（host 侧浏览器能加载）；卸载后界面完整恢复默认。
 - **发版闭环（用户指示发版时）**：① 所有代码与配置改动先通过特性分支提交 PR，待 CI（`test` / `build` / `lint` / `browser-css`）与 CodeRabbit 审查通过后再合并至 `main` → ② 版本号与发布文档变更（更新 `package.json` `version`、`CHANGELOG.md`、`README.md` / `README.en.md` 中 `.\install.ps1 -Version` 并验证 `verify:pack` 全绿）同样通过 PR 合并（commit `chore(release): vX.Y.Z`） → ③ 基于合并后的 `main` 打 tag `vX.Y.Z` 并推送 tag → ④ `npm publish` 并校验线上 `dist-tags` → ⑤ 创建 GitHub Release 并回复/关闭关联 Issue。

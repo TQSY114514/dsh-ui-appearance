@@ -697,6 +697,18 @@ describe('buildTokenOverrides', () => {
     expect(btns.light.infoFill).toBe('rgba(122, 170, 255, 0.5)')
     expect(btns.light.primaryHover).toBe('rgba(235, 238, 242, 0.5)')
     expect(btns.light.infoHover).toBe('rgba(65, 118, 230, 0.5)')
+
+    // Custom light accent must still mix hover steps toward LIGHT_BASE so composer
+    // hovers match global `--dsw-alias-button-*-hover` even when imageDark is active.
+    const customFlipped = full({
+      backgroundImage: 'img:dark',
+      imageDark: true,
+      inputAlpha: 0.5,
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#808080' },
+    })
+    const customBtns = composerButtonColors(customFlipped)
+    expect(customBtns.light.primaryHover).toBe('rgba(156, 156, 156, 0.5)')
+    expect(customBtns.light.infoHover).toBe('rgba(147, 147, 147, 0.5)')
   })
 
   it('computes high-contrast global and user-bubble selection pairs across modes and custom palettes (Issue #46)', () => {

@@ -212,7 +212,7 @@ export function composerButtonColors(settings: AppearanceSettings): ComposerButt
     const raw = accentRole[mode]
     const hasCustom = isHexColor(raw)
     const effectiveMode = mode === 'light' && flipLight ? 'dark' : mode
-    const mixBase = effectiveMode === 'light' ? LIGHT_BASE : DARK_BASE
+    const mixBase = mode === 'light' ? LIGHT_BASE : DARK_BASE
     const primaryBase = hasCustom ? raw : (effectiveMode === 'light' ? STOCK_BRAND_LIGHT : STOCK_BRAND_DARK)
     const primaryHoverBase = hasCustom
       ? mixHex(raw, mixBase, 0.22)
