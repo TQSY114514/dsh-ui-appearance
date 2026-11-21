@@ -43,7 +43,7 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 - **媒体走 IndexedDB**：图片与视频（上限 200MB）全走 IndexedDB Blob 存储，不许进 localStorage（配额不够）；替换时同步清理旧记录。
 - **实时性**：所有调整实时生效、无需刷新、无需保存按钮——新增设置项要保持这个交互契约。
 - **UI 风格**：遵循 Host 的 `--dsw-*` 设计语言，视觉上融入而非突兀；见 `src/client/*.module.css` 既有写法。
-- **PR-first 流程铁律**：所有代码、配置与规则改动**严禁直接提交/推送至 `main`**。必须从 `main` 切出特性分支并提交 Pull Request（严格保留 [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md) 全部段落并贴出本地验证输出），等待 CI（`test` / `build` / `lint` / `browser-css`）与 CodeRabbit 审查通过后再合并；`protect-main` 规则集已从平台侧强制约束。
+- **PR-first 流程铁律**：所有源码、测试与 CI 改动默认必须从 `main` 切出特性分支并提交 Pull Request（严格保留 [`.github/PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md) 全部段落并贴出本地验证输出），等待 CI（`test` / `build` / `lint` / `browser-css`）与 CodeRabbit 审查通过后再合并；**禁止在未经用户明确指示的情况下直接向 `main` 推送代码改动**。`protect-main` 规则集为 Repository Admin 保留 `bypass` 权限，仅限维护者直推纯文档微调与合并后的发版元数据提交（`chore(release): vX.Y.Z`）。
 - **提交纪律**：改动后本地必须全部通过 `lint`、`typecheck`、`prepare`、`verify:pack`、`test` 与 `test:browser` 再提交 PR。
 
 ## Traps & hard-won lessons (踩坑备忘)
@@ -100,4 +100,4 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 - 首次运行浏览器测试前执行 `pnpm exec playwright-core install chromium`（Linux 缺少系统依赖时改用 `pnpm exec playwright-core install --with-deps chromium`）。
 - `pnpm test` 全绿（Node 25/26 下需挂 `NODE_OPTIONS=--no-experimental-webstorage`），`pnpm test:browser` 在真实 Chromium 中通过 CSS 级联与对比度回归验证。
 - `dsh plugin --profile <name> add .` 端到端安装可用（host 侧浏览器能加载）；卸载后界面完整恢复默认。
-- **发版闭环（用户指示发版时）**：① 所有代码与配置改动先通过特性分支提交 PR，待 CI（`test` / `build` / `lint` / `browser-css`）与 CodeRabbit 审查通过后再合并至 `main` → ② 版本号与发布文档变更（更新 `package.json` `version`、`CHANGELOG.md`、`README.md` / `README.en.md` 中 `.\install.ps1 -Version` 并验证 `verify:pack` 全绿）同样通过 PR 合并（commit `chore(release): vX.Y.Z`） → ③ 基于合并后的 `main` 打 tag `vX.Y.Z` 并推送 tag → ④ `npm publish` 并校验线上 `dist-tags` → ⑤ 创建 GitHub Release 并回复/关闭关联 Issue。
+- **发版闭环（用户指示发版时）**：① 所有源码、测试与 CI 改动先通过特性分支提交 PR，待 CI（`test` / `build` / `lint` / `browser-css`）与 CodeRabbit 审查通过后再合并至 `main` → ② 版本号与发布文档变更（更新 `package.json` `version`、`CHANGELOG.md`、`README.md` / `README.en.md` 中 `.\install.ps1 -Version` 并验证 `lint` / `typecheck` / `verify:pack` / `test` / `test:browser` 全绿）由管理员通过 `bypass` 直接提交 `chore(release): vX.Y.Z` 推送至 `main`（或经 PR 合入） → ③ 基于 `main` 打 tag `vX.Y.Z` 并推送 tag → ④ `npm publish` 并校验线上 `dist-tags` → ⑤ 创建 GitHub Release 并回复/关闭关联 Issue。
