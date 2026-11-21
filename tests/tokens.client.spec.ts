@@ -1,19 +1,23 @@
 /** Token override builder and preset catalog. */
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_DARK_THEME, DEFAULT_INVERT, DEFAULT_LIGHT_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../src/appearance-settings.ts'
 import {
-  APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE, selectionColors,
+  accentOnInk, APPEARANCE_PRESETS, BACKGROUND_BLUR_MAX, bubbleInk, buildTokenOverrides, composerButtonColors, DARK_PRESETS, GLASS_BLUR_MAX, LIGHT_PRESETS, OVERRIDE_SOURCE, selectionColors,
 } from '../src/client/tokens.ts'
 import { contrastRatio } from '../src/client/color.ts'
 
 const full = (partial: Partial<AppearanceSettings> = {}): AppearanceSettings => ({ ...DEFAULT_SETTINGS, ...partial })
 
 describe('buildTokenOverrides', () => {
-  it('stock settings emit the default blue accent', () => {
+  it('stock settings leave brand, info, label, and foreground tokens untouched', () => {
     const tokens = buildTokenOverrides(full())
-    // The accent defaults to the harness brand blue — buttons, links and
-    // chips all ride that hue on a fresh install.
-    expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#4176e6', dark: '#4176e6' })
+    // Stock defaults must not alter host brand-primary or foreground contrast
+    // tokens (prevents white-on-white QuestionComposer checkboxes in dark mode).
+    expect(tokens['--dsw-alias-brand-primary']).toBeUndefined()
+    expect(tokens['--dsw-alias-state-business-primary']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-info-fill']).toBeUndefined()
+    expect(tokens['--dsw-alias-label-primary-foreground']).toBeUndefined()
+    expect(tokens['--dsw-alias-label-primary-inverted']).toBeUndefined()
     // Surfaces, labels and borders are still left alone in the stock state.
     expect(tokens['--dsw-alias-bg-base']).toBeUndefined()
     expect(tokens['--dsw-alias-label-primary']).toBeUndefined()
@@ -85,28 +89,25 @@ describe('buildTokenOverrides', () => {
   })
 
   it('re-derives the on-ink pair when the text color is overridden', () => {
-    // The harness badge paints its chip with the label color and its letters
-    // with -inverted; ::selection pairs its background with -foreground. A
-    // light text color must flip both inks dark, or the badge disappears.
-    // Note: accent inversion (on by default) derives these from the accent
-    // instead of the text role, so disable it here to test the text path.
-    const noInvert = { light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_INVERT, accent: false } }, dark: { ...DEFAULT_DARK_THEME, invert: { ...DEFAULT_INVERT, accent: false } } }
-    const light = buildTokenOverrides(full({ text: '#fafaf9', ...noInvert }))
+    // The harness badge paints its chip with label-primary and its letters with
+    // -inverted; neutral checkmarks (e.g. QuestionComposer) pair label-primary
+    // with -foreground. Both tokens always pair with label-primary, never accent.
+    const light = buildTokenOverrides(full({ text: '#fafaf9' }))
     expect(light['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     expect(light['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // A dark text color flips both inks light again.
-    const dark = buildTokenOverrides(full({ text: '#111111', ...noInvert }))
+    const dark = buildTokenOverrides(full({ text: '#111111' }))
     expect(dark['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(dark['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     // A mid-tone chip contrasts more with the dark ink (4.7:1 vs 3.8:1), so
     // the winner is picked by WCAG contrast, not a luminance threshold.
-    const mid = buildTokenOverrides(full({ text: '#808080', ...noInvert }))
+    const mid = buildTokenOverrides(full({ text: '#808080' }))
     expect(mid['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     expect(mid['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // Shorthand hex reaches the builder un-normalized within a session (the
     // persistence sanitizer expands it only on reload), so ink selection and
     // the dark-flip check must handle #rgb directly.
-    const shorthand = buildTokenOverrides(full({ text: '#888', ...noInvert }))
+    const shorthand = buildTokenOverrides(full({ text: '#888' }))
     expect(shorthand['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
     // A light shorthand background must not trigger the dark-family flip.
     const lightShorthand = buildTokenOverrides(full({ background: '#eee' }))
@@ -114,74 +115,49 @@ describe('buildTokenOverrides', () => {
     // A four-character value without the # prefix is malformed, not a
     // shorthand — it must classify as dark (luminance 0), not expand to a
     // fake color.
-    const malformed = buildTokenOverrides(full({ text: 'abcd', ...noInvert }))
+    const malformed = buildTokenOverrides(full({ text: 'abcd' }))
     expect(malformed['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
   })
 
-  it('accent inversion drives the on-accent ink from the accent color while keeping -inverted paired with label-primary', () => {
-    // Default invert.accent is on: `-foreground` (on brand-primary) auto-contrasts
-    // with the accent, while `-inverted` (on label-primary chips like the sidebar
-    // "harness" badge and `[data-tone='solid']` pills) stays paired with the text role.
+  it('customizing accent never overrides global label-primary-foreground; accentOnInk derives per-mode ink', () => {
+    expect(accentOnInk(full())).toEqual({ light: null, dark: null })
+
     const darkAccent = buildTokenOverrides(full({ accent: '#111111' }))
-    // Dark accent → light ink on accent surfaces; `-inverted` contrasts with stock light (#0f1115) / dark (#fafaf9) labels.
-    expect(darkAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    expect(darkAccent['--dsw-alias-label-primary-inverted']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
-    // Light accent → dark ink on accent surfaces.
+    expect(darkAccent['--dsw-alias-label-primary-foreground']).toBeUndefined()
+    expect(darkAccent['--dsw-alias-label-primary-inverted']).toBeUndefined()
+    expect(accentOnInk(full({ accent: '#111111' }))).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+
     const lightAccent = buildTokenOverrides(full({ accent: '#ffffff' }))
-    expect(lightAccent['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    // Per-mode independence: dark accent in light mode, light accent in dark.
-    const mixed = buildTokenOverrides(full({
-      light: { ...DEFAULT_LIGHT_THEME, accent: '#111111' },
-      dark: { ...DEFAULT_DARK_THEME, accent: '#ffffff' },
-    }))
-    expect(mixed['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    expect(lightAccent['--dsw-alias-label-primary-foreground']).toBeUndefined()
+    expect(accentOnInk(full({ accent: '#ffffff' }))).toEqual({ light: '#0f1115', dark: '#0f1115' })
+
+    // Per-mode independence + global label-primary-foreground remains paired with text even when accent is set.
+    const mixed = full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#111111', text: '#fafaf9' },
+      dark: { ...DEFAULT_DARK_THEME, accent: '#ffffff', text: '#111111' },
+    })
+    expect(accentOnInk(mixed)).toEqual({ light: '#fafaf9', dark: '#0f1115' })
+    const mixedTokens = buildTokenOverrides(mixed)
+    expect(mixedTokens['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
+    expect(mixedTokens['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
   })
 
-  it('background inversion overrides the global text color and re-derives -inverted without clobbering on-accent -foreground', () => {
-    // Turning on background inversion makes the global label-primary contrast
-    // with the app background. Dark background → light ink; the harness badge
-    // chip turns light, so `-inverted` flips dark. While `invert.accent` is on
-    // (default), `-foreground` stays paired with the `#4176e6` accent (`#fafaf9`);
-    // when `invert.accent` is off, `-foreground` follows the flipped label too.
-    const darkBg = buildTokenOverrides(full({
-      background: '#111111',
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
-      dark: { ...DEFAULT_DARK_THEME, background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
+  it('single-mode accent customization keeps stock brand-primary and button-primary-hover in the untouched mode', () => {
+    const lightOnly = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '#ff00aa' },
+      dark: { ...DEFAULT_DARK_THEME, accent: '' },
     }))
-    expect(darkBg['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    expect(darkBg['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    expect(darkBg['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(lightOnly['--dsw-alias-brand-primary']).toEqual({ light: '#ff00aa', dark: '#f9fafb' })
+    expect(lightOnly['--dsw-alias-button-info-fill']).toEqual({ light: '#ff00aa', dark: '#7aaaff' })
+    expect(lightOnly['--dsw-alias-button-primary-hover']?.dark).toBe('#ebeef2')
 
-    const darkBgNoAccentInvert = buildTokenOverrides(full({
-      background: '#111111',
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { accent: false, background: true } },
-      dark: { ...DEFAULT_DARK_THEME, background: '#111111', invert: { accent: false, background: true } },
+    const darkOnly = buildTokenOverrides(full({
+      light: { ...DEFAULT_LIGHT_THEME, accent: '' },
+      dark: { ...DEFAULT_DARK_THEME, accent: '#7c9cff' },
     }))
-    expect(darkBgNoAccentInvert['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-
-    // Background inversion is an explicit user override: it wins over the
-    // text role (the whole app is that surface), unlike panel/input which
-    // were dropped — a single global label cannot express per-sub-surface ink.
-    const overrideText = buildTokenOverrides(full({
-      text: '#ff0000',
-      background: '#111111',
-      light: { ...DEFAULT_LIGHT_THEME, text: '#ff0000', background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
-      dark: { ...DEFAULT_DARK_THEME, text: '#ff0000', background: '#111111', invert: { ...DEFAULT_INVERT, background: true } },
-    }))
-    expect(overrideText['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
-    // Per-mode independence: dark background in light mode, light background
-    // in dark mode → inks follow each surface independently.
-    const perMode = buildTokenOverrides(full({
-      light: { ...DEFAULT_LIGHT_THEME, background: '#111111', invert: { accent: false, background: true } },
-      dark: { ...DEFAULT_DARK_THEME, background: '#eeeeee', invert: { accent: false, background: true } },
-    }))
-    expect(perMode['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#0f1115' })
-    expect(perMode['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
-    expect(perMode['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#fafaf9' })
-    expect(perMode['--dsw-alias-label-secondary']).toEqual({ light: '#d5d5d5', dark: '#4e4f52' })
-    expect(perMode['--dsw-alias-label-tertiary']).toEqual({ light: '#818181', dark: '#6b6c6f' })
-    expect(perMode['--dsw-alias-label-caption']).toEqual({ light: '#818181', dark: '#6b6c6f' })
-    expect(perMode['--dsw-alias-menu-icon']).toEqual({ light: '#d1d1d0', dark: '#3a3c3f' })
+    expect(darkOnly['--dsw-alias-brand-primary']).toEqual({ light: '#0f1115', dark: '#7c9cff' })
+    expect(darkOnly['--dsw-alias-button-info-fill']).toEqual({ light: '#4176e6', dark: '#7c9cff' })
+    expect(darkOnly['--dsw-alias-button-primary-hover']?.light).toBe('#43454a')
   })
 
   it('independent text customization per mode does not leak into the other mode', () => {
@@ -207,38 +183,36 @@ describe('buildTokenOverrides', () => {
     expect(darkOnly['--dsw-alias-label-tertiary']?.light).toBe('#9ea3a8')
   })
 
-  it('bubbleInk returns a contrasting ink per mode, or null when inversion is off', () => {
-    // Default: light mode stock bubble (#edf3fe) yields dark ink (#0f1115); dark mode stock (#2c2c2e) yields light ink (#fafaf9).
-    expect(bubbleInk(full())).toEqual({ light: '#0f1115', dark: '#fafaf9' })
+  it('bubbleInk returns null when readable (>= 3.5:1) and contrasting ink only when needed', () => {
+    // Default: stock light (#0f1115 on #edf3fe) and dark (#fafaf9 on #2c2c2e) are already readable.
+    expect(bubbleInk(full())).toEqual({ light: null, dark: null })
     // A dark panel in light mode flips the ink light; a light panel in dark mode flips dark.
     const darkPanel = full({ panel: '#111111', light: { ...DEFAULT_LIGHT_THEME, panel: '#111111' } })
     const brightPanel = full({ panel: '#ffffff', dark: { ...DEFAULT_DARK_THEME, panel: '#ffffff' } })
     expect(bubbleInk(darkPanel).light).toBe('#fafaf9')
     expect(bubbleInk(brightPanel).dark).toBe('#0f1115')
-    // Scenario: user's dark blue panel (#355eb6) gives white text; pale blue (#749aec) gives dark text.
+    // Scenario: dark blue panel (#355eb6) in light mode needs white ink; pale blue (#749aec) is already readable with dark text,
+    // whereas in dark mode pale blue (#749aec) clashes with light text and falls back to dark ink.
     const darkSurf = full({ light: { ...DEFAULT_LIGHT_THEME, panel: '#355eb6' } })
-    const paleSurf = full({ light: { ...DEFAULT_LIGHT_THEME, panel: '#749aec' } })
+    const paleSurf = full({
+      light: { ...DEFAULT_LIGHT_THEME, panel: '#749aec' },
+      dark: { ...DEFAULT_DARK_THEME, panel: '#749aec' },
+    })
     expect(bubbleInk(darkSurf).light).toBe('#fafaf9')
-    expect(bubbleInk(paleSurf).light).toBe('#0f1115')
+    expect(bubbleInk(paleSurf)).toEqual({ light: null, dark: '#0f1115' })
     // Per-mode independence: dark panel light mode, light panel dark mode.
     const mixed = full({
       light: { ...DEFAULT_LIGHT_THEME, panel: '#111111' },
       dark: { ...DEFAULT_DARK_THEME, panel: '#ffffff' },
     })
     expect(bubbleInk(mixed)).toEqual({ light: '#fafaf9', dark: '#0f1115' })
-    // Turning inversion off for a mode returns null (bubble keeps stock text).
-    const off = full({
-      light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_INVERT, accent: false } },
-      dark: { ...DEFAULT_DARK_THEME },
-    })
-    expect(bubbleInk(off)).toEqual({ light: null, dark: '#fafaf9' })
-    // User-selected `text` color is preserved inside bubbles whenever it is readable (>= 3.5:1),
+    // User-selected `text` color stays untouched (returns null) whenever it is readable (>= 3.5:1),
     // and only falls back to `#fafaf9` / `#0f1115` when it would clash with the bubble surface.
     const customReadableText = full({
       light: { ...DEFAULT_LIGHT_THEME, panel: '#f4f1ea', text: '#292524' },
       dark: { ...DEFAULT_DARK_THEME, panel: '#232737', text: '#e6e9f4' },
     })
-    expect(bubbleInk(customReadableText)).toEqual({ light: '#292524', dark: '#e6e9f4' })
+    expect(bubbleInk(customReadableText)).toEqual({ light: null, dark: null })
     const clashingText = full({
       light: { ...DEFAULT_LIGHT_THEME, panel: '#355eb6', text: '#1e293b' },
     })
@@ -249,12 +223,21 @@ describe('buildTokenOverrides', () => {
       light: { ...DEFAULT_LIGHT_THEME, background: '#111111' },
     })
     expect(bubbleInk(transparentOverDarkBg).light).toBe('#fafaf9')
+    // Under imageDark with unset text, light mode flips label-primary to #fafaf9 (already readable -> null);
+    // an explicit dark text override that clashes with the dark wallpaper falls back to #fafaf9.
     const darkWallpaperBubble = full({
       backgroundImage: 'data:image/webp;base64,AAAA',
       imageDark: true,
       surfaceAlpha: 0,
     })
-    expect(bubbleInk(darkWallpaperBubble).light).toBe('#fafaf9')
+    expect(bubbleInk(darkWallpaperBubble).light).toBeNull()
+    const darkWallpaperClashingText = full({
+      backgroundImage: 'data:image/webp;base64,AAAA',
+      imageDark: true,
+      surfaceAlpha: 0,
+      light: { ...DEFAULT_LIGHT_THEME, text: '#111111' },
+    })
+    expect(bubbleInk(darkWallpaperClashingText).light).toBe('#fafaf9')
   })
 
   it('turns the surface tokens translucent below full opacity', () => {
@@ -305,7 +288,7 @@ describe('buildTokenOverrides', () => {
     const tokens = buildTokenOverrides(full({
       surfaceAlpha: 1,
       panel: '#f0e0d0',
-      light: { accent: '', background: '', panel: '#f0e0d0', input: '', text: '', border: '', preset: '', invert: { accent: false, background: false } },
+      light: { accent: '', background: '', panel: '#f0e0d0', input: '', text: '', border: '', preset: '' },
     }))
     expect(tokens['--dsw-specific-menu']?.light).not.toBe('#ffffff')
     expect(tokens['--dsw-menu-surface-fill']?.light).toBe(tokens['--dsw-specific-menu']?.light)
@@ -316,8 +299,7 @@ describe('buildTokenOverrides', () => {
     const tokens = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(Object.keys(tokens).length).toBeGreaterThan(0)
     for (const value of Object.values(tokens)) {
-      // The default white accent also emits plain hex tokens (brand group);
-      // every translucent value must be a valid rgba() (never a var() or
+      // Every translucent value must be a valid rgba() (never a var() or
       // color-mix: referencing the token itself would cycle and turn the
       // surface fully transparent — the 0%/100%-only regression). Alpha 1
       // is legal: the independent input/code knobs stay opaque by default.
@@ -349,48 +331,59 @@ describe('buildTokenOverrides', () => {
     expect(stock['--dsw-alias-bg-layer-2']!.light).toBe('rgba(255, 255, 255, 0.6)')
   })
 
-  it('brand/accent action buttons track the input opacity, independent of the panel', () => {
-    const tuned = buildTokenOverrides(full({ surfaceAlpha: 0, inputAlpha: 1 }))
-    // The accent bakes into both light and dark the same way (modePair).
-    expect(tuned['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 1)')
-    expect(tuned['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(65, 118, 230, 1)')
-    // The button does not bake at the panel alpha even when the panel is
-    // fully translucent — the send button stays visually solid.
-    const half = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
-    expect(half['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
+  it('keeps global button tokens opaque under translucency and delegates inputAlpha button fills to composerButtonColors', () => {
+    const stock = buildTokenOverrides(full({ surfaceAlpha: 0, inputAlpha: 1 }))
+    // Global button tokens stay untouched (opaque) so QuestionComposer "推荐"
+    // badges (--dsw-alias-button-info-fill) and modal submit buttons never go invisible.
+    expect(stock['--dsw-alias-button-primary-fill']).toBeUndefined()
+    expect(stock['--dsw-alias-button-info-fill']).toBeUndefined()
+    expect(composerButtonColors(full({ surfaceAlpha: 0, inputAlpha: 1 })).active).toBe(false)
+
+    // With inputAlpha < 1 and custom accent, global tokens stay opaque while composerButtonColors bakes inputAlpha.
+    const half = full({ accent: '#4176e6', surfaceAlpha: 0.6, inputAlpha: 0.3 })
+    const halfTokens = buildTokenOverrides(half)
+    expect(halfTokens['--dsw-alias-button-info-fill']).toEqual({ light: '#4176e6', dark: '#4176e6' })
+    expect(halfTokens['--dsw-alias-button-primary-fill']).toBeUndefined()
+    const btns = composerButtonColors(half)
+    expect(btns.active).toBe(true)
+    expect(btns.light.primaryFill).toBe('rgba(65, 118, 230, 0.3)')
+    expect(btns.light.infoFill).toBe('rgba(65, 118, 230, 0.3)')
   })
 
-  it('button hovers ride the input opacity too (regression: hover snapped opaque)', () => {
-    // The send key and the full-access toggle bake their fills translucent,
-    // so their hover fills must follow — an opaque hover read as a different
-    // element snapping solid under the pointer.
-    const half = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
-    expect(half['--dsw-alias-button-info-hover']!.light).toBe('rgba(94, 139, 234, 0.3)')
-    expect(half['--dsw-alias-button-primary-hover']!.dark).toBe('rgba(55, 97, 184, 0.3)')
-    // Legacy empty-accent settings fall back to the stock hover palette.
-    const legacy = buildTokenOverrides(full({ surfaceAlpha: 0.6, inputAlpha: 0.3, accent: '' }))
-    expect(legacy['--dsw-alias-button-info-hover']!.light).toBe('rgba(103, 158, 254, 0.3)')
-    expect(legacy['--dsw-alias-button-primary-hover']!.dark).toBe('rgba(235, 238, 242, 0.3)')
-    // At full surface opacity the hovers stay opaque stepped hexes.
-    const solid = buildTokenOverrides(full())
-    expect(solid['--dsw-alias-button-info-hover']!.light).toBe('#5e8bea')
-    expect(solid['--dsw-alias-button-primary-hover']!.light).toBe('#6b94ec')
+  it('composer button hovers ride inputAlpha too while global hovers remain opaque', () => {
+    const halfCustom = full({ accent: '#4176e6', surfaceAlpha: 0.6, inputAlpha: 0.3 })
+    const halfTokens = buildTokenOverrides(halfCustom)
+    expect(halfTokens['--dsw-alias-button-info-hover']!.light).toBe('#5e8bea')
+    expect(halfTokens['--dsw-alias-button-primary-hover']!.dark).toBe('#3761b8')
+
+    const customBtns = composerButtonColors(halfCustom)
+    expect(customBtns.light.infoHover).toBe('rgba(94, 139, 234, 0.3)')
+    expect(customBtns.dark.primaryHover).toBe('rgba(55, 97, 184, 0.3)')
+
+    // Unset accent falls back to the stock hover palette inside composerButtonColors.
+    const stockBtns = composerButtonColors(full({ surfaceAlpha: 0.6, inputAlpha: 0.3 }))
+    expect(stockBtns.light.infoHover).toBe('rgba(122, 170, 255, 0.3)')
+    expect(stockBtns.dark.primaryHover).toBe('rgba(235, 238, 242, 0.3)')
+
+    // At full surface opacity custom accent hovers stay opaque stepped hexes; stock leaves them undefined.
+    expect(buildTokenOverrides(full())['--dsw-alias-button-primary-hover']).toBeUndefined()
+    const solidCustom = buildTokenOverrides(full({ accent: '#4176e6' }))
+    expect(solidCustom['--dsw-alias-button-info-hover']!.light).toBe('#5e8bea')
+    expect(solidCustom['--dsw-alias-button-primary-hover']!.light).toBe('#6b94ec')
   })
 
   it('inline code keeps a low-alpha brand tint so emphasized text stays visible', () => {
-    // The default blue accent tints the chip blue (same value in both modes
-    // when baked from the accent).
+    // Stock settings tint inline code with the host blue per mode.
     const stock = buildTokenOverrides(full({ surfaceAlpha: 0.6 }))
     expect(stock['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.22)')
-    expect(stock['--dsw-alias-markdown-inline-code']!.dark).toBe('rgba(65, 118, 230, 0.22)')
+    expect(stock['--dsw-alias-markdown-inline-code']!.dark).toBe('rgba(103, 158, 254, 0.22)')
     // The user accent wins when set.
     const accented = buildTokenOverrides(full({ surfaceAlpha: 0.6, accent: '#ff0000' }))
     expect(accented['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(255, 0, 0, 0.22)')
     // The emphasis alpha slider is honored.
     const tuned = buildTokenOverrides(full({ surfaceAlpha: 0.6, emphasisAlpha: 0.35 }))
     expect(tuned['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.35)')
-    // Legacy persisted settings may still carry an empty accent; that path
-    // must agree with the stock blue shown by the UI, not fall back to black.
+    // Explicit empty accent behaves the same as stock.
     const legacyEmpty = buildTokenOverrides(full({ surfaceAlpha: 0.6, accent: '' }))
     expect(legacyEmpty['--dsw-alias-markdown-inline-code']!.light).toBe('rgba(65, 118, 230, 0.22)')
     // Code blocks are absolute: opaque by default (independent of the panel).
@@ -503,12 +496,19 @@ describe('buildTokenOverrides', () => {
   })
 
   it('the input knob works at a fully opaque panel (action affordances)', () => {
-    const tokens = buildTokenOverrides(full({ surfaceAlpha: 1, inputAlpha: 0.3 }))
-    // Send/stop and the "+" trigger follow the input opacity even when the
-    // panel sits at 100% — otherwise the stock solid fill swallows the knob.
-    expect(tokens['--dsw-alias-button-primary-fill']!.light).toBe('rgba(65, 118, 230, 0.3)')
-    expect(tokens['--dsw-alias-button-primary-fill']!.dark).toBe('rgba(65, 118, 230, 0.3)')
+    const inputOnly = full({ surfaceAlpha: 1, inputAlpha: 0.3 })
+    const tokens = buildTokenOverrides(inputOnly)
+    // Global button-info-fill and button-primary-fill stay untouched so QuestionComposer
+    // "推荐" badges stay readable at any inputAlpha; composer buttons use composerButtonColors.
+    expect(tokens['--dsw-alias-button-primary-fill']).toBeUndefined()
+    expect(tokens['--dsw-alias-button-info-fill']).toBeUndefined()
     expect(tokens['--dsw-specific-selector']!.light).toBe('rgba(245, 246, 247, 0.3)')
+    const btns = composerButtonColors(inputOnly)
+    expect(btns.active).toBe(true)
+    expect(btns.light.primaryFill).toBe('rgba(15, 17, 21, 0.3)')
+    expect(btns.dark.primaryFill).toBe('rgba(249, 250, 251, 0.3)')
+    expect(btns.light.infoFill).toBe('rgba(65, 118, 230, 0.3)')
+    expect(btns.dark.infoFill).toBe('rgba(122, 170, 255, 0.3)')
     // Menus are controlled exclusively by popoverAlpha (default 1 = opaque),
     // never snapping translucent just because inputAlpha < 1 or glassBlur > 0.
     expect(tokens['--dsw-specific-menu']).toEqual({ light: '#ffffff', dark: '#353638' })
@@ -607,7 +607,6 @@ describe('buildTokenOverrides', () => {
         text: '#292524',
         border: '#e7e5e4',
         preset: 'dawn',
-        invert: { accent: false, background: false },
       },
       dark: {
         accent: '#7c9cff',
@@ -617,7 +616,6 @@ describe('buildTokenOverrides', () => {
         text: '#e6e9f4',
         border: '#343a52',
         preset: 'midnight',
-        invert: { accent: false, background: false },
       },
     }))
     expect(tokens['--dsw-alias-brand-primary']).toEqual({ light: '#d97706', dark: '#7c9cff' })
@@ -652,11 +650,36 @@ describe('buildTokenOverrides', () => {
     expect(contrastRatio(menuD, '#e5e7eb')).toBeGreaterThanOrEqual(7.0)
   })
 
-  it('keeps -foreground paired with accent under dark wallpaper (imageDark) while flipping -inverted dark', () => {
+  it('pairs -inverted, -foreground, button-contrast-fill, and QuestionComposer badge tokens under dark wallpaper (imageDark)', () => {
     const tokens = buildTokenOverrides(full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true }))
     expect(tokens['--dsw-alias-label-primary']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
     expect(tokens['--dsw-alias-label-primary-inverted']).toEqual({ light: '#0f1115', dark: '#0f1115' })
-    expect(tokens['--dsw-alias-label-primary-foreground']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    expect(tokens['--dsw-alias-label-primary-foreground']).toEqual({ light: '#0f1115', dark: '#0f1115' })
+    expect(tokens['--dsw-alias-button-contrast-fill']).toEqual({ light: '#fafaf9', dark: '#fafaf9' })
+    // QuestionComposer "推荐" badge uses active-accent background + button-info-fill text.
+    expect(tokens['--dsw-specific-sidebar-nav-item-active-accent']).toEqual({ light: '#353638', dark: '#353638' })
+    expect(tokens['--dsw-alias-button-info-fill']).toEqual({ light: '#7aaaff', dark: '#7aaaff' })
+    expect(contrastRatio(
+      tokens['--dsw-alias-button-info-fill']!.light,
+      tokens['--dsw-specific-sidebar-nav-item-active-accent']!.light,
+    )).toBeGreaterThanOrEqual(4.5)
+
+    // Custom dark accent stays intact in dark mode while flipped light mode uses #7aaaff.
+    const darkAccentOnly = buildTokenOverrides(full({
+      backgroundImage: 'data:image/webp;base64,AAAA',
+      imageDark: true,
+      dark: { ...DEFAULT_DARK_THEME, accent: '#f48fb1' },
+    }))
+    expect(darkAccentOnly['--dsw-alias-button-info-fill']).toEqual({ light: '#7aaaff', dark: '#f48fb1' })
+
+    // If light mode explicitly uses dark text, light keeps unflipped #61666b contrast-fill
+    // while dark mode flips to #fafaf9.
+    const lightCustomText = buildTokenOverrides(full({
+      backgroundImage: 'data:image/webp;base64,AAAA',
+      imageDark: true,
+      light: { ...DEFAULT_LIGHT_THEME, text: '#111111' },
+    }))
+    expect(lightCustomText['--dsw-alias-button-contrast-fill']).toEqual({ light: '#61666b', dark: '#fafaf9' })
   })
 
   it('computes high-contrast global and user-bubble selection pairs across modes and custom palettes (Issue #46)', () => {

@@ -14,7 +14,7 @@ import {
   IconPersonalizationOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
-import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings, type InvertibleRole, type ThemeMode } from '../appearance-settings.ts'
+import { APPEARANCE_ROLES, type AppearanceRole, type AppearanceSettings, type ThemeMode } from '../appearance-settings.ts'
 import { formatHex, isHexColor, parseHex } from './color.ts'
 import { ACCEPTED_IMAGE_TYPES, derivePalette, MAX_INPUT_BYTES, prepareImage } from './image.ts'
 import { getImage, saveImage } from './image-store.ts'
@@ -35,8 +35,6 @@ export interface AppearanceCustomizerInjected {
   set: (field: keyof AppearanceSettings, value: string | number | boolean) => void
   /** Update one role color in a specific mode (light or dark). */
   setModeRole?: (mode: ThemeMode, role: AppearanceRole, value: string) => void
-  /** Toggle foreground auto-inversion for one surface role in a specific mode. */
-  setModeInvert?: (mode: ThemeMode, role: InvertibleRole, value: boolean) => void
   /** Set or clear the background image (null removes it). */
   setImage: (image: { url: string; imageDark: boolean } | null) => void
   /** Set or clear the background video by its IndexedDB record key. */
@@ -538,7 +536,7 @@ export function AppearanceCustomizerRow({
               >
                 <span className={css.modeTabIcon}><SunIcon /></span>
                 <span>{t('mode.light')}</span>
-                {currentHostMode === 'light' && <span className={css.activeBadge}>{t('mode.active')}</span>}
+                {currentHostMode === 'light' && <span className={css.activeBadge} data-dsw-accent-surface="">{t('mode.active')}</span>}
               </button>
               <button
                 type="button"
@@ -549,7 +547,7 @@ export function AppearanceCustomizerRow({
               >
                 <span className={css.modeTabIcon}><MoonIcon /></span>
                 <span>{t('mode.dark')}</span>
-                {currentHostMode === 'dark' && <span className={css.activeBadge}>{t('mode.active')}</span>}
+                {currentHostMode === 'dark' && <span className={css.activeBadge} data-dsw-accent-surface="">{t('mode.active')}</span>}
               </button>
             </div>
           </div>

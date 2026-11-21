@@ -26,7 +26,7 @@ import { createAppearanceRowStore } from './settings-store.ts'
 import { en, zh, type AppearanceKey } from './locales.ts'
 import {
   APPEARANCE_ROLES, DEFAULT_SETTINGS, DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME, sanitizeSettings,
-  type AppearanceRole, type AppearanceSettings, type InvertibleRole, type ThemeMode,
+  type AppearanceRole, type AppearanceSettings, type ThemeMode,
 } from '../appearance-settings.ts'
 import { APPEARANCE_PRESETS, LIGHT_PRESETS, DARK_PRESETS } from './tokens.ts'
 import { AppearanceApplier } from './applier.ts'
@@ -240,11 +240,6 @@ export function apply(ctx: ClientContext): void {
       ...patch[mode],
       [role]: value,
       preset: 'custom',
-      invert: {
-        ...patch[mode].invert,
-        accent: true,
-        background: false,
-      },
     }
     // Top-level role fields are a legacy mirror only: dual-mode writes must
     // NOT pollute them, or the untouched mode falls back to this value via
@@ -252,16 +247,6 @@ export function apply(ctx: ClientContext): void {
     patch.preset = 'custom'
     current = patch
     commit()
-  }
-  const setModeInvert = (mode: ThemeMode, role: InvertibleRole, value: boolean): void => {
-    const patch = { ...current }
-    patch[mode] = {
-      ...patch[mode],
-      invert: { ...patch[mode].invert, [role]: value },
-    }
-    current = patch
-    commit()
-    flushApply()
   }
   const setImage = (image: { url: string; imageDark: boolean } | null): void => {
     const patch = { ...current }
@@ -336,7 +321,7 @@ export function apply(ctx: ClientContext): void {
   }
   const resetMode = (mode: ThemeMode): void => {
     const defaultMode = mode === 'light' ? DEFAULT_LIGHT_THEME : DEFAULT_DARK_THEME
-    const patch = { ...current, [mode]: { ...defaultMode, preset: 'default', invert: { ...defaultMode.invert } } }
+    const patch = { ...current, [mode]: { ...defaultMode, preset: 'default' } }
     patch.preset = 'default'
     current = patch
     commit()
@@ -362,8 +347,8 @@ export function apply(ctx: ClientContext): void {
     current = {
       ...DEFAULT_SETTINGS,
       preset: 'default',
-      light: { ...DEFAULT_LIGHT_THEME, invert: { ...DEFAULT_LIGHT_THEME.invert } },
-      dark: { ...DEFAULT_DARK_THEME, invert: { ...DEFAULT_DARK_THEME.invert } },
+      light: { ...DEFAULT_LIGHT_THEME },
+      dark: { ...DEFAULT_DARK_THEME },
     }
     commit()
     flushApply()
@@ -376,7 +361,7 @@ export function apply(ctx: ClientContext): void {
     // Replay a decode failure that landed before the row's store was bound.
     if (videoPlaybackError) actions.setVideoPlaybackError(true)
     return {
-      set, setModeRole, setModeInvert, setImage, setVideo,
+      set, setModeRole, setImage, setVideo,
       applyModePreset, applyModeColors, resetMode,
       applyPreset, applyColors, resetAll,
     }

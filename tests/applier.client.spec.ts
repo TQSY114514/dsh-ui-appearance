@@ -156,7 +156,7 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('gates light bubble-ink rule out of dark mode so disabling dark accent inversion never falls back to light ink', () => {
+  it('gates light bubble-ink rule out of dark mode so disabling dark bubble fallback never falls back to light ink', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     const css = document.getElementById(STYLE_ID)?.textContent ?? ''
@@ -164,68 +164,231 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('arms the bubble-ink gate per mode and retracts it when inversion is off', () => {
+  it('arms the bubble-ink gate per mode only when contrast drops below 3.5:1 and retracts when readable or disposed', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
-    // Default settings have accent inversion ON in both modes.
-    applier.apply(full({ panel: '#111111' }))
     const body = document.body
+
+    // Default stock settings already have >= 3.5:1 bubble contrast in both modes.
+    applier.apply(full())
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
+
+    // Dark panel in both modes: light mode needs light ink fallback, dark mode is already readable.
+    applier.apply(full({ panel: '#111111' }))
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
-    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
-    // Dark panel → light ink in both modes.
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
-    // Turn inversion off in light mode only: light gate retracts, dark stays.
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
+
+    // Dark panel in light mode + bright panel in dark mode arms both gates independently.
     applier.apply(full({
-      light: { ...DEFAULT_SETTINGS.light, panel: '#111111', invert: { ...DEFAULT_SETTINGS.light.invert, accent: false, background: false } },
-      dark: { ...DEFAULT_SETTINGS.dark, panel: '#111111' },
+      light: { ...DEFAULT_SETTINGS.light, panel: '#111111' },
+      dark: { ...DEFAULT_SETTINGS.dark, panel: '#ffffff' },
+    }))
+    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
+    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#0f1115')
+
+    // Restoring light panel to white retracts light gate while keeping dark gate armed.
+    applier.apply(full({
+      light: { ...DEFAULT_SETTINGS.light, panel: '#ffffff' },
+      dark: { ...DEFAULT_SETTINGS.dark, panel: '#ffffff' },
     }))
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
     expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+
     applier.dispose()
     expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
     expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('')
   })
 
-  it('apply with undefined settings applies the default white accent', () => {
+  it('apply with undefined settings falls back to stock defaults', () => {
     const { ctx, overrideTokens, remove } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     applier.apply(full({ accent: '#4176e6' }))
     applier.apply(undefined)
-    // undefined falls back to the defaults, which now carry the white accent,
-    // so the override layer is rebuilt rather than retracted.
+    // undefined falls back to DEFAULT_SETTINGS, which still emits opaque
+    // input/code/menu/hover tokens and removes the custom accent attributes.
     expect(overrideTokens).toHaveBeenCalledTimes(2)
     expect(remove).toHaveBeenCalledTimes(1)
+    expect(document.body.hasAttribute('data-dsw-accent-ink-light')).toBe(false)
     applier.dispose()
   })
 
-  it('sets and retracts per-mode bubble ink attributes and variables', () => {
+  it('sets and retracts per-mode accent ink attributes and variables and scopes foreground only to accent surfaces', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
-    // Default settings have accent invert on:
-    applier.apply(full())
     const body = document.body
-    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(true)
-    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
+    const html = document.documentElement
 
-    // Disabling accent invert retracts the attribute and variable:
-    const off = full({
-      light: { ...DEFAULT_SETTINGS.light, invert: { ...DEFAULT_SETTINGS.light.invert, accent: false } },
-    })
-    applier.apply(off)
-    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
-    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(true)
+    // Stock defaults leave accent-ink attributes unset.
+    applier.apply(full())
+    expect(body.hasAttribute('data-dsw-accent-ink-light')).toBe(false)
+    expect(body.hasAttribute('data-dsw-accent-ink-dark')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-accent-ink-light')).toBe('')
 
-    // Dispose cleans up all bubble ink attributes and properties:
-    applier.dispose()
-    expect(body.hasAttribute('data-dsw-bubble-ink-light')).toBe(false)
-    expect(body.hasAttribute('data-dsw-bubble-ink-dark')).toBe(false)
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('')
+    // Custom per-mode accents arm accent-ink per mode with contrasting ink.
+    applier.apply(full({
+      light: { ...DEFAULT_SETTINGS.light, accent: '#ffffff' },
+      dark: { ...DEFAULT_SETTINGS.dark, accent: '#4176e6' },
+    }))
+    expect(body.hasAttribute('data-dsw-accent-ink-light')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-accent-ink-light')).toBe('#0f1115')
+    expect(body.hasAttribute('data-dsw-accent-ink-dark')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-accent-ink-dark')).toBe('#fafaf9')
+
+    // Verify DOM selector matching: accent controls match across #root and body portals;
+    // QuestionComposer checkboxes, step dots, and danger buttons do NOT match.
+    const root = document.createElement('div')
+    root.id = 'root'
+    const primaryBtn = document.createElement('button')
+    primaryBtn.className = '_button_1ulci_2 _primary_1ulci_36'
+    const dangerBtn = document.createElement('button')
+    dangerBtn.className = '_button_1ulci_2 _primary_1ulci_36 X_2TxG_dangerButton'
+    const primaryLink = document.createElement('a')
+    primaryLink.className = 'abc_primary'
+    const switchOn = document.createElement('button')
+    switchOn.setAttribute('role', 'switch')
+    switchOn.setAttribute('aria-checked', 'true')
+    const switchOff = document.createElement('button')
+    switchOff.setAttribute('role', 'switch')
+    switchOff.setAttribute('aria-checked', 'false')
+    const onbLabel = document.createElement('label')
+    const onbInput = document.createElement('input')
+    onbInput.type = 'checkbox'
+    onbInput.checked = true
+    const onbIndicator = document.createElement('span')
+    onbIndicator.className = 'ywGceq_indicator'
+    onbLabel.append(onbInput, onbIndicator)
+    const accentBadge = document.createElement('span')
+    accentBadge.setAttribute('data-dsw-accent-surface', '')
+    const questionCheckbox = document.createElement('span')
+    questionCheckbox.className = 'Mbwy4a_checkbox Mbwy4a_checkboxChecked'
+    const stepIndicator = document.createElement('span')
+    stepIndicator.className = '_step_1i3xo_97'
+    stepIndicator.setAttribute('data-state', 'done')
+    root.append(primaryBtn, dangerBtn, primaryLink, switchOn, switchOff, onbLabel, accentBadge, questionCheckbox, stepIndicator)
+
+    const portal = document.createElement('div')
+    const chipActive = document.createElement('button')
+    chipActive.className = '_6_jNJa_chip _6_jNJa_chipActive'
+    portal.append(chipActive)
+    body.append(root, portal)
+
+    try {
+      const lightSelector = 'html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is(button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]), a[class*="_primary"], [role="switch"][aria-checked="true"], input:checked + [class*="_indicator"], [data-dsw-accent-surface])'
+      const darkSelector = ':is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-accent-ink-dark] :is(button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]), a[class*="_primary"], [role="switch"][aria-checked="true"], input:checked + [class*="_indicator"], [data-dsw-accent-surface])'
+      const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+      expect(css).toContain('body[data-dsw-accent-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is(')
+      expect(css).toContain('body[data-dsw-accent-ink-dark] :is(')
+
+      expect(primaryBtn.matches(lightSelector)).toBe(true)
+      expect(chipActive.matches(lightSelector)).toBe(true)
+      expect(primaryLink.matches(lightSelector)).toBe(true)
+      expect(switchOn.matches(lightSelector)).toBe(true)
+      expect(onbIndicator.matches(lightSelector)).toBe(true)
+      expect(accentBadge.matches(lightSelector)).toBe(true)
+      expect(dangerBtn.matches(lightSelector)).toBe(false)
+      expect(switchOff.matches(lightSelector)).toBe(false)
+      expect(questionCheckbox.matches(lightSelector)).toBe(false)
+      expect(stepIndicator.matches(lightSelector)).toBe(false)
+
+      // Switching host to dark theme switches matching cleanly from light rule to dark rule.
+      html.setAttribute('data-ds-dark-theme', '')
+      expect(primaryBtn.matches(lightSelector)).toBe(false)
+      expect(primaryBtn.matches(darkSelector)).toBe(true)
+      expect(chipActive.matches(darkSelector)).toBe(true)
+      expect(questionCheckbox.matches(darkSelector)).toBe(false)
+      expect(stepIndicator.matches(darkSelector)).toBe(false)
+      expect(dangerBtn.matches(darkSelector)).toBe(false)
+      html.removeAttribute('data-ds-dark-theme')
+
+      // Clearing light accent retracts light attribute while preserving dark.
+      applier.apply(full({
+        light: { ...DEFAULT_SETTINGS.light, accent: '' },
+        dark: { ...DEFAULT_SETTINGS.dark, accent: '#4176e6' },
+      }))
+      expect(body.hasAttribute('data-dsw-accent-ink-light')).toBe(false)
+      expect(body.style.getPropertyValue('--dsw-appearance-accent-ink-light')).toBe('')
+      expect(body.hasAttribute('data-dsw-accent-ink-dark')).toBe(true)
+
+      applier.dispose()
+      expect(body.hasAttribute('data-dsw-accent-ink-dark')).toBe(false)
+      expect(body.style.getPropertyValue('--dsw-appearance-accent-ink-dark')).toBe('')
+    } finally {
+      html.removeAttribute('data-ds-dark-theme')
+      root.remove()
+      portal.remove()
+      applier.dispose()
+    }
+  })
+
+  it('scopes translucent input button tokens to the composer card only when inputAlpha < 1', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const body = document.body
+    const html = document.documentElement
+
+    // Full inputAlpha (1): attribute and variables stay unset.
+    applier.apply(full({ surfaceAlpha: 0, inputAlpha: 1 }))
+    expect(body.hasAttribute('data-dsw-translucent-input')).toBe(false)
+    expect(body.style.getPropertyValue('--dsw-appearance-composer-info-fill-light')).toBe('')
+
+    // inputAlpha < 1: arms attribute and writes per-mode rgba composer variables.
+    applier.apply(full({ inputAlpha: 0.25 }))
+    expect(body.hasAttribute('data-dsw-translucent-input')).toBe(true)
+    expect(body.style.getPropertyValue('--dsw-appearance-composer-info-fill-light')).toBe('rgba(65, 118, 230, 0.25)')
+    expect(body.style.getPropertyValue('--dsw-appearance-composer-info-fill-dark')).toBe('rgba(122, 170, 255, 0.25)')
+    expect(body.style.getPropertyValue('--dsw-appearance-composer-primary-fill-light')).toBe('rgba(15, 17, 21, 0.25)')
+    expect(body.style.getPropertyValue('--dsw-appearance-composer-primary-fill-dark')).toBe('rgba(249, 250, 251, 0.25)')
+
+    // DOM selector matching: matches InputBar [data-composer-card], NOT QuestionComposer .Mbwy4a_card
+    const root = document.createElement('div')
+    root.id = 'root'
+    const composerCard = document.createElement('div')
+    composerCard.setAttribute('data-composer-card', '')
+    const questionCard = document.createElement('div')
+    questionCard.className = 'Mbwy4a_card'
+    const questionInput = document.createElement('textarea')
+    questionInput.className = 'Mbwy4a_fieldInput'
+    const questionBadge = document.createElement('span')
+    questionBadge.className = 'Mbwy4a_badge'
+    questionCard.append(questionInput, questionBadge)
+    root.append(composerCard, questionCard)
+    body.append(root)
+
+    try {
+      const lightComposerSel = 'html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-translucent-input]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is([data-composer-card], [class*="_card"]:has([class*="_input"]))'
+      const darkComposerSel = ':is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-translucent-input] :is([data-composer-card], [class*="_card"]:has([class*="_input"]))'
+
+      expect(composerCard.matches(lightComposerSel)).toBe(true)
+      expect(questionCard.matches(lightComposerSel)).toBe(false)
+
+      html.setAttribute('data-ds-dark-theme', '')
+      expect(composerCard.matches(lightComposerSel)).toBe(false)
+      expect(composerCard.matches(darkComposerSel)).toBe(true)
+      expect(questionCard.matches(darkComposerSel)).toBe(false)
+      html.removeAttribute('data-ds-dark-theme')
+
+      // Restoring inputAlpha = 1 retracts attribute and variables.
+      applier.apply(full({ inputAlpha: 1 }))
+      expect(body.hasAttribute('data-dsw-translucent-input')).toBe(false)
+      expect(body.style.getPropertyValue('--dsw-appearance-composer-info-fill-light')).toBe('')
+
+      // Dispose also cleans up.
+      applier.apply(full({ inputAlpha: 0.4 }))
+      expect(body.hasAttribute('data-dsw-translucent-input')).toBe(true)
+      applier.dispose()
+      expect(body.hasAttribute('data-dsw-translucent-input')).toBe(false)
+      expect(body.style.getPropertyValue('--dsw-appearance-composer-info-fill-dark')).toBe('')
+    } finally {
+      html.removeAttribute('data-ds-dark-theme')
+      root.remove()
+      applier.dispose()
+    }
   })
 
   it('apply with an image removal resets the background image variable', () => {
@@ -375,7 +538,7 @@ describe('AppearanceApplier', () => {
     applier.dispose()
   })
 
-  it('scopes business/brand primary tokens, paired foregrounds, and selection styles inside user bubbles (Issue #27, #46)', () => {
+  it('scopes business/brand primary tokens, paired foregrounds, selection styles, and excludes tooltips inside user bubbles (Issue #27, #46)', () => {
     const { ctx } = fakeCtx()
     const applier = new AppearanceApplier(ctx)
     applier.apply(full())
@@ -392,10 +555,9 @@ describe('AppearanceApplier', () => {
     expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-alias-label-primary-inverted)')
     expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-light)')
     expect(css).toContain('--dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-dark)')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#0f1115')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-light')).toBe('#fafaf9')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#fafaf9')
-    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-dark')).toBe('#0f1115')
+    // Default bubbles are already readable -> bubble-ink fallback is inactive.
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('')
 
     // Dedicated global and bubble `::selection` variables (never `#fafaf9` on `#fafaf9`)
     expect(css).toContain('--dsw-appearance-selection-bg-dark')
@@ -406,18 +568,46 @@ describe('AppearanceApplier', () => {
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-bg-dark')).toBe('#4176e6')
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-fg-dark')).toBe('#fafaf9')
 
+    // Clashing surfaces arm bubble-ink-fg per mode
+    applier.apply(full({
+      light: { ...DEFAULT_SETTINGS.light, panel: '#111111' },
+      dark: { ...DEFAULT_SETTINGS.dark, panel: '#ffffff' },
+    }))
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-light')).toBe('#fafaf9')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-light')).toBe('#0f1115')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-dark')).toBe('#0f1115')
+    expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-dark')).toBe('#fafaf9')
+
     // Same-hue blue bubble falls back to contrasting `#fafaf9` bg + `#0f1115` fg
     applier.apply(full({
       dark: { ...DEFAULT_SETTINGS.dark, accent: '#4176e6', panel: '#355eb6' },
     }))
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-bg-dark')).toBe('#fafaf9')
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-selection-fg-dark')).toBe('#0f1115')
-
-    // Turning off accent inversion retracts bubble-ink-fg; dispose cleans up all selection variables
-    applier.apply(full({
-      dark: { ...DEFAULT_SETTINGS.dark, invert: { ...DEFAULT_SETTINGS.dark.invert, accent: false } },
-    }))
+    // Dark text on #355eb6 is not dark-mode readable? (#fafaf9 on #355eb6 > 3.5, so bubble-ink-dark clears)
     expect(body.style.getPropertyValue('--dsw-appearance-bubble-ink-fg-dark')).toBe('')
+
+    // Tooltip bubbles carrying [data-side] or [data-portal] must NOT match user bubble rules
+    const root = document.createElement('div')
+    root.id = 'root'
+    const userBubble = document.createElement('div')
+    userBubble.className = '_bubble_1sgyj_1'
+    const tooltipWithSide = document.createElement('div')
+    tooltipWithSide.className = '_bubble_gm1ra_1'
+    tooltipWithSide.setAttribute('data-side', 'top')
+    const tooltipWithPortal = document.createElement('div')
+    tooltipWithPortal.className = '_bubble_gm1ra_1'
+    tooltipWithPortal.setAttribute('data-portal', '')
+    root.append(userBubble, tooltipWithSide, tooltipWithPortal)
+    body.append(root)
+    try {
+      const bubbleSelector = '#root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal])'
+      expect(userBubble.matches(bubbleSelector)).toBe(true)
+      expect(tooltipWithSide.matches(bubbleSelector)).toBe(false)
+      expect(tooltipWithPortal.matches(bubbleSelector)).toBe(false)
+    } finally {
+      root.remove()
+    }
 
     applier.dispose()
     expect(body.style.getPropertyValue('--dsw-appearance-selection-bg-dark')).toBe('')

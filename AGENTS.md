@@ -80,6 +80,9 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
   - `applier.ts` 需在启用背景媒体（`data-dsw-has-bg`）或 `surfaceAlpha < 1`（`data-dsw-translucent-surface`）时，用带 `#root` 的更高特异性覆写全屏壳层 `background: transparent !important`，并对 `[data-rightbar-fullscreen]` 下的被遮挡列施加 `opacity: 0; visibility: hidden; pointer-events: none`（绝不用 `display: none`，以免破坏 Grid 轨道或重置滚动位置），同时保留 Windows 标题栏下的 `_sidebarCol`（全屏止于左侧栏右缘）与窄屏抽屉 `[data-sidebar-drawer]`（`z-index: 71` 位于全屏之上）。
 - **tsdown 0.23.4+ 客户端 CJS 构建配置**：
   - `tsdown 0.23.4+` 在 `format: 'cjs'` 时会忽略顶层 `platform: 'browser'` 并抛出警告；`tsdown.standalone.config.ts` 的 `clientConfig` 必须配置为 `platform: 'neutral'` + `inputOptions: { platform: 'browser' }`。
+- **全局前景色与信息按钮 Token 作用域隔离（v0.1.30）**：
+  - 全局 `--dsw-alias-label-primary-foreground` 是宿主用于反白 `--dsw-alias-label-primary`（如 `QuestionComposer` 复选框底色）的反色前景色，绝不能由 `accent` 覆写，必须严格跟随 `--dsw-alias-label-primary`；强调色实底控件的对比文字色须通过 `accentOnInk` + `data-dsw-accent-ink-{light,dark}` 局部作用域注入。
+  - `--dsw-alias-button-info-fill` 与 `--dsw-alias-button-primary-fill` 同时被宿主组件用作文本/图标 `color`（如 `QuestionComposer` `.badge`「推荐」标签与 `DirectoryBrowser` `.rowIconSelected`），全局 token 必须保持不透明，仅通过 `composerButtonColors` + `data-dsw-translucent-input` 在输入框卡片内烘焙 `inputAlpha` 半透明。
 
 ## Before changing X, read Y
 
@@ -91,7 +94,8 @@ DeepSeek Harness WebUI 的外观自定义插件：主题色板、壁纸/视频�
 
 ## Verification
 
-- `pnpm typecheck` 零错误（`tsc --noEmit`，覆盖 `src/`、`tests/` 与 `types/` 宿主类型桩），`pnpm test` 全绿。
+- `pnpm typecheck` 零错误（`tsc --noEmit`，覆盖 `src/`、`tests/` 与 `types/` 宿主类型桩），`pnpm test` 全绿（Node 25/26 下需挂 `NODE_OPTIONS=--no-experimental-webstorage`）。
 - `pnpm install`（含 prepare 构建）成功。
 - `dsh plugin --profile <name> add .` 端到端安装可用（host 侧浏览器能加载）。
 - 卸载后界面完整恢复默认。
+- **发版闭环（用户指示发版时）**：① 功能/修复单独 commit → ② 更新 `package.json` `version`、`CHANGELOG.md` 及 `README.md` / `README.en.md` 中的 `.\install.ps1 -Version` 并验证 `lib/` 下 6 个产物（`index/invariant/client` 的 `.js` 与 `.d.ts`）齐全后提交 `chore(release): vX.Y.Z` → ③ 打 tag `vX.Y.Z` 并推送 `main` 与 tag → ④ `npm publish` 并校验 `dist-tags` → ⑤ 创建 GitHub Release 并回复/关闭关联 Issue。

@@ -7,7 +7,7 @@
  */
 import type { ThemeTokenOverrides } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceRole, AppearanceSettings } from '../appearance-settings.ts'
-import { contrastRatio, isDarkColor, isHexColor, mixHex, withAlpha } from './color.ts'
+import { contrastRatio, isHexColor, mixHex, withAlpha } from './color.ts'
 // Schema bounds live next to the settings document; re-exported here so the
 // slider caps and the persistence sanitizer share one source of truth.
 export { BACKGROUND_BLUR_MAX, EMPHASIS_ALPHA_MAX, EMPHASIS_ALPHA_MIN, GLASS_BLUR_MAX } from '../appearance-settings.ts'
@@ -23,13 +23,19 @@ const DARK_BASE = '#151517'
 const LIGHT_INK = '#fafaf9'
 /** Ink painted ON a dark label fill (host stock light-mode label). */
 const DARK_INK = '#0f1115'
+/** Stock brand primary color per mode (DSH design-platform.css neutral-bluish-1000 / -50). */
+const STOCK_BRAND_LIGHT = '#0f1115'
+const STOCK_BRAND_DARK = '#f9fafb'
+/** Stock info / business-accent color per mode (DSH deepseek-500 / deepseek-400). */
+const STOCK_INFO_LIGHT = '#4176e6'
+const STOCK_INFO_DARK = '#7aaaff'
 
 /**
  * The on-ink counterpart of a fill color. The sidebar wordmark's "harness"
  * badge and solid tags paint their chip with `--dsw-alias-label-primary` and
- * their letters with `--dsw-alias-label-primary-inverted`; accent fills and
- * `::selection` pair `--dsw-alias-brand-primary` with contrasting foreground
- * ink.
+ * their letters with `--dsw-alias-label-primary-inverted` (or `-foreground` on
+ * neutral checkmarks); accent fills and `::selection` pair
+ * `--dsw-alias-brand-primary` with contrasting foreground ink.
  * @param label - `#rgb` or `#rrggbb` fill color.
  * @returns `#fafaf9` or `#0f1115` contrasting ink.
  */
@@ -73,24 +79,6 @@ function a11yLabelStep(
     }
   }
   return mixHex(text, base, lo)
-}
-
-/**
- * Derive a readable label or icon step from a base label on a surface.
- * Automatically chooses the mix base (white for dark text, near-black for light text)
- * and the appropriate stock weight (light vs dark mode stock).
- */
-function deriveStepForLabel(
-  label: string,
-  surf: string,
-  targetRatio: number,
-  lightStock: number,
-  darkStock: number,
-): string {
-  const isDark = isDarkColor(label)
-  const base = isDark ? LIGHT_BASE : DARK_BASE
-  const stock = isDark ? lightStock : darkStock
-  return a11yLabelStep(label, base, surf, targetRatio, stock)
 }
 
 /**
@@ -140,33 +128,108 @@ function resolveEffectiveBubbleSurface(settings: AppearanceSettings, mode: 'ligh
 }
 
 /**
- * Per-mode ink color for the user-message bubble when accent auto-inversion
- * is enabled; `null` for a mode where it is off (the bubble keeps the normal
- * text color).
+ * Per-mode fallback ink color for user-message bubbles when the effective text
+ * color would lack readable contrast (`< 3.5:1`) over the effective bubble
+ * surface; `null` when the existing text color is already legible.
  *
  * The bubble stylesheet is `color: var(--dsw-alias-label-primary)` and there
  * is no bubble-specific foreground token, so this cannot be fixed through the
  * theme override layer alone (that variable is global). The applier instead
- * scopes `--dsw-alias-label-primary` on the bubble subtree with this value;
- * CSS custom properties inherit through the bubble DOM, so markdown and
- * other descendants referencing the token pick up the contrasting ink too.
+ * scopes `--dsw-alias-label-primary` on the bubble subtree with this value
+ * only when needed; CSS custom properties inherit through the bubble DOM, so
+ * markdown and other descendants referencing the token pick up the
+ * contrasting ink too.
  * @param settings - current appearance settings.
- * @returns per-mode ink hex, or null when inversion is off for that mode.
+ * @returns per-mode ink hex, or null when the bubble text is already readable.
  */
 export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
   const textRole = resolveRolePair(settings, 'text')
+  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
   const inkFor = (mode: 'light' | 'dark'): string | null => {
-    if (!settings[mode]?.invert?.accent) return null
     const surf = resolveEffectiveBubbleSurface(settings, mode)
     const userText = textRole[mode]
-    if (isHexColor(userText) && contrastRatio(userText, surf) >= 3.5) {
-      return userText
+    const effectiveText = isHexColor(userText)
+      ? userText
+      : (hasMedia && settings.imageDark ? '#fafaf9' : (mode === 'light' ? '#0f1115' : '#fafaf9'))
+    if (contrastRatio(effectiveText, surf) >= 3.5) {
+      return null
     }
     return onInk(surf)
   }
   return {
     light: inkFor('light'),
     dark: inkFor('dark'),
+  }
+}
+
+/**
+ * Per-mode contrasting foreground ink for a customized `accent` color; `null`
+ * for a mode whose accent is left at the host stock value.
+ * @param settings - current appearance settings.
+ * @returns per-mode ink hex, or null when the mode uses the stock accent.
+ */
+export function accentOnInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
+  const accentRole = resolveRolePair(settings, 'accent')
+  return {
+    light: isHexColor(accentRole.light) ? onInk(accentRole.light) : null,
+    dark: isHexColor(accentRole.dark) ? onInk(accentRole.dark) : null,
+  }
+}
+
+/** Per-mode translucent composer button fill/hover values. */
+export interface ComposerButtonModeColors {
+  primaryFill: string
+  primaryHover: string
+  infoFill: string
+  infoHover: string
+}
+
+/** Scoped composer button colors, armed only when `inputAlpha < 1`. */
+export interface ComposerButtonColors {
+  active: boolean
+  light: ComposerButtonModeColors
+  dark: ComposerButtonModeColors
+}
+
+/**
+ * Compute per-mode `inputAlpha`-baked button tokens scoped to the composer
+ * card so lowering `inputAlpha` softens the send/stop buttons without turning
+ * global `--dsw-alias-button-info-fill` text consumers (such as
+ * `QuestionComposer` "推荐" badges or `DirectoryBrowser` icons) invisible.
+ * @param settings - current appearance settings.
+ * @returns active flag plus per-mode rgba fill and hover pairs.
+ */
+export function composerButtonColors(settings: AppearanceSettings): ComposerButtonColors {
+  const alpha = typeof settings.inputAlpha === 'number' && Number.isFinite(settings.inputAlpha)
+    ? Math.min(1, Math.max(0, settings.inputAlpha))
+    : 1
+  const accentRole = resolveRolePair(settings, 'accent')
+
+  const forMode = (mode: 'light' | 'dark'): ComposerButtonModeColors => {
+    const raw = accentRole[mode]
+    const hasCustom = isHexColor(raw)
+    const mixBase = mode === 'light' ? LIGHT_BASE : DARK_BASE
+    const primaryBase = hasCustom ? raw : (mode === 'light' ? STOCK_BRAND_LIGHT : STOCK_BRAND_DARK)
+    const primaryHoverBase = hasCustom
+      ? mixHex(raw, mixBase, 0.22)
+      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'][mode]
+    const infoBase = hasCustom ? raw : (mode === 'light' ? STOCK_INFO_LIGHT : STOCK_INFO_DARK)
+    const infoHoverBase = hasCustom
+      ? mixHex(raw, mixBase, 0.15)
+      : DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'][mode]
+
+    return {
+      primaryFill: withAlpha(primaryBase, alpha),
+      primaryHover: withAlpha(primaryHoverBase, alpha),
+      infoFill: withAlpha(infoBase, alpha),
+      infoHover: withAlpha(infoHoverBase, alpha),
+    }
+  }
+
+  return {
+    active: alpha < 1,
+    light: forMode('light'),
+    dark: forMode('dark'),
   }
 }
 
@@ -291,12 +354,12 @@ const DEFAULT_SURFACE_COLORS: Record<string, { light: string; dark: string }> = 
   '--dsw-alias-button-elevated-fill': { light: '#ffffff', dark: '#43454a' }, // bluish-00 / bluish-750
   '--dsw-alias-button-floating-fill': { light: '#ffffff', dark: '#2c2c2e' }, // bluish-00 / bluish-850
   '--dsw-alias-button-floating-hover': { light: '#f1f3f5', dark: '#353638' }, // bluish-75 / bluish-800
-  '--dsw-alias-button-primary-fill': { light: '#4176e6', dark: '#679efe' }, // deepseek-500 / deepseek-400
-  '--dsw-alias-button-info-fill': { light: '#4176e6', dark: '#679efe' }, // send + stop ride the accent hue
+  '--dsw-alias-button-primary-fill': { light: STOCK_BRAND_LIGHT, dark: STOCK_BRAND_DARK }, // bluish-1000 / bluish-50
+  '--dsw-alias-button-info-fill': { light: STOCK_INFO_LIGHT, dark: STOCK_INFO_DARK }, // deepseek-500 / deepseek-400
   // Hover states of those buttons (stock design-platform.css values). The
   // translucent pass bakes them with the input alpha so hovering never
   // snaps a translucent button back to solid.
-  '--dsw-alias-button-info-hover': { light: '#679efe', dark: '#4176e6' }, // deepseek-400 / deepseek-500
+  '--dsw-alias-button-info-hover': { light: STOCK_INFO_DARK, dark: STOCK_INFO_LIGHT }, // deepseek-400 / deepseek-500
   '--dsw-alias-button-primary-hover': { light: '#43454a', dark: '#ebeef2' }, // bluish-750 / bluish-100
 }
 
@@ -349,27 +412,28 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const accentRole = getRole('accent')
   const hasAccentL = accentRole.light !== ''
   const hasAccentD = accentRole.dark !== ''
-  const lightAccent = hasAccentL ? accentRole.light : '#4176e6'
-  const darkAccent = hasAccentD ? accentRole.dark : '#4176e6'
+  const lightAccent = hasAccentL ? accentRole.light : STOCK_BRAND_LIGHT
+  const darkAccent = hasAccentD ? accentRole.dark : STOCK_BRAND_DARK
+  const lightInfoHover = hasAccentL ? mixHex(accentRole.light, LIGHT_BASE, 0.15) : undefined
+  const darkInfoHover = hasAccentD ? mixHex(accentRole.dark, DARK_BASE, 0.15) : undefined
+  const lightPrimaryHover = hasAccentL ? mixHex(accentRole.light, LIGHT_BASE, 0.22) : undefined
+  const darkPrimaryHover = hasAccentD ? mixHex(accentRole.dark, DARK_BASE, 0.22) : undefined
 
-  // Accent tokens: emit brand and state tokens
-  emit('--dsw-alias-brand-primary', lightAccent, darkAccent)
-  emit('--dsw-alias-state-business-primary', lightAccent, darkAccent)
-  emit('--dsw-alias-button-info-fill', lightAccent, darkAccent)
+  // Accent tokens: emit brand, state, and button tokens only when at least one
+  // mode customizes accent; untouched modes retain stock host colors so default
+  // themes leave DSH's monochrome brand-primary & foreground pair intact.
+  if (hasAccentL || hasAccentD) {
+    emit('--dsw-alias-brand-primary', lightAccent, darkAccent)
+    const infoL = hasAccentL ? accentRole.light : STOCK_INFO_LIGHT
+    const infoD = hasAccentD ? accentRole.dark : STOCK_INFO_DARK
+    emit('--dsw-alias-state-business-primary', infoL, infoD)
+    emit('--dsw-alias-button-info-fill', infoL, infoD)
 
-  const lightInfoHover = hasAccentL ? mixHex(lightAccent, LIGHT_BASE, 0.15) : undefined
-  const darkInfoHover = hasAccentD ? mixHex(darkAccent, DARK_BASE, 0.15) : undefined
-  if (lightInfoHover !== undefined || darkInfoHover !== undefined) {
     emit(
       '--dsw-alias-button-info-hover',
       lightInfoHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].light,
       darkInfoHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-info-hover'].dark,
     )
-  }
-
-  const lightPrimaryHover = hasAccentL ? mixHex(lightAccent, LIGHT_BASE, 0.22) : undefined
-  const darkPrimaryHover = hasAccentD ? mixHex(darkAccent, DARK_BASE, 0.22) : undefined
-  if (lightPrimaryHover !== undefined || darkPrimaryHover !== undefined) {
     emit(
       '--dsw-alias-button-primary-hover',
       lightPrimaryHover ?? DEFAULT_SURFACE_COLORS['--dsw-alias-button-primary-hover'].light,
@@ -446,96 +510,34 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   const surfL = panel.light !== '' ? panel.light : '#ffffff'
   const surfD = panel.dark !== '' ? panel.dark : '#151517'
 
-  // Per-mode invert flags. `invert.accent` makes the foreground text painted
-  // on accent surfaces (bubble, selection, accent buttons) auto-contrast with
-  // the accent color instead of the text role.
-  const invL = settings.light?.invert ?? {}
-  const invD = settings.dark?.invert ?? {}
-  const accentInkL = invL.accent ? onInk(lightAccent) : onInk(textL)
-  const accentInkD = invD.accent ? onInk(darkAccent) : onInk(textD)
+  if (textSet) {
+    emit('--dsw-alias-label-primary', textL, textD)
 
-  if (textSet || invL.accent || invD.accent) {
-    if (textSet) {
-      emit('--dsw-alias-label-primary', textL, textD)
+    const secL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.38) : '#61666b'
+    const secD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.16) : '#d6d3d1'
+    emit('--dsw-alias-label-secondary', secL, secD)
 
-      const secL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.38) : '#61666b'
-      const secD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.16) : '#d6d3d1'
-      emit('--dsw-alias-label-secondary', secL, secD)
+    const terL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
+    const terD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
+    emit('--dsw-alias-label-tertiary', terL, terD)
 
-      const terL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
-      const terD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
-      emit('--dsw-alias-label-tertiary', terL, terD)
+    const capL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
+    const capD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
+    emit('--dsw-alias-label-caption', capL, capD)
 
-      const capL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 4.5, 0.58) : '#9ea3a8'
-      const capD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 4.5, 0.53) : '#808285'
-      emit('--dsw-alias-label-caption', capL, capD)
+    const menuL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.18) : a11yLabelStep('#0f1115', LIGHT_BASE, surfL, 7, 0.18)
+    const menuD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.18) : a11yLabelStep('#fafaf9', DARK_BASE, surfD, 7, 0.18)
+    emit('--dsw-alias-menu-icon', menuL, menuD)
 
-      const menuL = text.light !== '' ? a11yLabelStep(text.light, LIGHT_BASE, surfL, 7, 0.18) : a11yLabelStep('#0f1115', LIGHT_BASE, surfL, 7, 0.18)
-      const menuD = text.dark !== '' ? a11yLabelStep(text.dark, DARK_BASE, surfD, 7, 0.18) : a11yLabelStep('#fafaf9', DARK_BASE, surfD, 7, 0.18)
-      emit('--dsw-alias-menu-icon', menuL, menuD)
-    }
-    // `--dsw-alias-label-primary-inverted` paints letters ON a `label-primary`
-    // surface (sidebar "harness" badge, `[data-tone='solid']` pills), so it
-    // pairs with `textL` / `textD`. `--dsw-alias-label-primary-foreground`
-    // paints letters ON a `brand-primary` (accent) surface (accent buttons,
-    // `.invertToggleOn`, `.activeBadge`), so it pairs with the accent when
-    // `invert.accent` is on, and with the text role otherwise.
-    emit('--dsw-alias-label-primary-inverted', onInk(textL), onInk(textD))
-    emit('--dsw-alias-label-primary-foreground', accentInkL, accentInkD)
-  }
-
-  // Background auto-inversion: turning on inversion for the background role
-  // makes the global text color contrast with that surface. This is an
-  // explicit user override — it wins over the text role (a dark background
-  // with stock light text would be unreadable), so there is no `!textSet`
-  // gate. Per-mode independent so a dark-mode invert doesn't leak into light.
-  // Only background is invertible here: panel/input are sub-surfaces and a
-  // single label token cannot express per-sub-surface ink.
-  const inkL = invL.background && bg.light !== '' ? onInk(bg.light) : ''
-  const inkD = invD.background && bg.dark !== '' ? onInk(bg.dark) : ''
-  if (inkL !== '' || inkD !== '') {
-    const prevPrimary = tokens['--dsw-alias-label-primary']
-    const prevInk = tokens['--dsw-alias-label-primary-inverted']
-    const prevFg = tokens['--dsw-alias-label-primary-foreground']
-    const labelL = inkL !== '' ? inkL : (prevPrimary?.light ?? '#0f1115')
-    const labelD = inkD !== '' ? inkD : (prevPrimary?.dark ?? '#fafaf9')
-    emit('--dsw-alias-label-primary', labelL, labelD)
-    // Re-derive `-inverted` together with the flipped `label-primary` so the
-    // sidebar "harness" badge and `[data-tone='solid']` pills stay readable.
-    // Keep `-foreground` paired with the accent whenever `invert.accent` is on,
-    // so flipping the app background never breaks contrast on accent surfaces.
-    const invInkL = inkL !== '' ? onInk(labelL) : (prevInk?.light ?? LIGHT_INK)
-    const invInkD = inkD !== '' ? onInk(labelD) : (prevInk?.dark ?? DARK_INK)
-    const fgInkL = invL.accent ? accentInkL : (inkL !== '' ? onInk(labelL) : (prevFg?.light ?? LIGHT_INK))
-    const fgInkD = invD.accent ? accentInkD : (inkD !== '' ? onInk(labelD) : (prevFg?.dark ?? DARK_INK))
-    emit('--dsw-alias-label-primary-inverted', invInkL, invInkD)
-    emit('--dsw-alias-label-primary-foreground', fgInkL, fgInkD)
-
-    // Re-derive secondary, tertiary, caption and menu-icon tokens so sub-labels remain legible
-    // and meet WCAG contrast when background inversion flips label-primary.
-    const invSurfL = inkL !== '' ? bg.light : surfL
-    const invSurfD = inkD !== '' ? bg.dark : surfD
-
-    emit(
-      '--dsw-alias-label-secondary',
-      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 7, 0.38, 0.16) : (tokens['--dsw-alias-label-secondary']?.light ?? deriveStepForLabel(labelL, invSurfL, 7, 0.38, 0.16)),
-      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 7, 0.38, 0.16) : (tokens['--dsw-alias-label-secondary']?.dark ?? deriveStepForLabel(labelD, invSurfD, 7, 0.38, 0.16)),
-    )
-    emit(
-      '--dsw-alias-label-tertiary',
-      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-tertiary']?.light ?? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53)),
-      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-tertiary']?.dark ?? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53)),
-    )
-    emit(
-      '--dsw-alias-label-caption',
-      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-caption']?.light ?? deriveStepForLabel(labelL, invSurfL, 4.5, 0.58, 0.53)),
-      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53) : (tokens['--dsw-alias-label-caption']?.dark ?? deriveStepForLabel(labelD, invSurfD, 4.5, 0.58, 0.53)),
-    )
-    emit(
-      '--dsw-alias-menu-icon',
-      inkL !== '' ? deriveStepForLabel(labelL, invSurfL, 7, 0.18, 0.18) : (tokens['--dsw-alias-menu-icon']?.light ?? deriveStepForLabel(labelL, invSurfL, 7, 0.18, 0.18)),
-      inkD !== '' ? deriveStepForLabel(labelD, invSurfD, 7, 0.18, 0.18) : (tokens['--dsw-alias-menu-icon']?.dark ?? deriveStepForLabel(labelD, invSurfD, 7, 0.18, 0.18)),
-    )
+    // Both `--dsw-alias-label-primary-inverted` and `-foreground` pair with
+    // `label-primary` (`textL` / `textD`), never with `accent`: neutral
+    // components such as QuestionComposer's checked checkbox paint their fill
+    // with `label-primary` and their icon with `label-primary-foreground`.
+    // Accent-filled controls rebind `-foreground` locally in the applier sheet.
+    const inkL = onInk(textL)
+    const inkD = onInk(textD)
+    emit('--dsw-alias-label-primary-inverted', inkL, inkD)
+    emit('--dsw-alias-label-primary-foreground', inkL, inkD)
   }
 
   const border = getRole('border')
@@ -678,24 +680,27 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       }
 
       if (text.light === '' && fl !== undefined) {
-        const fgL = invL.accent ? accentInkL : DARK_INK
         emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
         emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-tertiary', '#808285', tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
         emit('--dsw-alias-label-caption', '#808285', tokens['--dsw-alias-label-caption']?.dark ?? '#808285')
         emit('--dsw-alias-menu-icon', '#d6d3d1', tokens['--dsw-alias-menu-icon']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', DARK_INK, tokens['--dsw-alias-label-primary-inverted']?.dark ?? DARK_INK)
-        emit('--dsw-alias-label-primary-foreground', fgL, tokens['--dsw-alias-label-primary-foreground']?.dark ?? (invD.accent ? accentInkD : DARK_INK))
+        emit('--dsw-alias-label-primary-foreground', DARK_INK, tokens['--dsw-alias-label-primary-foreground']?.dark ?? DARK_INK)
+        emit('--dsw-alias-button-contrast-fill', '#fafaf9', tokens['--dsw-alias-button-contrast-fill']?.dark ?? '#f9fafb')
+        if (!hasAccentL) {
+          emit('--dsw-alias-button-info-fill', STOCK_INFO_DARK, hasAccentD ? accentRole.dark : STOCK_INFO_DARK)
+        }
       }
       if (text.dark === '' && fd !== undefined) {
-        const fgD = invD.accent ? accentInkD : DARK_INK
         emit('--dsw-alias-label-primary', tokens['--dsw-alias-label-primary']?.light ?? '#0f1115', '#fafaf9')
         emit('--dsw-alias-label-secondary', tokens['--dsw-alias-label-secondary']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-tertiary', tokens['--dsw-alias-label-tertiary']?.light ?? '#9ea3a8', '#808285')
         emit('--dsw-alias-label-caption', tokens['--dsw-alias-label-caption']?.light ?? '#9ea3a8', '#808285')
         emit('--dsw-alias-menu-icon', tokens['--dsw-alias-menu-icon']?.light ?? '#61666b', '#d6d3d1')
         emit('--dsw-alias-label-primary-inverted', tokens['--dsw-alias-label-primary-inverted']?.light ?? LIGHT_INK, DARK_INK)
-        emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? (invL.accent ? accentInkL : LIGHT_INK), fgD)
+        emit('--dsw-alias-label-primary-foreground', tokens['--dsw-alias-label-primary-foreground']?.light ?? LIGHT_INK, DARK_INK)
+        emit('--dsw-alias-button-contrast-fill', tokens['--dsw-alias-button-contrast-fill']?.light ?? '#61666b', '#fafaf9')
       }
 
       const btnElev = getVal(flipButtonElevated, '--dsw-alias-button-elevated-fill')
@@ -713,6 +718,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       emit('--dsw-alias-button-ghost-active-fill', btnElev[0], btnElev[1])
       emit('--dsw-alias-button-ghost-active-hover', btnHover[0], btnHover[1])
       emit('--dsw-alias-markdown-tag', btnFloat[0], btnFloat[1])
+      emit('--dsw-specific-sidebar-nav-item-active-accent', btnHover[0], btnHover[1])
     }
   }
 
@@ -760,10 +766,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit(token, bake(baseL), bake(baseD))
   }
 
-  const bakeAccent = (token: string, a: number): void => {
-    emit(token, withAlpha(lightAccent, a), withAlpha(darkAccent, a))
-  }
-
   bakeAlpha('--dsw-specific-input-major', input.light, input.dark, flipInput[0], flipInput[1], inputAlpha)
   if (inputAlpha < 1) {
     bakeAlpha('--dsw-specific-login-input', undefined, undefined, flipInput[0], flipInput[1], inputAlpha)
@@ -777,8 +779,8 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     bakeAlpha('--dsw-alias-markdown-placeholder', undefined, undefined, flipLayer2[0], flipLayer2[1], codeAlpha)
   }
 
-  const inlineCodeBaseL = hasAccentL ? lightAccent : '#4176e6'
-  const inlineCodeBaseD = hasAccentD ? darkAccent : '#679efe'
+  const inlineCodeBaseL = hasAccentL ? accentRole.light : '#4176e6'
+  const inlineCodeBaseD = hasAccentD ? accentRole.dark : '#679efe'
   emit('--dsw-alias-markdown-inline-code', withAlpha(inlineCodeBaseL, emphasisAlpha), withAlpha(inlineCodeBaseD, emphasisAlpha))
 
   if (effectiveSidebarAlpha < 1) {
@@ -881,20 +883,6 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
 
   if (surfaceAlpha < 1 || inputAlpha < 1) {
-    bakeAccent('--dsw-alias-button-primary-fill', inputAlpha)
-    bakeAccent('--dsw-alias-button-info-fill', inputAlpha)
-
-    const bakeInputHover = (token: string, derivedLight?: string, derivedDark?: string): void => {
-      const stock = DEFAULT_SURFACE_COLORS[token]
-      const l = derivedLight ?? stock?.light
-      const d = derivedDark ?? stock?.dark
-      if (l !== undefined && d !== undefined) {
-        emit(token, withAlpha(l, inputAlpha), withAlpha(d, inputAlpha))
-      }
-    }
-    bakeInputHover('--dsw-alias-button-info-hover', lightInfoHover, darkInfoHover)
-    bakeInputHover('--dsw-alias-button-primary-hover', lightPrimaryHover, darkPrimaryHover)
-
     const plusBaseL = controlButtonFill?.[0] ?? flipButtonFloating[0]
     const plusBaseD = controlButtonFill?.[1] ?? flipButtonFloating[1]
     if (plusBaseL !== undefined || plusBaseD !== undefined) {

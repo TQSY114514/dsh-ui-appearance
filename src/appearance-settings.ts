@@ -34,31 +34,6 @@ export const APPEARANCE_ROLES = [
 /** One customizable color role id. */
 export type AppearanceRole = typeof APPEARANCE_ROLES[number]
 
-/**
- * Surface roles whose foreground text can be auto-inverted to guarantee
- * contrast. Only roles that have a well-defined "whole surface" scope are
- * invertible:
- * - `accent`: inverts the text inside the accent-painted bubble (the original
- *   readability pain point) via the scoped bubble ink token.
- * - `background`: inverts the global text color against the app background.
- * `panel` / `input` were dropped: they are sub-surfaces, and a single global
- * label token cannot express per-sub-surface ink without hijacking the text
- * on every other surface (cross-surface regressions). Foreground roles
- * (`text`, `border`) have nothing painted "on top" of them, so inversion is
- * meaningless there.
- */
-export const INVERTIBLE_ROLES = ['accent', 'background'] as const
-
-/** One role eligible for foreground auto-inversion. */
-export type InvertibleRole = typeof INVERTIBLE_ROLES[number]
-
-/** Default per-role invert flags: accent on (the bubble readability pain
- * point), background off (rely on the color scheme's stock contrast). */
-export const DEFAULT_INVERT: Record<InvertibleRole, boolean> = {
-  accent: true,
-  background: false,
-}
-
 /** Hex color fields, keyed by role. */
 export type AppearanceColors = Record<AppearanceRole, string>
 
@@ -69,8 +44,6 @@ export type ThemeMode = 'light' | 'dark'
 export interface ModeThemeSettings extends AppearanceColors {
   /** Last applied preset id for this mode, or 'custom' / '' after manual edits. */
   preset: string
-  /** Per-role foreground auto-inversion flags (only invertible roles present). */
-  invert: Record<InvertibleRole, boolean>
 }
 
 /** Stock mode settings. */
@@ -82,7 +55,6 @@ export const DEFAULT_MODE_THEME: ModeThemeSettings = {
   text: '',
   border: '',
   preset: '',
-  invert: { ...DEFAULT_INVERT },
 }
 
 export const DEFAULT_LIGHT_THEME: ModeThemeSettings = { ...DEFAULT_MODE_THEME }
@@ -133,11 +105,9 @@ export interface AppearanceSettings extends AppearanceColors {
   preset: string
 }
 
-/** The section with every color role left stock and every effect off.
- * The accent defaults to the harness brand blue so a fresh install reads
- * as the stock theme — buttons, links and chips all ride that blue. */
+/** The section with every color role left stock and every effect off. */
 export const DEFAULT_SETTINGS: AppearanceSettings = {
-  accent: '#4176e6',
+  accent: '',
   background: '',
   panel: '',
   input: '',
@@ -203,13 +173,10 @@ function isDarkHex(hex: string): boolean {
 /** Sanitize one mode's theme settings object. */
 export function sanitizeModeTheme(raw: unknown, fallback: ModeThemeSettings = DEFAULT_MODE_THEME): ModeThemeSettings {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { ...fallback, invert: { ...fallback.invert } }
+    return { ...fallback }
   }
   const source = raw as Record<string, unknown>
-  const result: ModeThemeSettings = {
-    ...fallback,
-    invert: { ...fallback.invert },
-  }
+  const result: ModeThemeSettings = { ...fallback }
   for (const role of APPEARANCE_ROLES) {
     const value = source[role]
     if (typeof value === 'string' && (value === '' || /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(value))) {
@@ -217,17 +184,6 @@ export function sanitizeModeTheme(raw: unknown, fallback: ModeThemeSettings = DE
     }
   }
   if (typeof source.preset === 'string') result.preset = source.preset
-  // Per-role invert flags: coerce 0/1 legacy writes to booleans, keep the
-  // fallback default for any role absent or malformed in the source.
-  if (typeof source.invert === 'object' && source.invert !== null && !Array.isArray(source.invert)) {
-    const inv = source.invert as Record<string, unknown>
-    for (const role of INVERTIBLE_ROLES) {
-      const v = inv[role]
-      if (typeof v === 'boolean') result.invert[role] = v
-      else if (v === 0) result.invert[role] = false
-      else if (v === 1) result.invert[role] = true
-    }
-  }
   return result
 }
 
@@ -277,7 +233,6 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
       text: result.text,
       border: result.border,
       preset: result.preset,
-      invert: { ...DEFAULT_INVERT },
     }
     if (isDark) {
       result.dark = { ...legacyTheme }
@@ -304,6 +259,19 @@ export function sanitizeSettings(raw: unknown): AppearanceSettings {
   }
   if (source.preset === undefined) {
     result.preset = hasDualSource ? '' : (result.dark.preset || result.light.preset)
+  }
+  // Clear legacy default accent mirror from pre-0.1.30 default settings so
+  // upgraded default-theme users recover stock host brand & foreground tokens.
+  if (
+    hasDualSource
+    && result.light.accent === ''
+    && result.dark.accent === ''
+    && result.accent === '#4176e6'
+    && ['', 'default', 'custom'].includes(result.preset)
+    && ['', 'default', 'custom'].includes(result.light.preset)
+    && ['', 'default', 'custom'].includes(result.dark.preset)
+  ) {
+    result.accent = ''
   }
 
   const strings: Array<keyof AppearanceSettings> = ['backgroundImage', 'backgroundVideo']

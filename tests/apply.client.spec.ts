@@ -91,7 +91,7 @@ describe('apply write path (localStorage)', () => {
     face.set('accent', '#4176e6')
     face.resetAll()
     expect(storedSettings()).toEqual({ ...DEFAULT_SETTINGS, preset: 'default' })
-    expect(store.getSnapshot().settings.accent).toBe('#4176e6')
+    expect(store.getSnapshot().settings.accent).toBe('')
   })
 
   it('resetMode clears the active mode colors and marks its preset default', () => {

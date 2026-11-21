@@ -10,7 +10,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type { AppearanceSettings } from '../appearance-settings.ts'
 import { DEFAULT_SETTINGS } from '../appearance-settings.ts'
-import { buildTokenOverrides, bubbleInk, onInk, OVERRIDE_SOURCE, selectionColors } from './tokens.ts'
+import { accentOnInk, buildTokenOverrides, bubbleInk, composerButtonColors, onInk, OVERRIDE_SOURCE, selectionColors } from './tokens.ts'
 import { mixHex, withAlpha } from './color.ts'
 import { getImage } from './image-store.ts'
 import { getVideo } from './video-store.ts'
@@ -41,6 +41,16 @@ const BODY_VARIABLES = [
   '--dsw-appearance-bubble-ink-dark',
   '--dsw-appearance-bubble-ink-fg-light',
   '--dsw-appearance-bubble-ink-fg-dark',
+  '--dsw-appearance-accent-ink-light',
+  '--dsw-appearance-accent-ink-dark',
+  '--dsw-appearance-composer-primary-fill-light',
+  '--dsw-appearance-composer-primary-hover-light',
+  '--dsw-appearance-composer-info-fill-light',
+  '--dsw-appearance-composer-info-hover-light',
+  '--dsw-appearance-composer-primary-fill-dark',
+  '--dsw-appearance-composer-primary-hover-dark',
+  '--dsw-appearance-composer-info-fill-dark',
+  '--dsw-appearance-composer-info-hover-dark',
   '--dsw-appearance-modal-l1-light',
   '--dsw-appearance-modal-l1-dark',
   '--dsw-appearance-modal-l2-light',
@@ -203,8 +213,8 @@ html:not([data-windows-titlebar]):is([data-dsw-has-bg], [data-dsw-translucent-su
   background: var(--dsw-appearance-selection-bg-light, var(--dsw-alias-brand-primary));
   color: var(--dsw-appearance-selection-fg-light, var(--dsw-alias-label-primary-foreground));
 }
-#root :is([class*="_bubble"], [class*="bubble" i])::selection,
-#root :is([class*="_bubble"], [class*="bubble" i]) ::selection {
+#root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal])::selection,
+#root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) ::selection {
   background: var(--dsw-appearance-bubble-selection-bg-light, var(--dsw-alias-brand-primary));
   color: var(--dsw-appearance-bubble-selection-fg-light, var(--dsw-alias-label-primary-foreground));
 }
@@ -212,8 +222,8 @@ html:not([data-windows-titlebar]):is([data-dsw-has-bg], [data-dsw-translucent-su
   background: var(--dsw-appearance-selection-bg-dark, var(--dsw-alias-brand-primary));
   color: var(--dsw-appearance-selection-fg-dark, var(--dsw-alias-label-primary-foreground));
 }
-:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i])::selection,
-:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) ::selection {
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal])::selection,
+:is(html[data-ds-dark-theme], html[data-theme="dark"], body[data-ds-dark-theme], body[data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) ::selection {
   background: var(--dsw-appearance-bubble-selection-bg-dark, var(--dsw-alias-brand-primary));
   color: var(--dsw-appearance-bubble-selection-fg-dark, var(--dsw-alias-label-primary-foreground));
 }
@@ -231,41 +241,33 @@ body:has(input[type="color"]:active) *,
 body[data-dsw-sliding] * {
   transition-duration: 0s !important;
 }
-/* Accent auto-inversion: the user bubble paints its background with
-   --dsw-specific-bubble (= accent) but its text with the GLOBAL
-   --dsw-alias-label-primary (there is no bubble foreground token), so a dark
-   accent + dark text is unreadable. Scope the text variable to the bubble
-   subtree only — CSS custom properties inherit through its DOM, so markdown
-   and links referencing the token follow too — and gate it on a body
-   attribute the applier sets per mode, so turning the toggle off / disabling
-   the plugin restores the stock color exactly. The hashed class prefix
-   (Sixlwa_) changes across host builds; the stable local name is 'bubble'. */
-/* User-message bubble legibility (Issue #27): the user bubble background is
-   painted with --dsw-specific-bubble (= accent), while inline file/skill/session
-   reference chips (.refChip in user-text.module.css) use
-   color: var(--dsw-alias-state-business-primary) (= also accent). Without
-   scoping, accent text on an accent bubble has a 1:1 contrast ratio and
-   becomes invisible regardless of whether accent auto-inversion is on.
-   Pointing the business/brand foreground tokens at --dsw-alias-label-primary
-   inside the bubble ensures reference chips always inherit the bubble's
-   readable foreground ink (either the user's text role or the auto-inverted
-   bubble ink below), while a subtle translucent pill + underline preserves
-   chip distinction. */
-#root [class*="_bubble"],
-#root [class*="bubble" i] {
+/* Bubble contrast fallback: user-message bubbles paint their background with
+   --dsw-specific-bubble and their text with the global --dsw-alias-label-primary
+   (there is no bubble foreground token). When the bubble text color lacks
+   readable contrast (< 3.5:1) against the effective bubble surface, scope
+   --dsw-alias-label-primary to the bubble subtree only — CSS custom
+   properties inherit through its DOM, so markdown and links referencing the
+   token follow too. Excludes tooltip bubbles ([data-side], [data-portal])
+   which use --dsw-alias-tooltip-bg / --dsw-alias-tooltip-label. */
+/* User-message bubble legibility (Issue #27): inside user bubbles, inline
+   file/skill/session reference chips (.refChip in user-text.module.css) use
+   color: var(--dsw-alias-state-business-primary). Pointing the business/brand
+   foreground tokens at --dsw-alias-label-primary inside the bubble ensures
+   reference chips always inherit the bubble's readable foreground ink, while a
+   subtle translucent pill + underline preserves chip distinction. */
+#root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) {
   --dsw-alias-state-business-primary: var(--dsw-alias-label-primary);
   --dsw-alias-brand-primary: var(--dsw-alias-label-primary);
   --dsw-alias-label-primary-foreground: var(--dsw-alias-label-primary-inverted);
 }
-#root [class*="_bubble"] [class*="refChip"],
-#root [class*="bubble" i] [class*="refChip"] {
+#root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) [class*="refChip"] {
   background: color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
   padding: 1px 6px;
   border-radius: 6px;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) {
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-light);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-light);
@@ -273,14 +275,12 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-alias-label-primary-inverted: var(--dsw-appearance-bubble-ink-fg-light);
   --dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-light);
 }
-html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]) a {
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) a {
   color: inherit;
   text-decoration: underline;
 }
-:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"],
-:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i],
-:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="_bubble"],
-:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root [class*="bubble" i] {
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]),
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) {
   --dsw-alias-label-primary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-label-secondary: var(--dsw-appearance-bubble-ink-dark);
   --dsw-alias-state-business-primary: var(--dsw-appearance-bubble-ink-dark);
@@ -288,11 +288,42 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-bubble-ink
   --dsw-alias-label-primary-inverted: var(--dsw-appearance-bubble-ink-fg-dark);
   --dsw-alias-label-primary-foreground: var(--dsw-appearance-bubble-ink-fg-dark);
 }
-:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="_bubble"] a,
-:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root [class*="bubble" i] a,
-:is(body[data-dsw-bubble-ink-dark], html[data-ds-dark-theme] body[data-dsw-bubble-ink-dark], html[data-theme="dark"] body[data-dsw-bubble-ink-dark]) #root [class*="bubble" i] a {
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-bubble-ink-dark] #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) a,
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-bubble-ink-dark] #root :is([class*="_bubble"], [class*="bubble" i]):not([data-side]):not([data-portal]) a {
   color: inherit;
   text-decoration: underline;
+}
+/* Scoped on-accent foreground ink: when the user customizes accent, rebind
+   --dsw-alias-label-primary-foreground ONLY on controls whose background is
+   --dsw-alias-brand-primary / --dsw-alias-button-primary-fill (primary buttons,
+   active feedback chips, checked switches, onboarding checkboxes, and
+   explicit accent badges), covering both #root and body-level portals while
+   leaving neutral label-primary consumers (QuestionComposer checkboxes,
+   step indicators, danger buttons) paired with global text. */
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink-light]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is(
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  a[class*="_primary"],
+  [role="switch"][aria-checked="true"],
+  input:checked + [class*="_indicator"],
+  [data-dsw-accent-surface]
+) {
+  --dsw-alias-label-primary-foreground: var(--dsw-appearance-accent-ink-light);
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-accent-ink-dark] :is(
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  a[class*="_primary"],
+  [role="switch"][aria-checked="true"],
+  input:checked + [class*="_indicator"],
+  [data-dsw-accent-surface]
+),
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-accent-ink-dark] :is(
+  button:is([class*="_primary"]:not([class*="danger" i]), [class*="_chipActive"]),
+  a[class*="_primary"],
+  [role="switch"][aria-checked="true"],
+  input:checked + [class*="_indicator"],
+  [data-dsw-accent-surface]
+) {
+  --dsw-alias-label-primary-foreground: var(--dsw-appearance-accent-ink-dark);
 }
 /* Solid tags legibility (Issue: Agent Presets "新任务默认"):
    DSH's stock Tag component pairs background: var(--dsw-alias-label-primary)
@@ -497,9 +528,26 @@ body[data-dsw-translucent-sidebar] #root :is([class*="_sidebarCol"], [class*="si
 :where(#root, body) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) > [data-composer-overlay] {
   z-index: 2;
 }
+/* Translucent composer buttons: scope inputAlpha button fills & hovers strictly
+   to the composer card so global --dsw-alias-button-info-fill (used as text
+   color on QuestionComposer "推荐" badges & DirectoryBrowser selected icons) and
+   global --dsw-alias-button-primary-fill (dialog submit buttons) remain opaque. */
+html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-translucent-input]:not([data-ds-dark-theme]):not([data-theme="dark"]) :is([data-composer-card], [class*="_card"]:has([class*="_input"])) {
+  --dsw-alias-button-primary-fill: var(--dsw-appearance-composer-primary-fill-light);
+  --dsw-alias-button-primary-hover: var(--dsw-appearance-composer-primary-hover-light);
+  --dsw-alias-button-info-fill: var(--dsw-appearance-composer-info-fill-light);
+  --dsw-alias-button-info-hover: var(--dsw-appearance-composer-info-hover-light);
+}
+:is(html[data-ds-dark-theme], html[data-theme="dark"]) body[data-dsw-translucent-input] :is([data-composer-card], [class*="_card"]:has([class*="_input"])),
+:is(body[data-ds-dark-theme], body[data-theme="dark"])[data-dsw-translucent-input] :is([data-composer-card], [class*="_card"]:has([class*="_input"])) {
+  --dsw-alias-button-primary-fill: var(--dsw-appearance-composer-primary-fill-dark);
+  --dsw-alias-button-primary-hover: var(--dsw-appearance-composer-primary-hover-dark);
+  --dsw-alias-button-info-fill: var(--dsw-appearance-composer-info-fill-dark);
+  --dsw-alias-button-info-hover: var(--dsw-appearance-composer-info-hover-dark);
+}
 :where(#root, body) :is(
   [class*="_fileCard"],
-  [class*="_bubble"],
+  [class*="_bubble"]:not([data-side]):not([data-portal]),
   [data-code-block]
 ) {
   backdrop-filter: var(--dsw-appearance-glass-filter, none);
@@ -695,12 +743,18 @@ export class AppearanceApplier {
     body.style.setProperty('--dsw-appearance-bubble-selection-bg-dark', sel.bubble.dark.bg)
     body.style.setProperty('--dsw-appearance-bubble-selection-fg-dark', sel.bubble.dark.fg)
 
-    // Accent auto-inversion: scope the bubble text token to a contrast ink.
+    // Bubble contrast fallback: scope the bubble text token when needed.
     // The stylesheet rules only match while the per-mode gate attribute is
-    // present, so a null ink (toggle off) retracts the override entirely.
+    // present, so a null ink leaves the bubble text untouched.
     const ink = bubbleInk(value)
     this.applyBubbleInk('light', ink.light)
     this.applyBubbleInk('dark', ink.dark)
+    // Scoped on-accent foreground ink for controls whose background is accent.
+    const accentInk = accentOnInk(value)
+    this.applyAccentInk('light', accentInk.light)
+    this.applyAccentInk('dark', accentInk.dark)
+    // Scoped translucent composer button tokens when inputAlpha < 1.
+    this.applyComposerButtons(value)
     // A background video (IndexedDB record key) replaces the image layer;
     // loading is async and only re-runs when the key changes.
     void this.syncVideo(value.backgroundVideo)
@@ -726,6 +780,52 @@ export class AppearanceApplier {
       body.setAttribute(attr, '')
       body.style.setProperty(variable, hex)
       body.style.setProperty(fgVariable, onInk(hex))
+    }
+  }
+
+  /**
+   * Set or retract the per-mode foreground ink used on accent-filled controls.
+   * @param mode - theme mode the accent ink is computed for.
+   * @param hex - contrasting ink color, or null when the mode uses the stock accent.
+   */
+  private applyAccentInk(mode: 'light' | 'dark', hex: string | null): void {
+    const body = document.body
+    const attr = `data-dsw-accent-ink-${mode}`
+    const variable = `--dsw-appearance-accent-ink-${mode}`
+    if (hex === null) {
+      body.removeAttribute(attr)
+      body.style.removeProperty(variable)
+    } else {
+      body.setAttribute(attr, '')
+      body.style.setProperty(variable, hex)
+    }
+  }
+
+  /**
+   * Scope translucent button tokens to the composer card when `inputAlpha < 1`,
+   * retracting them cleanly at full opacity.
+   * @param settings - current appearance settings.
+   */
+  private applyComposerButtons(settings: AppearanceSettings): void {
+    const body = document.body
+    const btns = composerButtonColors(settings)
+    if (!btns.active) {
+      body.removeAttribute('data-dsw-translucent-input')
+      for (const mode of ['light', 'dark'] as const) {
+        body.style.removeProperty(`--dsw-appearance-composer-primary-fill-${mode}`)
+        body.style.removeProperty(`--dsw-appearance-composer-primary-hover-${mode}`)
+        body.style.removeProperty(`--dsw-appearance-composer-info-fill-${mode}`)
+        body.style.removeProperty(`--dsw-appearance-composer-info-hover-${mode}`)
+      }
+      return
+    }
+    body.setAttribute('data-dsw-translucent-input', '')
+    for (const mode of ['light', 'dark'] as const) {
+      const m = btns[mode]
+      body.style.setProperty(`--dsw-appearance-composer-primary-fill-${mode}`, m.primaryFill)
+      body.style.setProperty(`--dsw-appearance-composer-primary-hover-${mode}`, m.primaryHover)
+      body.style.setProperty(`--dsw-appearance-composer-info-fill-${mode}`, m.infoFill)
+      body.style.setProperty(`--dsw-appearance-composer-info-hover-${mode}`, m.infoHover)
     }
   }
 
@@ -874,6 +974,9 @@ export class AppearanceApplier {
     body.style.removeProperty('--dsw-menu-backdrop-filter')
     body.removeAttribute('data-dsw-bubble-ink-light')
     body.removeAttribute('data-dsw-bubble-ink-dark')
+    body.removeAttribute('data-dsw-accent-ink-light')
+    body.removeAttribute('data-dsw-accent-ink-dark')
+    body.removeAttribute('data-dsw-translucent-input')
     body.removeAttribute('data-dsw-translucent-sidebar')
     body.removeAttribute('data-dsw-sliding')
     // Compositor anchor cleanup: remove the html attribute so the host's natural

@@ -145,4 +145,45 @@ describe('sanitizeSettings', () => {
     expect(sanitized.dark.text).toBe('')
     expect(sanitized.text).toBe('')
   })
+
+  it('strips legacy invert flags and clears stale default #4176e6 top-level mirror in dual-mode default configs', () => {
+    const legacyDefault = sanitizeSettings({
+      accent: '#4176e6',
+      preset: 'default',
+      light: { accent: '', preset: 'default', invert: { accent: true, background: true } },
+      dark: { accent: '', preset: '', invert: { accent: false, background: true } },
+    })
+    expect(legacyDefault.accent).toBe('')
+    expect('invert' in legacyDefault.light).toBe(false)
+    expect('invert' in legacyDefault.dark).toBe(false)
+
+    // Genuinely customized #4176e6 inside a mode or non-default preset stays intact.
+    const explicitModeAccent = sanitizeSettings({
+      accent: '#4176e6',
+      preset: 'custom',
+      light: { accent: '#4176e6', preset: 'custom' },
+      dark: { accent: '', preset: '' },
+    })
+    expect(explicitModeAccent.light.accent).toBe('#4176e6')
+    expect(explicitModeAccent.accent).toBe('#4176e6')
+
+    const customTopAccent = sanitizeSettings({
+      accent: '#ff00aa',
+      preset: '',
+      light: { accent: '', preset: '' },
+      dark: { accent: '', preset: '' },
+    })
+    expect(customTopAccent.accent).toBe('#ff00aa')
+
+    // Upgraded dual-mode custom preset where another role was edited (e.g. panel)
+    // while both modes kept accent unset must also drop the legacy #4176e6 residue.
+    const legacyCustomOtherRole = sanitizeSettings({
+      accent: '#4176e6',
+      preset: 'custom',
+      light: { accent: '', preset: '' },
+      dark: { accent: '', panel: '#203040', preset: 'custom' },
+    })
+    expect(legacyCustomOtherRole.accent).toBe('')
+    expect(legacyCustomOtherRole.dark.panel).toBe('#203040')
+  })
 })
