@@ -27,8 +27,14 @@ const FORBIDDEN_PREFIXES = ['src/', 'tests/', 'scripts/', '.github/']
 const raw = execSync('npm pack --dry-run --json --ignore-scripts', {
   cwd: rootDir,
   encoding: 'utf8',
+  env: { ...process.env, npm_config_ignore_scripts: 'true' },
 })
-const packResult = JSON.parse(raw)
+// npm 10 (bundled with Node 22) may still run `prepare` under --dry-run and emit
+// build banners before the JSON array; slice from the array start so parsing works
+// consistently across both npm 10 and npm 11.
+const jsonStart = raw.search(/^\s*\[\s*\{/m)
+assert(jsonStart !== -1, `Could not locate npm pack JSON payload in stdout:\n${raw}`)
+const packResult = JSON.parse(raw.slice(jsonStart))
 assert(Array.isArray(packResult) && packResult.length > 0, 'npm pack returned no metadata')
 
 const filePaths = packResult[0].files.map((entry) => entry.path.replaceAll('\\', '/'))
