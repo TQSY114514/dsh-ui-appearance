@@ -2,6 +2,22 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.31] - 2026-11-21
+
+### Fixed
+
+- **暗色壁纸浅色翻黑（`imageDark`）下主按钮与半透明发送按钮黑底黑字修复（[#55](https://github.com/TQSY114514/dsh-ui-appearance/pull/55)）**：
+  - 在浅色模式启用暗色壁纸（`imageDark: true`）且未自定义强调色与文字色时，同步将 `--dsw-alias-brand-primary`、按钮悬停 token 与 `composerButtonColors` 翻转为暗色主题的亮底阶梯（`#f9fafb` / `#7aaaff`），匹配翻转后的深色前景色 `#0f1115`；
+  - 自定义浅色强调色时悬停混色仍保持与全局一致。
+- **高亮度自定义强调色下信息按钮前景对比度补全与代码清理（[#55](https://github.com/TQSY114514/dsh-ui-appearance/pull/55)）**：
+  - 在 `applier.ts` 的 `data-dsw-accent-ink-{light,dark}` 局部作用域补入 `button[class*="_info"]`（继续排除 `<span>`「推荐」标签）；
+  - 移除 `AppearanceCustomizerRow.tsx` 未使用的 `APPEARANCE_PRESETS` 导入并将纯函数 `detectHostDark` 提到模块作用域，清理 `src/client/index.ts` 中冗余的 `applyPending` 状态。
+
+### Chore
+
+- **补齐 CI 防线与 PR 门禁（[#55](https://github.com/TQSY114514/dsh-ui-appearance/pull/55)）**：
+  - 新增 Biome 静态检查（`pnpm lint`）、发包产物与导出面校验（`pnpm verify:pack`）、基于 Playwright Headless Chromium 的 8 项 CSS 级联与 WCAG 对比度回归测试（`pnpm test:browser`）及 PR 依赖安全审计（`dependency-review`），并完善 `AGENTS.md` 中的 PR-first 协作规范。
+
 ## [0.1.30] - 2026-11-21
 
 ### Fixed
