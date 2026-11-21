@@ -2,6 +2,25 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.30] - 2026-11-21
+
+### Fixed
+
+- **默认主题下选项卡片复选框勾选图标变白看不清，以及全局前景色与强调色耦合问题**：
+  - 将 `DEFAULT_SETTINGS.accent` 改为 `''`，默认主题未自定义强调色时完整保留 DSH 宿主原色（`--dsw-alias-brand-primary` / `--dsw-alias-button-info-fill`）；
+  - 全局 `--dsw-alias-label-primary-foreground` 严格跟随 `--dsw-alias-label-primary`（文字色），不再被强调色劫持，仅通过 `accentOnInk` + `data-dsw-accent-ink-{light,dark}` 在强调色实底控件（主按钮、激活 Chip、开关、复选框指示器与插件激活徽章）局部注入对比文字色。
+- **输入框半透明/全透明下选项卡片「推荐」标签文字与目录图标隐形问题**：
+  - 保持全局 `--dsw-alias-button-info-fill` / `--dsw-alias-button-primary-fill` 及其悬停 token 不透明（供 `.badge` 文本色与 `DirectoryBrowser` `.rowIconSelected` 图标使用），新增 `composerButtonColors` + `data-dsw-translucent-input` 将 `inputAlpha` 烘焙的按钮半透明严格限定在输入框卡片（`[data-composer-card]` / `[class*="_card"]:has([class*="_input"])`）内；
+  - 在暗色壁纸浅色翻黑（`imageDark`）时同步翻转 `--dsw-specific-sidebar-nav-item-active-accent`、`--dsw-alias-button-contrast-fill` 与未自定义强调色时的 `--dsw-alias-button-info-fill`。
+- **用户气泡对比度按需兜底与 Tooltip 误伤隔离**：
+  - 保留 `bubbleInk` 对比度 `< 3.5:1` 时的自动文字兜底，并在所有气泡选择器中排除 DSH Tooltip（`:not([data-side]):not([data-portal])`）。
+
+### Removed
+
+- **移除废弃的色反（`invert`）遗留逻辑并平滑迁移旧配置**：
+  - 移除 `ModeThemeSettings.invert`、`INVERTIBLE_ROLES`、`setModeInvert` 及未使用的样式/文案；
+  - `sanitizeSettings` 自动忽略旧配置残留的 `invert` 字段，并自动清理 v0.1.29 及以前默认写入且双模式均未自定义强调色时的历史遗留顶层 `accent: '#4176e6'`。
+
 ## [0.1.29] - 2026-11-20
 
 ### Fixed
