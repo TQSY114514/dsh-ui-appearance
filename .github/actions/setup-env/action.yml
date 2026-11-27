@@ -1,0 +1,13 @@
+name: Setup Node and pnpm
+description: Install pnpm, Node 22, and frozen workspace dependencies without triggering prepare builds.
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22
+        cache: pnpm
+    - name: Install dependencies (frozen lockfile, skip prepare)
+      shell: bash
+      run: pnpm install --frozen-lockfile --ignore-scripts

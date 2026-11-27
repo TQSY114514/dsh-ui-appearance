@@ -73,7 +73,7 @@
     "test": "vitest run",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "typecheck": "tsc --noEmit",
-    "verify:pack": "node scripts/verify-pack.mjs"
+    "verify:pack": "unrun scripts/verify-pack.ts"
   },
   "dependencies": {
     "clsx": "^2.0.0"

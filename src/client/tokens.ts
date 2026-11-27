@@ -191,6 +191,14 @@ export interface ComposerButtonColors {
   dark: ComposerButtonModeColors
 }
 
+function hasBackgroundMedia(settings: AppearanceSettings): boolean {
+  return settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+}
+
+function isLightInkFlippedToDark(settings: AppearanceSettings): boolean {
+  return hasBackgroundMedia(settings) && settings.imageDark && resolveRolePair(settings, 'text').light === ''
+}
+
 /**
  * Compute per-mode `inputAlpha`-baked button tokens scoped to the composer
  * card so lowering `inputAlpha` softens the send/stop buttons without turning
@@ -204,9 +212,7 @@ export function composerButtonColors(settings: AppearanceSettings): ComposerButt
     ? Math.min(1, Math.max(0, settings.inputAlpha))
     : 1
   const accentRole = resolveRolePair(settings, 'accent')
-  const hasBackgroundMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
-  const textRole = resolveRolePair(settings, 'text')
-  const flipLight = hasBackgroundMedia && settings.imageDark && textRole.light === ''
+  const flipLight = isLightInkFlippedToDark(settings)
 
   const forMode = (mode: 'light' | 'dark'): ComposerButtonModeColors => {
     const raw = accentRole[mode]
@@ -382,7 +388,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   }
 
   const {
-    backgroundImage, backgroundVideo, imageDark, surfaceAlpha, inputAlpha, codeAlpha,
+    imageDark, surfaceAlpha, inputAlpha, codeAlpha,
     sidebarAlpha, popoverAlpha, sidebarOpaque, emphasisAlpha,
   } = settings
 
@@ -397,7 +403,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
   // The wallpaper and the background video share one layer (#dsw-appearance-bg,
   // `position: fixed; z-index: -1`), so both need the frame's own background
   // token punched out to transparent, or that layer stays hidden under it.
-  const hasBackgroundMedia = backgroundImage !== '' || backgroundVideo !== ''
+  const hasBgMedia = hasBackgroundMedia(settings)
 
   const getRole = (role: AppearanceRole): { light: string; dark: string } => {
     const l = settings.light?.[role] || ''
@@ -585,12 +591,12 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
     emit('--dsw-alias-markdown-tag', controlNavActive[0], controlNavActive[1])
   }
 
-  if (hasBackgroundMedia) {
+  if (hasBgMedia) {
     emit('--dsw-alias-bg-base', 'transparent', 'transparent')
   }
 
-  const flipBaseLight = hasBackgroundMedia ? (imageDark ? '#151517' : undefined) : undefined
-  const flipBaseDark = hasBackgroundMedia ? (imageDark ? '#151517' : undefined) : undefined
+  const flipBaseLight = hasBgMedia ? (imageDark ? '#151517' : undefined) : undefined
+  const flipBaseDark = hasBgMedia ? (imageDark ? '#151517' : undefined) : undefined
 
   let flipLayer1: [string | undefined, string | undefined] = [undefined, undefined]
   let flipLayer2: [string | undefined, string | undefined] = [undefined, undefined]
@@ -683,7 +689,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
         emit('--dsw-specific-login-input', tokens['--dsw-specific-login-input']?.light ?? DEFAULT_SURFACE_COLORS['--dsw-specific-input-major'].light, fd.input)
       }
 
-      if (text.light === '' && fl !== undefined) {
+      if (isLightInkFlippedToDark(settings)) {
         emit('--dsw-alias-label-primary', '#fafaf9', tokens['--dsw-alias-label-primary']?.dark ?? '#fafaf9')
         emit('--dsw-alias-label-secondary', '#d6d3d1', tokens['--dsw-alias-label-secondary']?.dark ?? '#d6d3d1')
         emit('--dsw-alias-label-tertiary', '#808285', tokens['--dsw-alias-label-tertiary']?.dark ?? '#808285')
@@ -844,7 +850,7 @@ export function buildTokenOverrides(settings: AppearanceSettings): ThemeTokenOve
       bakeAlpha(token, explicitLight, explicitDark, flipL, flipD, alpha)
     }
 
-    translucent('--dsw-alias-bg-base', hasBackgroundMedia ? 'transparent' : bg.light, hasBackgroundMedia ? 'transparent' : bg.dark, undefined, undefined)
+    translucent('--dsw-alias-bg-base', hasBgMedia ? 'transparent' : bg.light, hasBgMedia ? 'transparent' : bg.dark, undefined, undefined)
     translucent('--dsw-alias-bg-layer-1', panel.light, panel.dark, flipLayer1[0], flipLayer1[1])
     translucent(
       '--dsw-alias-bg-layer-2',
