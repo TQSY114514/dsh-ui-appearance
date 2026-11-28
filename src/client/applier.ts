@@ -356,7 +356,7 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink
    semantic --dsw-alias-bg-base / --dsw-alias-bg-layer-2 tokens so the context
    panel lets the wallpaper show through and follows surfaceAlpha / imageDark,
    while leaving stock opaque mode untouched. */
-html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) body:not([data-ds-dark-theme]) {
+html:is([data-dsw-has-bg], [data-dsw-translucent-surface]):not([data-ds-dark-theme]):not([data-theme="dark"]) body:not([data-ds-dark-theme]):not([data-theme="dark"]) {
   --lc-canvas: var(--dsw-alias-bg-base);
   --lc-control-track: var(--dsw-alias-bg-layer-2);
 }
