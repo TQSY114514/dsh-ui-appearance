@@ -902,5 +902,16 @@ describe('AppearanceApplier', () => {
       applier.dispose()
     }
   })
+
+  it('remaps dsh-context light-mode static canvas tokens when wallpaper or translucent surfaces are active', () => {
+    const { ctx } = fakeCtx()
+    const applier = new AppearanceApplier(ctx)
+    const css = document.getElementById(STYLE_ID)?.textContent ?? ''
+
+    expect(css).toContain('html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) body:not([data-ds-dark-theme])')
+    expect(css).toContain('--lc-canvas: var(--dsw-alias-bg-base);')
+    expect(css).toContain('--lc-control-track: var(--dsw-alias-bg-layer-2);')
+    applier.dispose()
+  })
 })
 

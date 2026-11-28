@@ -348,6 +348,18 @@ html:not([data-ds-dark-theme]):not([data-theme="dark"]) body[data-dsw-accent-ink
   --deliverable-fill: var(--dsw-alias-bg-module-platform) !important;
   --deliverable-hover: var(--dsw-alias-interactive-bg-hover-solid) !important;
 }
+/* dsh-context (>= 0.82.1) light-mode canvas & control-track compatibility:
+   dsh-context paints .lc-root / .lc-ov-page with --lc-canvas and pill switches
+   with --lc-control-track, binding both in light mode to the static opaque
+   neutral --dsw-static-neutral-bluish-75 on body:not([data-ds-dark-theme]).
+   When background media or translucent surfaces are active, remap them to the
+   semantic --dsw-alias-bg-base / --dsw-alias-bg-layer-2 tokens so the context
+   panel lets the wallpaper show through and follows surfaceAlpha / imageDark,
+   while leaving stock opaque mode untouched. */
+html:is([data-dsw-has-bg], [data-dsw-translucent-surface]) body:not([data-ds-dark-theme]) {
+  --lc-canvas: var(--dsw-alias-bg-base);
+  --lc-control-track: var(--dsw-alias-bg-layer-2);
+}
 /* Menu & popover surfaces (MenuSurface, slash command menu, jobs panel, permission presets, avatar menu):
    DSH MenuSurface sets background: var(--dsw-menu-surface-fill) and
    backdrop-filter: var(--dsw-menu-backdrop-filter). Guarantee that menu surfaces
