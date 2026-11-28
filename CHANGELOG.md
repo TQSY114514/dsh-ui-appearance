@@ -2,6 +2,21 @@
 
 本插件的版本演进记录。格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/),版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.32] - 2026-11-28
+
+### Fixed
+
+- **兼容 `dsh-context >= 0.82.1` 浅色模式静态画布背景遮挡壁纸问题（[#57](https://github.com/TQSY114514/dsh-ui-appearance/pull/57)）**：
+  - `dsh-context >= 0.82.1` 在浅色模式对 `body:not([data-ds-dark-theme])` 注入静态不透明中性色 `--lc-canvas` / `--lc-control-track: var(--dsw-static-neutral-bluish-75)`，导致开启壁纸或半透明时上下文侧边栏与概览页画布呈实心灰白块；
+  - 在 `applier.ts` 中通过双层浅色门控（`html:is([data-dsw-has-bg], [data-dsw-translucent-surface]):not([data-ds-dark-theme]):not([data-theme="dark"]) body:not([data-ds-dark-theme]):not([data-theme="dark"])`），仅在启用壁纸或 `surfaceAlpha < 1` 时将 `--lc-canvas` 映回 `var(--dsw-alias-bg-base)`、将 `--lc-control-track` 映回 `var(--dsw-alias-bg-layer-2)`，保留无壁纸不透明原貌与 `imageDark` 浅色翻黑一致性，且卸载可逆。
+
+### Chore
+
+- **测试与 CI 基础设施精简加固（[#56](https://github.com/TQSY114514/dsh-ui-appearance/pull/56)）**：
+  - 将 `scripts/verify-pack` 迁回 TypeScript（`unrun scripts/verify-pack.ts`），移除 `.mjs` 脚本，并升级 `lib/client.js` 校验为 `vm.createContext` 沙箱执行（校验体积上限、`lib/client.js.map`、external 白名单与必选 external 及实际导出）；
+  - 重写 `tests/browser/css-regression.browser.spec.ts`，移除 jsdom 中转层，用 Rolldown 内存打包并在 Playwright Chromium 中直接运行真实 `AppearanceApplier`（新增 `dispose()` 清理还原及 `dsh-context` 回归测试，共 10 项）；
+  - 抽取 `.github/actions/setup-env` 组合动作（`--frozen-lockfile --ignore-scripts`）与 Playwright Chromium 缓存，抽离 `tokens.ts` 的 `hasBackgroundMedia()` / `isLightInkFlippedToDark()` 共享判定。
+
 ## [0.1.31] - 2026-11-21
 
 ### Fixed
