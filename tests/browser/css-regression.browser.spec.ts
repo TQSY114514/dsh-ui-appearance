@@ -33,6 +33,7 @@ const STOCK_HOST_CSS = `
   --dsw-specific-input-major: #ffffff;
   --dsw-alias-tooltip-bg: #151517;
   --dsw-alias-tooltip-label: #fafaf9;
+  --dsw-static-neutral-bluish-75: #f2f4f7;
 }
 html[data-ds-dark-theme] {
   --dsw-alias-bg-base: #151517;
@@ -50,6 +51,22 @@ html[data-ds-dark-theme] {
   --dsw-specific-sidebar-nav-item-active-accent: #2c2c2e;
   --dsw-specific-bubble: #2c2c2e;
   --dsw-specific-input-major: #2c2c2e;
+}
+body {
+  --lc-control-track: var(--dsw-alias-bg-layer-2);
+}
+body:not([data-ds-dark-theme]) {
+  --lc-canvas: var(--dsw-static-neutral-bluish-75);
+  --lc-control-track: var(--dsw-static-neutral-bluish-75);
+}
+.lc-root {
+  background: var(--lc-canvas, transparent);
+}
+.lc-card {
+  background: var(--dsw-alias-bg-layer-1);
+}
+.lc-gran {
+  background: var(--lc-control-track);
 }
 .qc_checkboxChecked {
   background-color: var(--dsw-alias-label-primary);
@@ -112,6 +129,10 @@ const FIXTURE_HTML = `<!doctype html>
           <button type="button" class="btn_primary global_primary">确定</button>
           <button type="button" class="btn_info global_info">信息</button>
           <div class="chat_bubble">User message</div>
+          <div class="lc-root">
+            <div class="lc-gran">步骤</div>
+            <div class="lc-card">Context</div>
+          </div>
           <div data-composer-card class="cc_card">
             <div data-composer-overlay class="cc_overlay">Slash</div>
             <textarea class="cc_input"></textarea>
@@ -486,5 +507,70 @@ describe('Chromium CSS & contrast regressions', () => {
     expect(parseRgba(globalPrimary.backgroundColor)).toEqual({ r: 249, g: 250, b: 251, a: 1 })
     expect(parseRgba(globalPrimary.color)).toEqual({ r: 15, g: 17, b: 21, a: 1 })
     expect(parseRgba(card.backgroundColor)).toEqual({ r: 44, g: 44, b: 46, a: 1 })
+  })
+
+  it('10. dsh-context light-mode canvas becomes transparent over wallpaper and translucent under surfaceAlpha while staying stock in opaque and dark modes', async () => {
+    const renderVisibleContext = async (settings: AppearanceSettings, mode: 'light' | 'dark'): Promise<void> => {
+      await renderFixture(page, applierBundleCode, settings, mode)
+      await page.evaluate(() => {
+        document.querySelector('.shell_frame')?.removeAttribute('data-rightbar-fullscreen')
+      })
+    }
+
+    // 1. Opaque mode without wallpaper keeps stock dsh-context light canvas (#f2f4f7)
+    await renderVisibleContext(full(), 'light')
+    const stockRoot = await readStyles(page, '.lc-root')
+    expect(stockRoot.visibility).toBe('visible')
+    expect(stockRoot.opacity).toBe('1')
+    expect(parseRgba(stockRoot.backgroundColor)).toEqual({ r: 242, g: 244, b: 247, a: 1 })
+
+    // 2. Wallpaper + surfaceAlpha 0.5 makes visible .lc-root transparent and .lc-card translucent
+    await renderVisibleContext(
+      full({ backgroundImage: 'data:image/webp;base64,AAAA', surfaceAlpha: 0.5 }),
+      'light',
+    )
+    const bgRoot = await readStyles(page, '.lc-root')
+    const bgCard = await readStyles(page, '.lc-card')
+    expect(bgRoot.visibility).toBe('visible')
+    expect(bgRoot.opacity).toBe('1')
+    expect(parseRgba(bgRoot.backgroundColor)).toEqual({ r: 0, g: 0, b: 0, a: 0 })
+    expect(parseRgba(bgCard.backgroundColor)).toEqual({ r: 255, g: 255, b: 255, a: 0.5 })
+
+    // 3. No wallpaper + surfaceAlpha 0.4 makes visible .lc-root follow surfaceAlpha
+    await renderVisibleContext(full({ surfaceAlpha: 0.4 }), 'light')
+    const alphaRoot = await readStyles(page, '.lc-root')
+    expect(alphaRoot.visibility).toBe('visible')
+    expect(alphaRoot.opacity).toBe('1')
+    expect(parseRgba(alphaRoot.backgroundColor)).toEqual({ r: 255, g: 255, b: 255, a: 0.4 })
+
+    // 4. Dark wallpaper (imageDark) in light mode keeps .lc-root transparent and flips .lc-gran control track dark
+    await renderVisibleContext(
+      full({ backgroundImage: 'data:image/webp;base64,AAAA', imageDark: true }),
+      'light',
+    )
+    const flippedRoot = await readStyles(page, '.lc-root')
+    const flippedTrack = await readStyles(page, '.lc-gran')
+    expect(flippedRoot.visibility).toBe('visible')
+    expect(flippedRoot.opacity).toBe('1')
+    expect(parseRgba(flippedRoot.backgroundColor)).toEqual({ r: 0, g: 0, b: 0, a: 0 })
+    expect(relativeLuminance(toHex(parseRgba(flippedTrack.backgroundColor)))).toBeLessThan(0.15)
+
+    // 5. Dark mode (body + html data-ds-dark-theme) with surfaceAlpha 0.4 keeps .lc-root transparent
+    await renderVisibleContext(full({ surfaceAlpha: 0.4 }), 'dark')
+    await page.evaluate(() => {
+      document.body.setAttribute('data-ds-dark-theme', '')
+    })
+    const darkRoot = await readStyles(page, '.lc-root')
+    const darkTrack = await readStyles(page, '.lc-gran')
+    expect(darkRoot.visibility).toBe('visible')
+    expect(darkRoot.opacity).toBe('1')
+    expect(parseRgba(darkRoot.backgroundColor)).toEqual({ r: 0, g: 0, b: 0, a: 0 })
+    expect(parseRgba(darkTrack.backgroundColor)).toEqual({ r: 44, g: 44, b: 46, a: 0.4 })
+
+    // 6. Dark mode marked only on <html> (CodeRabbit case) never triggers the light-mode override
+    await renderVisibleContext(full({ surfaceAlpha: 0.4 }), 'dark')
+    await page.addStyleTag({ content: 'html[data-ds-dark-theme] body { --lc-canvas: #1c1c1e; }' })
+    const htmlDarkRoot = await readStyles(page, '.lc-root')
+    expect(parseRgba(htmlDarkRoot.backgroundColor)).toEqual({ r: 28, g: 28, b: 30, a: 1 })
   })
 })
