@@ -25,7 +25,11 @@ const REQUIRED_FILES = [
 const FORBIDDEN_PREFIXES = ['src/', 'tests/', 'scripts/', '.github/'] as const
 
 const MAX_CLIENT_BYTES = 512 * 1024
+const MAX_CLIENT_MAP_BYTES = 1024 * 1024
 
+// Mirrors CLIENT_EXTERNALS in tsdown.standalone.config.ts (dsh.client.inject entries
+// like -locale, -ui-settings, and -ui-theme are type-only and rejected as value
+// imports by the purity gate).
 const ALLOWED_CLIENT_EXTERNALS = new Set([
   'react',
   'react/jsx-runtime',
@@ -60,9 +64,11 @@ interface ModuleLoaderEntry {
 }
 
 function runPnpmPackDryRun(): string {
+  const userAgent = process.env.npm_config_user_agent ?? ''
   const pnpmExec = process.env.npm_execpath
   const packArgs = ['--config.ignore-scripts=true', 'pack', '--dry-run', '--json']
-  if (pnpmExec && /\.(c|m)?js$/i.test(pnpmExec)) {
+  const isPnpm = userAgent.startsWith('pnpm/') || /pnpm/i.test(pnpmExec ?? '')
+  if (isPnpm && pnpmExec && /\.(c|m)?js$/i.test(pnpmExec)) {
     return execFileSync(process.execPath, [pnpmExec, ...packArgs], {
       cwd: rootDir,
       encoding: 'utf8',
@@ -121,6 +127,12 @@ assert(clientBuffer.byteLength > 0, 'lib/client.js must not be empty')
 assert(
   clientBuffer.byteLength < MAX_CLIENT_BYTES,
   `lib/client.js is unexpectedly large (${clientBuffer.byteLength} bytes >= ${MAX_CLIENT_BYTES}); check externalization`,
+)
+const clientMapBuffer = readFileSync(resolve(rootDir, 'lib/client.js.map'))
+assert(clientMapBuffer.byteLength > 0, 'lib/client.js.map must not be empty')
+assert(
+  clientMapBuffer.byteLength < MAX_CLIENT_MAP_BYTES,
+  `lib/client.js.map is unexpectedly large (${clientMapBuffer.byteLength} bytes >= ${MAX_CLIENT_MAP_BYTES})`,
 )
 const clientCode = clientBuffer.toString('utf8')
 
@@ -193,7 +205,8 @@ assert(
   'lib/client.js must export non-empty STORAGE_KEY',
 )
 
-const clientKb = (clientBuffer.byteLength / 1024).toFixed(1)
+const clientKb = (clientBuffer.byteLength / 1000).toFixed(1)
+const clientMapKb = (clientMapBuffer.byteLength / 1000).toFixed(1)
 console.log(
-  `verify-pack: OK (${filePaths.length} tarball files, ESM [apply, DEFAULT_SETTINGS, invariant], client.js ${clientKb} kB / ${requestedExternals.size} externals / exports [apply, inject, SETTINGS_NS, STORAGE_KEY])`,
+  `verify-pack: OK (${filePaths.length} tarball files, ESM [apply, DEFAULT_SETTINGS, invariant], client.js ${clientKb} kB, map ${clientMapKb} kB / ${requestedExternals.size} externals / exports [apply, inject, SETTINGS_NS, STORAGE_KEY])`,
 )

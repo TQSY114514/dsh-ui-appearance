@@ -5,8 +5,9 @@
  * host DOM, asserting computed styles, WCAG contrast, and clean `dispose()`.
  */
 import { chromium, type Browser, type Page } from 'playwright-core'
+// Relies on tsdown re-exporting its bundled `rolldown` dependency so no extra devDependency is needed.
 import { Rolldown } from 'tsdown'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { DEFAULT_DARK_THEME, DEFAULT_SETTINGS, type AppearanceSettings } from '../../src/appearance-settings.ts'
 import { BG_LAYER_ID, STYLE_ID } from '../../src/client/applier.ts'
 import { contrastRatio, formatHex, relativeLuminance } from '../../src/client/color.ts'
@@ -178,9 +179,13 @@ function toHex(color: RgbaColor): string {
   })
 }
 
+const applierUrl = new URL('../../src/client/applier.ts', import.meta.url)
+const decodedApplierPath = decodeURIComponent(applierUrl.pathname)
+const APPLIER_ENTRY = /^\/[A-Za-z]:\//.test(decodedApplierPath) ? decodedApplierPath.slice(1) : decodedApplierPath
+
 async function bundleApplierForBrowser(): Promise<string> {
   const bundle = await Rolldown.rolldown({
-    input: 'src/client/applier.ts',
+    input: APPLIER_ENTRY,
     platform: 'browser',
   })
   try {
@@ -188,7 +193,11 @@ async function bundleApplierForBrowser(): Promise<string> {
       format: 'iife',
       name: '__AppearanceApplierBundle__',
     })
-    return out.output[0].code
+    const chunk = out.output.find((entry) => entry.type === 'chunk')
+    if (chunk === undefined || chunk.type !== 'chunk') {
+      throw new Error('Rolldown produced no output chunk for src/client/applier.ts')
+    }
+    return chunk.code
   } finally {
     await bundle.close()
   }
@@ -208,12 +217,14 @@ async function renderFixture(
       if (themeMode === 'dark') {
         document.documentElement.setAttribute('data-ds-dark-theme', '')
       }
+      let overrideGen = 0
       const hostCtx = {
         theme: {
           overrideTokens(
             _source: string,
             overrides: Record<string, { light: string; dark: string }>,
           ): () => void {
+            const gen = ++overrideGen
             const entries = Object.entries(overrides)
             if (entries.length === 0) {
               document.getElementById(hostOverridesId)?.remove()
@@ -233,7 +244,9 @@ async function renderFixture(
             }
             style.textContent = `:root {\n${lightDecls.join('\n')}\n}\nhtml[data-ds-dark-theme] {\n${darkDecls.join('\n')}\n}`
             return () => {
-              document.getElementById(hostOverridesId)?.remove()
+              if (overrideGen === gen) {
+                document.getElementById(hostOverridesId)?.remove()
+              }
             }
           },
         },
@@ -247,6 +260,7 @@ async function renderFixture(
     },
     { nextSettings: settings, themeMode: mode, hostOverridesId: HOST_OVERRIDES_STYLE_ID },
   )
+  await page.evaluate(() => new Promise<void>((resolve) => { requestAnimationFrame(() => resolve()) }))
 }
 
 async function readStyles(page: Page, selector: string, pseudo?: string) {
@@ -272,11 +286,24 @@ describe('Chromium CSS & contrast regressions', () => {
   let browser: Browser
   let page: Page
   let applierBundleCode: string
+  const pageErrors: string[] = []
 
   beforeAll(async () => {
     applierBundleCode = await bundleApplierForBrowser()
     browser = await chromium.launch({ headless: true })
     page = await browser.newPage()
+    page.on('pageerror', (err) => { pageErrors.push(err.message) })
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') pageErrors.push(msg.text())
+    })
+  })
+
+  afterEach(() => {
+    try {
+      expect(pageErrors).toEqual([])
+    } finally {
+      pageErrors.length = 0
+    }
   })
 
   afterAll(async () => {

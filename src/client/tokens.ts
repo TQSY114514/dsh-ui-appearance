@@ -105,7 +105,7 @@ function resolveRolePair(settings: AppearanceSettings, role: AppearanceRole): { 
 function resolveEffectiveBubbleSurface(settings: AppearanceSettings, mode: 'light' | 'dark'): string {
   const panelRole = resolveRolePair(settings, 'panel')
   const bgRole = resolveRolePair(settings, 'background')
-  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+  const hasMedia = hasBackgroundMedia(settings)
   const alpha = typeof settings.surfaceAlpha === 'number'
     ? Math.min(1, Math.max(0, settings.surfaceAlpha))
     : 1
@@ -144,7 +144,7 @@ function resolveEffectiveBubbleSurface(settings: AppearanceSettings, mode: 'ligh
  */
 export function bubbleInk(settings: AppearanceSettings): { light: string | null; dark: string | null } {
   const textRole = resolveRolePair(settings, 'text')
-  const hasMedia = settings.backgroundImage !== '' || settings.backgroundVideo !== ''
+  const hasMedia = hasBackgroundMedia(settings)
   const inkFor = (mode: 'light' | 'dark'): string | null => {
     const surf = resolveEffectiveBubbleSurface(settings, mode)
     const userText = textRole[mode]

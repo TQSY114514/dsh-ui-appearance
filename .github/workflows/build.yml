@@ -46,19 +46,12 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./node_modules/playwright-core/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright Chromium
-        id: pw-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
       - name: Install Playwright Chromium
-        shell: bash
-        run: |
-          if [ "${{ steps.pw-cache.outputs.cache-hit }}" = "true" ]; then
-            pnpm exec playwright-core install-deps chromium
-          else
-            pnpm exec playwright-core install --with-deps chromium
-          fi
+        run: pnpm exec playwright-core install --with-deps chromium
       - name: Run Chromium CSS & contrast regression tests
         run: pnpm test:browser
 
